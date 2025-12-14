@@ -3,7 +3,7 @@
 // =============================================================================
 // 파일: frontend/src/app/signup/page.tsx
 // 역할: 사용자 회원가입 페이지
-// 기능: 이메일/비밀번호 회원가입, 비밀번호 확인, 로그인 링크
+// 기능: 이메일/비밀번호 회원가입, Google OAuth, 로그인 링크
 // =============================================================================
 
 'use client'
@@ -12,6 +12,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { GoogleIcon } from '@/components/icons'
 
 export default function SignupPage() {
   // =============================================================================
@@ -23,8 +24,34 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
 
   const router = useRouter()
+  const supabase = createClient()
+
+  // =============================================================================
+  // Google OAuth 회원가입/로그인 처리
+  // =============================================================================
+  const handleGoogleSignup = async () => {
+    setError(null)
+    setGoogleLoading(true)
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+      if (error) {
+        setError('Google 회원가입 중 오류가 발생했습니다.')
+        console.error('Google OAuth 오류:', error)
+      }
+    } catch (err) {
+      setError('Google 회원가입 중 오류가 발생했습니다.')
+    } finally {
+      setGoogleLoading(false)
+    }
+  }
 
   // =============================================================================
   // 비밀번호 강도 계산
@@ -69,7 +96,6 @@ export default function SignupPage() {
     }
 
     try {
-      const supabase = createClient()
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -163,6 +189,31 @@ export default function SignupPage() {
               <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
             </div>
           )}
+
+          {/* ---------------------------------------------------------------------
+              Google OAuth 버튼
+              --------------------------------------------------------------------- */}
+          <button
+            onClick={handleGoogleSignup}
+            disabled={googleLoading || loading}
+            className="w-full flex items-center justify-center gap-3 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-50 text-slate-700 dark:text-slate-200 font-medium py-3 px-4 rounded-lg transition-colors focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 mb-6"
+            aria-label="Google로 회원가입"
+          >
+            <GoogleIcon size={20} />
+            {googleLoading ? 'Google 연결 중...' : 'Google로 계속하기'}
+          </button>
+
+          {/* 구분선 */}
+          <div className="relative mb-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-300 dark:border-slate-600"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-4 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                또는 이메일로 가입
+              </span>
+            </div>
+          </div>
 
           {/* 회원가입 폼 */}
           <form onSubmit={handleSignup} className="space-y-5">

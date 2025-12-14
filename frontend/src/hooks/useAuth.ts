@@ -25,6 +25,8 @@ interface UseAuthReturn {
   signOut: () => Promise<void>
   /** 로그아웃 진행 중 여부 */
   signingOut: boolean
+  /** Google OAuth 로그인 함수 */
+  signInWithGoogle: () => Promise<void>
 }
 
 /**
@@ -111,11 +113,31 @@ export function useAuth(): UseAuthReturn {
     }
   }, [supabase.auth, router])
 
+  // =============================================================================
+  // Google OAuth 로그인 함수
+  // =============================================================================
+  const signInWithGoogle = useCallback(async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+      if (error) {
+        console.error('Google 로그인 오류:', error)
+      }
+    } catch (error) {
+      console.error('Google OAuth 오류:', error)
+    }
+  }, [supabase.auth])
+
   return {
     user,
     loading,
     signOut,
     signingOut,
+    signInWithGoogle,
   }
 }
 

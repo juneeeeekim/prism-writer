@@ -3,7 +3,7 @@
 // =============================================================================
 // 파일: frontend/src/app/login/page.tsx
 // 역할: 사용자 로그인 페이지
-// 기능: 이메일/비밀번호 로그인, 회원가입 링크, 비밀번호 재설정 링크
+// 기능: 이메일/비밀번호 로그인, Google OAuth, 회원가입 링크
 // =============================================================================
 
 'use client'
@@ -12,6 +12,7 @@ import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { GoogleIcon } from '@/components/icons'
 
 export default function LoginPage() {
   // =============================================================================
@@ -21,13 +22,39 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
 
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirect') || '/editor'
+  const supabase = createClient()
 
   // =============================================================================
-  // 로그인 처리 함수
+  // Google OAuth 로그인 처리
+  // =============================================================================
+  const handleGoogleLogin = async () => {
+    setError(null)
+    setGoogleLoading(true)
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+      if (error) {
+        setError('Google 로그인 중 오류가 발생했습니다.')
+        console.error('Google OAuth 오류:', error)
+      }
+    } catch (err) {
+      setError('Google 로그인 중 오류가 발생했습니다.')
+    } finally {
+      setGoogleLoading(false)
+    }
+  }
+
+  // =============================================================================
+  // 이메일 로그인 처리 함수
   // =============================================================================
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -35,7 +62,6 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const supabase = createClient()
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -97,6 +123,31 @@ export default function LoginPage() {
               <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
             </div>
           )}
+
+          {/* ---------------------------------------------------------------------
+              Google OAuth 버튼
+              --------------------------------------------------------------------- */}
+          <button
+            onClick={handleGoogleLogin}
+            disabled={googleLoading || loading}
+            className="w-full flex items-center justify-center gap-3 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-50 text-slate-700 dark:text-slate-200 font-medium py-3 px-4 rounded-lg transition-colors focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800 mb-6"
+            aria-label="Google로 로그인"
+          >
+            <GoogleIcon size={20} />
+            {googleLoading ? 'Google 로그인 중...' : 'Google로 계속하기'}
+          </button>
+
+          {/* 구분선 */}
+          <div className="relative mb-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-300 dark:border-slate-600"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-4 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                또는
+              </span>
+            </div>
+          </div>
 
           {/* 로그인 폼 */}
           <form onSubmit={handleLogin} className="space-y-5">
