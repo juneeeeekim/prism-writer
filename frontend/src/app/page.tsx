@@ -9,13 +9,13 @@ import Link from 'next/link'
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-prism-light to-white dark:from-prism-dark dark:to-gray-900">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-slate-900 dark:via-purple-900 dark:to-slate-900">
       {/* ---------------------------------------------------------------------
           Hero Section
           --------------------------------------------------------------------- */}
       <div className="text-center space-y-6 p-8">
         {/* Logo */}
-        <h1 className="text-5xl font-bold bg-gradient-to-r from-prism-primary to-prism-secondary bg-clip-text text-transparent">
+        <h1 className="text-5xl font-bold bg-gradient-to-r from-indigo-600 to-pink-500 bg-clip-text text-transparent">
           💎 PRISM Writer
         </h1>
         
@@ -28,8 +28,8 @@ export default function HomePage() {
         {/* CTA Button */}
         <Link 
           href="/editor"
-          className="inline-block px-8 py-3 bg-prism-primary text-white font-semibold rounded-lg 
-                     hover:bg-prism-accent transition-colors shadow-lg hover:shadow-xl"
+          className="inline-block px-8 py-3 bg-indigo-600 text-white font-semibold rounded-lg 
+                     hover:bg-indigo-700 transition-colors shadow-lg hover:shadow-xl"
           aria-label="에디터 시작하기"
         >
           🚀 에디터 시작하기
@@ -85,3 +85,4 @@ function FeatureCard({
     </div>
   )
 }
+
