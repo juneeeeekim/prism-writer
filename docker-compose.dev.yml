@@ -1,0 +1,110 @@
+# =============================================================================
+# PRISM Writer - Docker Compose (Development)
+# =============================================================================
+# 파일: docker-compose.dev.yml
+# 역할: 개발 환경용 컨테이너 오케스트레이션
+# 실행: docker-compose -f docker-compose.dev.yml up --build
+# =============================================================================
+
+version: "3.8"
+
+services:
+  # ---------------------------------------------------------------------------
+  # Backend Service (FastAPI)
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development # 개발 스테이지 사용
+    container_name: prism-backend-dev
+    ports:
+      - "8000:8000"
+    volumes:
+      # 소스 코드 마운트 (핫 리로드용)
+      - ./backend:/app
+      # node_modules, __pycache__ 등은 제외
+      - /app/__pycache__
+      - /app/.pytest_cache
+    environment:
+      - APP_ENV=development
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      # Supabase 연결 정보 (.env 파일에서 로드)
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      # LLM API Keys
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      # Frontend URL (CORS)
+      - FRONTEND_URL=http://localhost:3000
+    # 핫 리로드 명령어
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - prism-network
+
+  # ---------------------------------------------------------------------------
+  # Frontend Service (Next.js)
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development # 개발 스테이지 사용
+    container_name: prism-frontend-dev
+    ports:
+      - "3000:3000"
+    volumes:
+      # 소스 코드 마운트 (핫 리로드용)
+      - ./frontend:/app
+      # node_modules는 컨테이너 내부 것 사용 (의존성 충돌 방지)
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_APP_NAME=PRISM Writer
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      # Supabase 클라이언트 설정
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    # 핫 리로드 명령어
+    command: npm run dev
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - prism-network
+
+# =============================================================================
+# Network Configuration
+# =============================================================================
+networks:
+  prism-network:
+    driver: bridge
+# =============================================================================
+# 사용 방법
+# =============================================================================
+# 1. 환경변수 설정:
+#    cp backend/.env.example backend/.env
+#    cp frontend/.env.example frontend/.env.local
+#
+# 2. 컨테이너 실행:
+#    docker-compose -f docker-compose.dev.yml up --build
+#
+# 3. 접속:
+#    - Frontend: http://localhost:3000
+#    - Backend API: http://localhost:8000
+#    - API Docs: http://localhost:8000/docs
+#
+# 4. 로그 확인:
+#    docker-compose -f docker-compose.dev.yml logs -f
+#
+# 5. 종료:
+#    docker-compose -f docker-compose.dev.yml down
+# =============================================================================

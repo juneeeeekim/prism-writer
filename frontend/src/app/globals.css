@@ -1,0 +1,117 @@
+/* =============================================================================
+   PRISM Writer - Global Styles
+   ============================================================================= */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* -----------------------------------------------------------------------------
+   CSS Variables (Light & Dark Mode)
+   ----------------------------------------------------------------------------- */
+:root {
+  --foreground-rgb: 23, 23, 23;
+  --background-rgb: 255, 255, 255;
+  --accent-rgb: 99, 102, 241;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 245, 245, 245;
+    --background-rgb: 23, 23, 23;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   Base Styles
+   ----------------------------------------------------------------------------- */
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-rgb));
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+}
+
+/* -----------------------------------------------------------------------------
+   Dual Pane Layout Styles
+   ----------------------------------------------------------------------------- */
+.dual-pane-container {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+.editor-pane,
+.assistant-pane {
+  height: 100%;
+  overflow-y: auto;
+}
+
+/* Pane Divider (리사이즈 드래거) */
+.pane-divider {
+  width: 4px;
+  background-color: #e5e7eb;
+  cursor: col-resize;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
+}
+
+.pane-divider:hover,
+.pane-divider.dragging {
+  background-color: #6366f1;
+}
+
+/* Dark mode adjustments */
+.dark .pane-divider {
+  background-color: #374151;
+}
+
+.dark .pane-divider:hover,
+.dark .pane-divider.dragging {
+  background-color: #8b5cf6;
+}
+
+/* -----------------------------------------------------------------------------
+   Editor Styles
+   ----------------------------------------------------------------------------- */
+.markdown-editor {
+  min-height: 100%;
+}
+
+/* Markdown editor dark mode override */
+.dark .w-md-editor {
+  --color-canvas-default: #1f2937;
+  --color-fg-default: #f9fafb;
+}
+
+/* -----------------------------------------------------------------------------
+   Assistant Panel Styles
+   ----------------------------------------------------------------------------- */
+.assistant-tab {
+  @apply px-4 py-2 text-sm font-medium transition-colors;
+}
+
+.assistant-tab.active {
+  @apply border-b-2 border-prism-primary text-prism-primary;
+}
+
+.assistant-tab:not(.active) {
+  @apply text-gray-500 hover:text-gray-700;
+}
+
+/* Reference Card */
+.reference-card {
+  @apply p-4 border rounded-lg transition-all;
+  @apply hover:border-prism-primary hover:shadow-sm;
+}
+
+.dark .reference-card {
+  @apply border-gray-700 hover:border-prism-accent;
+}

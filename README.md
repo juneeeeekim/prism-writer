@@ -1,0 +1,197 @@
+# 💎 PRISM Writer
+
+> **RAG 기반 지능형 글쓰기 도구** - 내 문서를 분석하여 글의 구조와 내용을 잡아주는 저작 도구
+
+![Version](https://img.shields.io/badge/version-0.1.0-blue)
+![Status](https://img.shields.io/badge/status-Phase%205%20Complete-green)
+![License](https://img.shields.io/badge/license-MIT-brightgreen)
+
+## 🎯 프로젝트 개요
+
+PRISM Writer는 사용자가 업로드한 문서들을 RAG(Retrieval-Augmented Generation) 기술로 분석하여,
+글쓰기의 **구조(Structure)** 와 **내용(Content)** 의 초석을 제공하는 웹 기반 저작 도구입니다.
+
+### 핵심 기능
+
+| 기능                  | 설명                                           | 상태    |
+| :-------------------- | :--------------------------------------------- | :------ |
+| **Dual Pane Editor**  | 왼쪽(마크다운 에디터) + 오른쪽(RAG 어시스턴트) | ✅ 완료 |
+| **Outline Generator** | 주제 기반 목차 자동 생성                       | ✅ 완료 |
+| **Reference Linking** | 문단별 출처 매핑 및 근거 제시                  | ✅ 완료 |
+| **AI 채팅**           | 글쓰기 도우미 대화 인터페이스                  | ✅ 완료 |
+
+---
+
+## 🛠️ 기술 스택
+
+| 영역         | 기술                             | 설명                     |
+| :----------- | :------------------------------- | :----------------------- |
+| **Language** | Python 3.11+, TypeScript 5.3+    | 백엔드/프론트엔드        |
+| **Backend**  | FastAPI 0.124+                   | 고성능 비동기 API 서버   |
+| **Frontend** | Next.js 14.0.4                   | React 기반 웹 프레임워크 |
+| **Editor**   | @uiw/react-md-editor             | 마크다운 에디터          |
+| **State**    | Zustand 4.4+                     | 경량 상태 관리           |
+| **Database** | Supabase (PostgreSQL + pgvector) | 벡터 검색 지원 DB        |
+| **Testing**  | Playwright                       | E2E 테스트               |
+| **Deploy**   | Docker, Vercel, Railway          | 컨테이너 기반 배포       |
+
+---
+
+## 📁 프로젝트 구조
+
+```
+prismLM/
+├── frontend/                     # Next.js 프론트엔드
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── page.tsx         # 홈페이지
+│   │   │   └── editor/page.tsx  # 에디터 페이지
+│   │   ├── components/
+│   │   │   ├── DualPane/        # Dual Pane 레이아웃
+│   │   │   ├── Editor/          # 마크다운 에디터
+│   │   │   └── Assistant/       # AI 어시스턴트 패널
+│   │   ├── hooks/
+│   │   │   └── useEditorState.ts # Zustand 상태 관리
+│   │   └── lib/api/             # API 클라이언트
+│   ├── e2e/                     # E2E 테스트
+│   └── playwright.config.ts     # Playwright 설정
+├── backend/                      # FastAPI 백엔드
+│   ├── main.py                  # 앱 진입점
+│   ├── src/
+│   │   ├── presentation/api/
+│   │   │   ├── outline.py       # 목차 생성 API
+│   │   │   └── references.py    # 참조 관리 API
+│   │   ├── application/
+│   │   │   └── use_cases/       # 비즈니스 로직
+│   │   └── infrastructure/
+│   │       ├── retriever.py     # 벡터 검색
+│   │       └── prompts/         # LLM 프롬프트
+│   ├── migrations/              # DB 마이그레이션
+│   └── docs/openapi.yaml        # API 문서
+├── docs/
+│   ├── supabase-setup.md        # Supabase 설정 가이드
+│   └── user-guide.md            # 사용자 가이드
+├── plan_report/                  # 기획 문서 및 회의록
+├── docker-compose.dev.yml        # Docker 개발 환경
+└── README.md                     # 이 문서
+```
+
+---
+
+## 🌐 API 엔드포인트
+
+### System
+
+| Method | Endpoint  | 설명           |
+| :----- | :-------- | :------------- |
+| `GET`  | `/health` | 서버 상태 확인 |
+
+### Outline (목차)
+
+| Method | Endpoint                | 설명             |
+| :----- | :---------------------- | :--------------- |
+| `POST` | `/v1/outline/generate`  | 목차 생성        |
+| `GET`  | `/v1/outline/templates` | 목차 템플릿 목록 |
+
+### References (참조)
+
+| Method   | Endpoint                              | 설명           |
+| :------- | :------------------------------------ | :------------- |
+| `POST`   | `/v1/drafts/{id}/references`          | 참조 추가      |
+| `GET`    | `/v1/drafts/{id}/references`          | 참조 목록 조회 |
+| `DELETE` | `/v1/drafts/{id}/references/{ref_id}` | 참조 삭제      |
+
+> 📖 상세 API 문서: `backend/docs/openapi.yaml`
+
+---
+
+## 🚀 빠른 시작
+
+### 사전 요구사항
+
+- Node.js 18+
+- Python 3.11+
+- Docker (선택)
+
+### 설치 및 실행
+
+```bash
+# 1. 저장소 클론
+git clone https://github.com/your-username/prism-writer.git
+cd prism-writer
+
+# 2. 프론트엔드 설정
+cd frontend
+cp .env.example .env.local
+npm install
+npm run dev              # http://localhost:3000
+
+# 3. 백엔드 설정 (새 터미널)
+cd backend
+cp .env.example .env
+pip install -r requirements.txt
+python -m uvicorn main:app --reload   # http://localhost:8000
+```
+
+### E2E 테스트 실행
+
+```bash
+cd frontend
+npm run test:e2e         # 헤드리스 모드
+npm run test:e2e:ui      # UI 모드
+```
+
+### Docker로 실행
+
+```bash
+docker-compose -f docker-compose.dev.yml up
+```
+
+---
+
+## 📊 개발 현황
+
+| Phase                      | 상태    | 주요 결과물                 |
+| :------------------------- | :------ | :-------------------------- |
+| Phase 1: 기반 구축         | ✅ 완료 | Docker, DB 스키마, 환경설정 |
+| Phase 2: Dual Pane UI      | ✅ 완료 | 에디터, 어시스턴트 패널     |
+| Phase 3: Outline Generator | ✅ 완료 | 목차 생성 API + UI          |
+| Phase 4: Reference Linking | ✅ 완료 | 참조 관리 API + UI          |
+| Phase 5: 통합 테스트       | ✅ 완료 | E2E 테스트, 문서화          |
+
+---
+
+## 📖 개발 원칙
+
+1. **TDD (Test-Driven Development)** - 테스트 먼저, 구현 나중
+2. **Clean Architecture** - 비즈니스 로직과 인프라 분리
+3. **Model Agnostic** - LLM 모델 교체 가능 설계
+4. **Zero Cost MVP** - 무료 티어 우선 활용
+
+---
+
+## 📚 문서
+
+- [사용자 가이드](./docs/user-guide.md)
+- [Supabase 설정](./docs/supabase-setup.md)
+- [API 문서](./backend/docs/openapi.yaml)
+- [개발 체크리스트](./plan_report/2512141410_PRISM_Writer_체크리스트.md)
+
+---
+
+## 📜 라이선스
+
+MIT License - 자세한 내용은 [LICENSE](./LICENSE) 파일 참조
+
+---
+
+## 👥 팀
+
+- **디렉터** - 프로젝트 방향 및 의사결정
+- **Senior Developer** - 아키텍처 설계 및 핵심 구현
+- **Junior Developer** - 기능 구현 및 테스트
+- **UX/UI Designer** - 사용자 경험 설계
+
+---
+
+_최종 업데이트: 2024년 12월 14일_
