@@ -181,22 +181,35 @@ export function useAuth(): UseAuthReturn {
   }, [supabase.auth, fetchProfile])
 
   // =============================================================================
-  // 로그아웃 함수
+  // 로그아웃 함수 (v2.1: 타임아웃 및 에러 핸들링 강화)
   // =============================================================================
   const signOut = useCallback(async () => {
     setSigningOut(true)
     try {
-      await supabase.auth.signOut()
+      // 타임아웃 설정 (5초 후 강제 종료)
+      const signOutPromise = supabase.auth.signOut()
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('로그아웃 타임아웃')), 5000)
+      )
+      
+      await Promise.race([signOutPromise, timeoutPromise])
+      
+      // 상태 초기화
       setUser(null)
-      setProfile(null)  // v2.0: 프로필도 초기화
-      router.push('/')
-      router.refresh()
+      setProfile(null)
+      
+      // 페이지 이동 (router.refresh 대신 window.location 사용)
+      window.location.href = '/'
     } catch (error) {
       console.error('로그아웃 오류:', error)
+      // 에러 발생해도 강제로 홈으로 이동
+      setUser(null)
+      setProfile(null)
+      window.location.href = '/'
     } finally {
       setSigningOut(false)
     }
-  }, [supabase.auth, router])
+  }, [supabase.auth])
 
   // =============================================================================
   // Google OAuth 로그인 함수
