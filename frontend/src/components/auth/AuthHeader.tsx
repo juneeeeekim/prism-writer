@@ -1,15 +1,17 @@
 // =============================================================================
-// PRISM Writer - Auth Header Component
+// PRISM Writer - Auth Header Component (v2.0 회원등급 표시 지원)
 // =============================================================================
 // 파일: frontend/src/components/auth/AuthHeader.tsx
 // 역할: 인증 상태를 표시하는 헤더 컴포넌트
-// 기능: 로그인 상태에 따라 로그인/로그아웃 버튼 표시
+// 기능: 로그인 상태에 따라 사용자 드롭다운 또는 로그인 버튼 표시
+// 버전: v2.0 - UserDropdown 컴포넌트 통합
 // =============================================================================
 
 'use client'
 
 import Link from 'next/link'
 import { useAuth } from '@/hooks/useAuth'
+import UserDropdown from '@/components/ui/UserDropdown'
 
 // =============================================================================
 // Props Interface
@@ -42,7 +44,8 @@ export default function AuthHeader({
   onSave,
   onExport,
 }: AuthHeaderProps) {
-  const { user, loading, signOut, signingOut } = useAuth()
+  // v2.0: 추가 필드 (role, dailyRequestLimit, monthlyTokenLimit)
+  const { user, loading, signOut, signingOut, role, dailyRequestLimit, monthlyTokenLimit } = useAuth()
 
   return (
     <header
@@ -97,20 +100,17 @@ export default function AuthHeader({
           // 로딩 상태
           <div className="h-8 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
         ) : user ? (
-          // 로그인 상태
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-600 dark:text-gray-400 hidden sm:block">
-              {user.email}
-            </span>
-            <button
-              onClick={signOut}
-              disabled={signingOut}
-              className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
-              aria-label="로그아웃"
-            >
-              {signingOut ? '...' : '로그아웃'}
-            </button>
-          </div>
+          // =================================================================
+          // v2.0: UserDropdown 컴포넌트로 등급 및 사용량 표시
+          // =================================================================
+          <UserDropdown
+            user={user}
+            role={role}
+            dailyRequestLimit={dailyRequestLimit}
+            monthlyTokenLimit={monthlyTokenLimit}
+            onSignOut={signOut}
+            signingOut={signingOut}
+          />
         ) : (
           // 비로그인 상태
           <div className="flex items-center gap-2">
