@@ -181,7 +181,7 @@ export function useAuth(): UseAuthReturn {
   }, [supabase.auth, fetchProfile])
 
   // =============================================================================
-  // 로그아웃 함수 (v2.1: 타임아웃 및 에러 핸들링 강화)
+  // 로그아웃 함수 (v2.2: 쿠키 강제 삭제 추가)
   // =============================================================================
   const signOut = useCallback(async () => {
     setSigningOut(true)
@@ -193,22 +193,41 @@ export function useAuth(): UseAuthReturn {
       )
       
       await Promise.race([signOutPromise, timeoutPromise])
-      
-      // 상태 초기화
-      setUser(null)
-      setProfile(null)
-      
-      // 페이지 이동 (router.refresh 대신 window.location 사용)
-      window.location.href = '/'
     } catch (error) {
       console.error('로그아웃 오류:', error)
-      // 에러 발생해도 강제로 홈으로 이동
-      setUser(null)
-      setProfile(null)
-      window.location.href = '/'
-    } finally {
-      setSigningOut(false)
     }
+    
+    // v2.2: 강제 쿠키 삭제 (signOut 성공/실패 무관)
+    // Supabase 쿠키 삭제
+    document.cookie.split(';').forEach(cookie => {
+      const cookieName = cookie.split('=')[0].trim()
+      if (cookieName.startsWith('sb-')) {
+        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`
+        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=${window.location.hostname}`
+      }
+    })
+    
+    // localStorage 정리
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('sb-') || key.includes('supabase')) {
+        localStorage.removeItem(key)
+      }
+    })
+    
+    // sessionStorage 정리
+    Object.keys(sessionStorage).forEach(key => {
+      if (key.startsWith('sb-') || key.includes('supabase')) {
+        sessionStorage.removeItem(key)
+      }
+    })
+    
+    // 상태 초기화
+    setUser(null)
+    setProfile(null)
+    setSigningOut(false)
+    
+    // 페이지 이동 (강제 새로고침으로 완전 초기화)
+    window.location.href = '/'
   }, [supabase.auth])
 
   // =============================================================================
