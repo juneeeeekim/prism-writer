@@ -7,6 +7,7 @@
 // =============================================================================
 
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
 // -----------------------------------------------------------------------------
 // Types
@@ -43,65 +44,77 @@ interface EditorState {
 // -----------------------------------------------------------------------------
 // Store
 // -----------------------------------------------------------------------------
-export const useEditorState = create<EditorState>((set, get) => ({
-  // 초기 상태
-  content: '',
-  title: '',
-  outline: [],
-  currentParagraphIndex: 0,
-  isDirty: false,
-  lastSavedAt: null,
+export const useEditorState = create<EditorState>()(
+  persist(
+    (set, get) => ({
+      // 초기 상태
+      content: '',
+      title: '',
+      outline: [],
+      currentParagraphIndex: 0,
+      isDirty: false,
+      lastSavedAt: null,
 
-  // ---------------------------------------------------------------------------
-  // Setters
-  // ---------------------------------------------------------------------------
-  setContent: (content) => set({ content, isDirty: true }),
-  
-  setTitle: (title) => set({ title, isDirty: true }),
-  
-  setOutline: (outline) => set({ outline }),
-  
-  setCurrentParagraphIndex: (currentParagraphIndex) => set({ currentParagraphIndex }),
+      // ---------------------------------------------------------------------------
+      // Setters
+      // ---------------------------------------------------------------------------
+      setContent: (content) => set({ content, isDirty: true }),
+      
+      setTitle: (title) => set({ title, isDirty: true }),
+      
+      setOutline: (outline) => set({ outline }),
+      
+      setCurrentParagraphIndex: (currentParagraphIndex) => set({ currentParagraphIndex }),
 
-  // ---------------------------------------------------------------------------
-  // Insert Outline (목차를 마크다운 형식으로 삽입)
-  // ---------------------------------------------------------------------------
-  insertOutline: (outline) => {
-    const markdownOutline = outline
-      .map((item) => `${'#'.repeat(item.depth)} ${item.title}`)
-      .join('\n\n')
-    
-    const currentContent = get().content
-    const newContent = currentContent 
-      ? `${currentContent}\n\n${markdownOutline}` 
-      : markdownOutline
-    
-    set({ content: newContent, outline, isDirty: true })
-  },
+      // ---------------------------------------------------------------------------
+      // Insert Outline (목차를 마크다운 형식으로 삽입)
+      // ---------------------------------------------------------------------------
+      insertOutline: (outline) => {
+        const markdownOutline = outline
+          .map((item) => `${'#'.repeat(item.depth)} ${item.title}`)
+          .join('\n\n')
+        
+        const currentContent = get().content
+        const newContent = currentContent 
+          ? `${currentContent}\n\n${markdownOutline}` 
+          : markdownOutline
+        
+        set({ content: newContent, outline, isDirty: true })
+      },
 
-  // ---------------------------------------------------------------------------
-  // Insert Text (참조 텍스트 삽입)
-  // ---------------------------------------------------------------------------
-  insertText: (text) => {
-    const currentContent = get().content
-    const newContent = currentContent 
-      ? `${currentContent}\n\n> ${text}` 
-      : `> ${text}`
-    
-    set({ content: newContent, isDirty: true })
-  },
+      // ---------------------------------------------------------------------------
+      // Insert Text (참조 텍스트 삽입)
+      // ---------------------------------------------------------------------------
+      insertText: (text) => {
+        const currentContent = get().content
+        const newContent = currentContent 
+          ? `${currentContent}\n\n> ${text}` 
+          : `> ${text}`
+        
+        set({ content: newContent, isDirty: true })
+      },
 
-  // ---------------------------------------------------------------------------
-  // Save Actions
-  // ---------------------------------------------------------------------------
-  markAsSaved: () => set({ isDirty: false, lastSavedAt: new Date() }),
+      // ---------------------------------------------------------------------------
+      // Save Actions
+      // ---------------------------------------------------------------------------
+      markAsSaved: () => set({ isDirty: false, lastSavedAt: new Date() }),
 
-  reset: () => set({
-    content: '',
-    title: '',
-    outline: [],
-    currentParagraphIndex: 0,
-    isDirty: false,
-    lastSavedAt: null,
-  }),
-}))
+      reset: () => set({
+        content: '',
+        title: '',
+        outline: [],
+        currentParagraphIndex: 0,
+        isDirty: false,
+        lastSavedAt: null,
+      }),
+    }),
+    {
+      name: 'prism-editor-storage', // localStorage key
+      partialize: (state) => ({ 
+        content: state.content, 
+        title: state.title,
+        outline: state.outline 
+      }), // Persist only content, title, and outline
+    }
+  )
+)

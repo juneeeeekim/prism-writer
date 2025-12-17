@@ -7,8 +7,8 @@ const nextConfig = {
   // React Strict Mode for better development experience
   reactStrictMode: true,
   
-  // Standalone output for Docker deployment
-  output: 'standalone',
+  // Note: 'standalone' output removed for Vercel compatibility with dynamic pages
+  // Vercel handles this automatically
   
   // Image optimization settings
   images: {
@@ -23,3 +23,4 @@ const nextConfig = {
 }
 
 module.exports = nextConfig
+

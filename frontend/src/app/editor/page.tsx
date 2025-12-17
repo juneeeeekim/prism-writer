@@ -7,6 +7,9 @@
 
 'use client'
 
+// Dynamic rendering for Vercel deployment
+export const dynamic = 'force-dynamic'
+
 import DualPaneContainer from '@/components/DualPane/DualPaneContainer'
 import MarkdownEditor from '@/components/Editor/MarkdownEditor'
 import AssistantPanel from '@/components/Assistant/AssistantPanel'

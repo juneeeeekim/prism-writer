@@ -8,6 +8,9 @@
 
 'use client'
 
+// Dynamic rendering for Vercel deployment
+export const dynamic = 'force-dynamic'
+
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'

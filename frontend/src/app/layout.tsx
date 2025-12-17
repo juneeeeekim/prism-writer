@@ -7,6 +7,7 @@
 
 import type { Metadata } from 'next'
 import './globals.css'
+import ToastContainer from '@/components/ui/ToastContainer'
 
 // -----------------------------------------------------------------------------
 // Metadata (SEO)
@@ -32,6 +33,9 @@ export default function RootLayout({
         <main className="h-full">
           {children}
         </main>
+        
+        {/* Toast 알림 컨테이너 (Phase 2) */}
+        <ToastContainer />
       </body>
     </html>
   )

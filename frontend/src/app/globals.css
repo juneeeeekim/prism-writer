@@ -115,3 +115,82 @@ body {
 .dark .reference-card {
   @apply border-gray-700 hover:border-prism-accent;
 }
+
+/* =============================================================================
+   Phase 1: 모바일 반응형 레이아웃
+   - 모바일(768px 미만): 세로 스택 (에디터 위, 어시스턴트 아래)
+   - 태블릿/데스크탑(768px 이상): 가로 분할 (기존 동작)
+   ============================================================================= */
+
+/* 모바일: 세로 스택 레이아웃 */
+@media (max-width: 767px) {
+  .dual-pane-container {
+    flex-direction: column;
+  }
+
+  .editor-pane,
+  .assistant-pane {
+    width: 100% !important;
+    height: 50%;
+  }
+
+  /* 모바일에서 드래그 리사이저 숨김 */
+  .pane-divider {
+    display: none;
+  }
+}
+
+/* 태블릿: 약간 더 넓은 어시스턴트 패널 */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .editor-pane {
+    min-width: 45%;
+  }
+
+  .assistant-pane {
+    min-width: 35%;
+  }
+}
+
+/* 데스크탑: 기본 설정 (기존 동작 유지) */
+@media (min-width: 1024px) {
+  .editor-pane {
+    min-width: 30%;
+  }
+
+  .assistant-pane {
+    min-width: 20%;
+  }
+}
+
+/* =============================================================================
+   Phase 1: 글자 수 카운터 스타일
+   ============================================================================= */
+.character-counter {
+  @apply text-sm text-gray-500 dark:text-gray-400;
+}
+
+.character-counter.warning {
+  @apply text-yellow-600 dark:text-yellow-400;
+}
+
+.character-counter.danger {
+  @apply text-red-600 dark:text-red-400;
+}
+
+/* =============================================================================
+   Toast Animations
+   ============================================================================= */
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}

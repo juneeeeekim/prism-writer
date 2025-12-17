@@ -2,7 +2,7 @@
 // PRISM Writer - Assistant Panel
 // =============================================================================
 // 파일: frontend/src/components/Assistant/AssistantPanel.tsx
-// 역할: RAG 어시스턴트 패널 (탭 구조: 목차 제안 / 참고자료 / AI 채팅)
+// 역할: RAG 어시스턴트 패널 (탭 구조: 목차 제안 / 참고자료 / AI 채팅 / 평가)
 // 접근성: role="tablist", role="tabpanel" 적용
 // =============================================================================
 
@@ -12,11 +12,12 @@ import { useState } from 'react'
 import OutlineTab from './OutlineTab'
 import ReferenceTab from './ReferenceTab'
 import ChatTab from './ChatTab'
+import EvaluationTab from './EvaluationTab'
 
 // -----------------------------------------------------------------------------
 // Types
 // -----------------------------------------------------------------------------
-type TabId = 'outline' | 'reference' | 'chat'
+type TabId = 'outline' | 'reference' | 'chat' | 'evaluation'
 
 interface Tab {
   id: TabId
@@ -31,6 +32,7 @@ const TABS: Tab[] = [
   { id: 'outline', label: '목차 제안', icon: '🗂️' },
   { id: 'reference', label: '참고자료', icon: '📚' },
   { id: 'chat', label: 'AI 채팅', icon: '💬' },
+  { id: 'evaluation', label: '평가', icon: '📊' },
 ]
 
 // -----------------------------------------------------------------------------
@@ -105,7 +107,19 @@ export default function AssistantPanel() {
         >
           {activeTab === 'chat' && <ChatTab />}
         </div>
+
+        {/* 평가 탭 */}
+        <div
+          id="panel-evaluation"
+          role="tabpanel"
+          aria-labelledby="tab-evaluation"
+          hidden={activeTab !== 'evaluation'}
+          className="h-full"
+        >
+          {activeTab === 'evaluation' && <EvaluationTab />}
+        </div>
       </div>
     </div>
   )
 }
+

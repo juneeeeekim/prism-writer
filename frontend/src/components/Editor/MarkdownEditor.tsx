@@ -51,6 +51,15 @@ export default function MarkdownEditor() {
           aria-label="마크다운 에디터"
         />
       </div>
+
+      {/* -----------------------------------------------------------------------
+          Status Bar (Character Counter)
+          ----------------------------------------------------------------------- */}
+      <div className="flex justify-end px-4 py-2 text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+        <span id="char-counter">
+          글자 수: {content.length.toLocaleString()}자
+        </span>
+      </div>
     </div>
   )
 }

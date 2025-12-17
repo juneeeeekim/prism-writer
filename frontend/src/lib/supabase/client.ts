@@ -8,6 +8,10 @@
 
 import { createBrowserClient } from '@supabase/ssr'
 
+// 환경 변수 (빌드 시점에는 없을 수 있음)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+
 /**
  * 클라이언트 컴포넌트용 Supabase 클라이언트 생성
  * 
@@ -24,8 +28,18 @@ import { createBrowserClient } from '@supabase/ssr'
  * }
  * ```
  */
-export const createClient = () =>
-  createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+export const createClient = () => {
+  // 빌드 시점 또는 환경 변수 누락 시 빈 값으로 처리
+  // 실제 런타임에서만 Supabase가 동작함
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.warn('[Supabase] 환경 변수가 설정되지 않았습니다.')
+    // 타입 호환을 위해 빈 URL로 클라이언트 생성 (실제 호출 시 에러 발생)
+    return createBrowserClient(
+      'https://placeholder.supabase.co',
+      'placeholder-key'
+    )
+  }
+  
+  return createBrowserClient(supabaseUrl, supabaseAnonKey)
+}
+
