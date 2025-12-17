@@ -101,6 +101,7 @@ export function useAuth(): UseAuthReturn {
   // =============================================================================
   const fetchProfile = useCallback(async (userId: string) => {
     setProfileLoading(true)
+    console.log('[useAuth] fetchProfile 시작, userId:', userId)
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -108,11 +109,15 @@ export function useAuth(): UseAuthReturn {
         .eq('id', userId)
         .single()
       
+      // 디버깅: 조회 결과 출력
+      console.log('[useAuth] 프로필 조회 결과:', { data, error })
+      
       if (error) {
         // 프로필이 없는 경우 (트리거 실패 등)
-        console.warn('프로필 조회 실패:', error.message)
+        console.warn('프로필 조회 실패:', error.message, error.code, error.details)
         setProfile(null)
       } else if (data) {
+        console.log('[useAuth] 프로필 데이터 매핑:', data)
         setProfile(mapProfileRowToUserProfile(data as ProfileRow))
       }
     } catch (error) {
@@ -122,6 +127,7 @@ export function useAuth(): UseAuthReturn {
       setProfileLoading(false)
     }
   }, [supabase])
+
 
   // =============================================================================
   // v2.0: 프로필 새로고침 (외부에서 호출용)
