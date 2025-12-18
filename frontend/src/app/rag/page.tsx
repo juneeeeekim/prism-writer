@@ -8,6 +8,7 @@
 'use client'
 
 import { useState } from 'react'
+import AuthHeader from '@/components/auth/AuthHeader'
 import { EvidenceCard, EvidenceList } from '@/components/rag/EvidenceCard'
 import type { JudgeResult, JudgeEvidence } from '@/types/rag'
 import type { VerifiedEvidence } from '@/lib/rag/citationGate'
@@ -108,9 +109,17 @@ export default function RAGSearchPage() {
   // 렌더링
   // ---------------------------------------------------------------------------
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
-        {/* 헤더 */}
+    <div className="min-h-screen bg-gray-50">
+      {/* =================================================================
+          AuthHeader - 일관된 네비게이션
+          ================================================================= */}
+      <AuthHeader showLogo />
+
+      {/* =================================================================
+          메인 콘텐츠
+          ================================================================= */}
+      <main className="max-w-4xl mx-auto px-4 py-8">
+        {/* 페이지 제목 */}
         <header className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             🔍 RAG 검색
@@ -223,7 +232,7 @@ export default function RAGSearchPage() {
             )}
           </section>
         )}
-      </div>
+      </main>
     </div>
   )
 }
