@@ -203,3 +203,86 @@ export const ROUTER_CONFIGS: Record<RouterMode, RouterConfig> = {
   },
 }
 
+// =============================================================================
+// Evidence Pack 관련 타입 (P1 Phase 4)
+// =============================================================================
+
+/**
+ * 점수 구성 요소
+ * 
+ * @description
+ * 검색 결과의 점수 분해 (디버깅 용이)
+ */
+export interface ScoreComponents {
+  /** BM25 키워드 점수 */
+  bm25: number
+  /** 벡터 유사도 점수 */
+  vector: number
+  /** 리랭킹 점수 */
+  rerank: number
+}
+
+/**
+ * 근거 항목 인터페이스
+ * 
+ * @description
+ * 개별 검색 결과를 표준화된 형식으로 표현
+ */
+export interface EvidenceItem {
+  /** 청크 ID */
+  chunkId: string
+  /** 문서 ID */
+  documentId: string
+  /** 청크 내용 */
+  content: string
+  /** 원본 문서 내 위치 */
+  spanOffsets: { start: number; end: number }
+  /** 원본 문서 URI */
+  sourceUri: string
+  /** 네임스페이스 */
+  namespace: string
+  /** 문서 버전 */
+  docVersion: string
+  /** 점수 구성 요소 */
+  scoreComponents: ScoreComponents
+}
+
+/**
+ * 근거 메타데이터 인터페이스
+ * 
+ * @description
+ * 검색 설정 및 결과 요약 (재현성 보장)
+ */
+export interface EvidenceMetadata {
+  /** 검색 쿼리 */
+  searchQuery: string
+  /** 검색 설정 ID */
+  retrievalConfigId: string
+  /** 임베딩 모델 ID */
+  embeddingModelId: string
+  /** 총 후보 수 */
+  totalCandidates: number
+  /** 선택된 수 */
+  selectedCount: number
+  /** 생성 시간 */
+  createdAt: string
+}
+
+/**
+ * Evidence Pack 인터페이스
+ * 
+ * @description
+ * 검색 결과를 표준화된 형식으로 패키징
+ * Judge/Reviewer에 전달되는 근거 데이터
+ */
+export interface EvidencePack {
+  /** 실행 ID (Telemetry 연결) */
+  runId: string
+  /** 평가 기준 ID (옵션) */
+  rubricId?: string
+  /** 근거 항목 목록 */
+  items: EvidenceItem[]
+  /** 검색 메타데이터 */
+  metadata: EvidenceMetadata
+}
+

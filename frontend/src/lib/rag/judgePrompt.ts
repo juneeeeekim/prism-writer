@@ -157,3 +157,102 @@ export function getDefaultJudgeResult(): JudgeResult {
     missingEvidence: [],
   }
 }
+
+// =============================================================================
+// Evidence Pack 통합 (P1 Phase 4.3)
+// =============================================================================
+
+import type { EvidencePack } from '@/types/rag'
+import { formatEvidenceForPrompt } from '@/lib/rag/evidencePack'
+
+/**
+ * Evidence Pack을 사용한 Judge 프롬프트 빌더
+ * 
+ * @description
+ * 표준화된 Evidence Pack을 사용하여 Judge 프롬프트 생성
+ * 점수 정보와 메타데이터 포함
+ * 
+ * @param query - 사용자 질문
+ * @param evidencePack - Evidence Pack 객체
+ * @param rubric - 추가 평가 기준 (옵션)
+ * @returns 완성된 Judge 프롬프트
+ * 
+ * @example
+ * ```typescript
+ * const prompt = buildJudgePromptWithEvidence(
+ *   "RAG란 무엇인가요?",
+ *   evidencePack
+ * )
+ * ```
+ */
+export function buildJudgePromptWithEvidence(
+  query: string,
+  evidencePack: EvidencePack,
+  rubric?: string
+): string {
+  // ---------------------------------------------------------------------------
+  // 1. Evidence Pack에서 컨텍스트 포맷팅
+  // ---------------------------------------------------------------------------
+  const formattedEvidence = formatEvidenceForPrompt(evidencePack)
+
+  // ---------------------------------------------------------------------------
+  // 2. 메타데이터 정보
+  // ---------------------------------------------------------------------------
+  const metaInfo = `
+[검색 메타데이터]
+- 질문: ${evidencePack.metadata.searchQuery}
+- 검색 설정: ${evidencePack.metadata.retrievalConfigId}
+- 임베딩 모델: ${evidencePack.metadata.embeddingModelId}
+- 총 후보: ${evidencePack.metadata.totalCandidates}
+- 선택된 근거: ${evidencePack.metadata.selectedCount}
+- 실행 ID: ${evidencePack.runId}
+`
+
+  // ---------------------------------------------------------------------------
+  // 3. 프롬프트 구성
+  // ---------------------------------------------------------------------------
+  let prompt = `${JUDGE_SYSTEM_PROMPT}
+
+## 질문
+${query}
+
+## 검색된 근거 (Evidence Pack)
+${metaInfo}
+${formattedEvidence}
+`
+
+  // ---------------------------------------------------------------------------
+  // 4. 추가 평가 기준 (옵션)
+  // ---------------------------------------------------------------------------
+  if (rubric) {
+    prompt += `
+## 추가 평가 기준
+${rubric}
+`
+  }
+
+  // ---------------------------------------------------------------------------
+  // 5. Rubric ID가 있으면 추가
+  // ---------------------------------------------------------------------------
+  if (evidencePack.rubricId) {
+    prompt += `
+## 평가 기준 ID
+${evidencePack.rubricId}
+`
+  }
+
+  // ---------------------------------------------------------------------------
+  // 6. JSON 응답 형식 강제
+  // ---------------------------------------------------------------------------
+  prompt += `
+## 응답 형식
+다음 JSON 스키마에 맞춰 응답하세요:
+\`\`\`json
+${JSON_SCHEMA_EXAMPLE}
+\`\`\`
+
+각 evidence의 chunkId는 위 근거의 번호를 사용하세요 (예: "근거 1" → "1").
+JSON 형식으로만 응답하세요. 다른 텍스트를 추가하지 마세요.`
+
+  return prompt
+}
