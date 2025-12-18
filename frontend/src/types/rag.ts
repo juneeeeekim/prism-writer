@@ -106,3 +106,34 @@ export interface JudgeResult {
   /** 부족한 근거 목록 (옵션) */
   missingEvidence?: string[]
 }
+
+// =============================================================================
+// Reviewer 관련 타입 (P1 Phase 1)
+// =============================================================================
+
+/**
+ * Reviewer 배지 타입
+ * 
+ * @description
+ * - ✅: 검증됨 (신뢰도 높음)
+ * - ⚠️: 주의 필요 (일부 이슈 있음)
+ * - ⛔: 거부 (환각 또는 오류 감지)
+ */
+export type ReviewBadge = '✅' | '⚠️' | '⛔'
+
+/**
+ * Reviewer 결과 인터페이스
+ * 
+ * @description
+ * Reviewer 모델의 검토 결과
+ */
+export interface ReviewResult {
+  /** 검토 배지 */
+  badge: ReviewBadge
+  /** 신뢰도 점수 (0~1) */
+  confidence: number
+  /** 발견된 이슈 목록 (옵션) */
+  issues?: string[]
+  /** 검토 이유 */
+  reasoning: string
+}
