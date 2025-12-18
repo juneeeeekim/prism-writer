@@ -52,7 +52,7 @@ export default function AuthHeader({
       className={`h-14 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 ${className}`}
     >
       {/* =================================================================
-          Left Section - Logo
+          Left Section - Logo + Navigation
           ================================================================= */}
       <div className="flex items-center gap-3">
         {showLogo && (
@@ -63,6 +63,16 @@ export default function AuthHeader({
                 PRISM Writer
               </h1>
             </Link>
+            {/* RAG 검색 네비게이션 버튼 */}
+            <nav className="hidden sm:flex items-center gap-2 ml-4 border-l border-gray-200 dark:border-gray-700 pl-4">
+              <Link
+                href="/rag"
+                className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors flex items-center gap-1"
+                aria-label="RAG 검색"
+              >
+                🔍 RAG 검색
+              </Link>
+            </nav>
           </>
         )}
       </div>
