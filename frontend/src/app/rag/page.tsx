@@ -10,7 +10,9 @@
 import { useState } from 'react'
 import AuthHeader from '@/components/auth/AuthHeader'
 import { EvidenceCard, EvidenceList } from '@/components/rag/EvidenceCard'
-import type { JudgeResult, JudgeEvidence } from '@/types/rag'
+import { ModeSelector } from '@/components/rag/ModeSelector'
+import { ReviewBadge } from '@/components/rag/ReviewBadge'
+import type { JudgeResult, JudgeEvidence, RouterMode } from '@/types/rag'
 import type { VerifiedEvidence } from '@/lib/rag/citationGate'
 
 // =============================================================================
@@ -19,6 +21,7 @@ import type { VerifiedEvidence } from '@/lib/rag/citationGate'
 
 interface SearchState {
   query: string
+  mode: RouterMode
   isLoading: boolean
   error: string | null
 }
@@ -47,6 +50,7 @@ export default function RAGSearchPage() {
   // ---------------------------------------------------------------------------
   const [searchState, setSearchState] = useState<SearchState>({
     query: '',
+    mode: 'standard',
     isLoading: false,
     error: null,
   })
@@ -74,6 +78,7 @@ export default function RAGSearchPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           query: searchState.query,
+          mode: searchState.mode, // 모드 전달
           // 테스트용 샘플 컨텍스트 (실제로는 검색 API에서 가져와야 함)
           context: [
             {
@@ -119,82 +124,85 @@ export default function RAGSearchPage() {
           메인 콘텐츠
           ================================================================= */}
       <main className="max-w-4xl mx-auto px-4 py-8">
-        {/* 페이지 제목 */}
-        <header className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            🔍 RAG 검색
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+            RAG 검색 파이프라인
           </h1>
-          <p className="text-gray-600">
-            질문을 입력하면 RAG 파이프라인이 답변을 평가합니다.
+          <p className="text-lg text-gray-600 dark:text-gray-400">
+            검색, 리랭킹, 그리고 검증(Citation Gate) 과정을 시각화합니다.
           </p>
-        </header>
+        </div>
 
-        {/* 검색 입력 */}
-        <section className="bg-white rounded-lg shadow p-6 mb-6">
-          <label htmlFor="query" className="block text-sm font-medium text-gray-700 mb-2">
-            질문 입력
-          </label>
-          <textarea
-            id="query"
-            rows={3}
-            className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="RAG 시스템에 대해 질문해보세요..."
-            value={searchState.query}
-            onChange={(e) => setSearchState(prev => ({ ...prev, query: e.target.value }))}
-            disabled={searchState.isLoading}
-          />
-          
-          <button
-            onClick={handleSearch}
-            disabled={searchState.isLoading}
-            className="mt-4 w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-          >
-            {searchState.isLoading ? '🔄 분석 중...' : '🔍 질문하기'}
-          </button>
-        </section>
-
-        {/* 에러 표시 */}
-        {searchState.error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-            ❌ {searchState.error}
+        {/* 검색 입력 섹션 */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8">
+          <div className="flex flex-col gap-4">
+            <div className="flex gap-4">
+              <input
+                type="text"
+                value={searchState.query}
+                onChange={(e) => setSearchState(prev => ({ ...prev, query: e.target.value }))}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                placeholder="질문을 입력하세요..."
+                className="flex-1 px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              />
+              <button
+                onClick={handleSearch}
+                disabled={searchState.isLoading}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {searchState.isLoading ? (
+                  <>
+                    <span className="animate-spin">↻</span>
+                    분석 중...
+                  </>
+                ) : (
+                  <>
+                    <span>🔍</span>
+                    검색
+                  </>
+                )}
+              </button>
+            </div>
+            
+            {/* 모드 선택기 */}
+            <div className="flex justify-end">
+              <ModeSelector 
+                value={searchState.mode} 
+                onChange={(mode) => setSearchState(prev => ({ ...prev, mode }))}
+                showDetails={true}
+                className="w-full sm:w-auto"
+              />
+            </div>
           </div>
-        )}
 
-        {/* Judge 결과 표시 */}
+          {searchState.error && (
+            <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg">
+              {searchState.error}
+            </div>
+          )}
+        </div>
+
+        {/* 결과 섹션 */}
         {judgeResult && (
-          <section className="space-y-6">
-            {/* 판정 결과 요약 */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-4">📊 평가 결과</h2>
-              
-              <div className="grid grid-cols-3 gap-4 mb-4">
-                <div className="text-center p-4 bg-gray-50 rounded-lg">
-                  <div className="text-2xl font-bold">
-                    {judgeResult.result.verdict === 'pass' ? '✅' : 
-                     judgeResult.result.verdict === 'fail' ? '❌' : '⚠️'}
-                  </div>
-                  <div className="text-sm text-gray-600">판정</div>
-                  <div className="font-medium">{judgeResult.result.verdict}</div>
+          <div className="space-y-8 animate-fade-in">
+            {/* 1. Judge 결과 요약 */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    🤖 Judge 분석 결과
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      judgeResult.result.verdict === 'pass' ? 'bg-green-100 text-green-800' :
+                      judgeResult.result.verdict === 'fail' ? 'bg-red-100 text-red-800' :
+                      'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {judgeResult.result.verdict.toUpperCase()} ({judgeResult.result.score}점)
+                    </span>
+                  </h2>
+                  <p className="text-gray-600 dark:text-gray-300 mt-2">
+                    {judgeResult.result.reasoning}
+                  </p>
                 </div>
-                
-                <div className="text-center p-4 bg-gray-50 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">
-                    {judgeResult.result.score}
-                  </div>
-                  <div className="text-sm text-gray-600">점수</div>
-                </div>
-                
-                <div className="text-center p-4 bg-gray-50 rounded-lg">
-                  <div className="text-2xl font-bold">
-                    {judgeResult.result.evidence.length}
-                  </div>
-                  <div className="text-sm text-gray-600">근거 수</div>
-                </div>
-              </div>
-
-              <div className="prose max-w-none">
-                <h3 className="text-sm font-medium text-gray-700">판정 이유</h3>
-                <p className="text-gray-600">{judgeResult.result.reasoning}</p>
               </div>
             </div>
 
@@ -230,7 +238,7 @@ export default function RAGSearchPage() {
                 <EvidenceList evidence={judgeResult.verifiedEvidence} />
               </div>
             )}
-          </section>
+          </div>
         )}
       </main>
     </div>
