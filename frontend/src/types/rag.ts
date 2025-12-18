@@ -137,3 +137,69 @@ export interface ReviewResult {
   /** 검토 이유 */
   reasoning: string
 }
+
+// =============================================================================
+// Model Router 관련 타입 (P1 Phase 2)
+// =============================================================================
+
+/**
+ * Router 모드 타입
+ * 
+ * @description
+ * - cheap: 경제 모드 (빠름, Reviewer 없음)
+ * - standard: 표준 모드 (균형)
+ * - strict: 정밀 모드 (느림, 고품질)
+ */
+export type RouterMode = 'cheap' | 'standard' | 'strict'
+
+/**
+ * Router 구성 인터페이스
+ * 
+ * @description
+ * 각 모드별 LLM 호출 설정
+ */
+export interface RouterConfig {
+  /** 모드 식별자 */
+  mode: RouterMode
+  /** 답변 생성 모델 */
+  answerModel: string
+  /** Reviewer 모델 (null = 비활성화) */
+  reviewerModel: string | null
+  /** 최대 토큰 수 */
+  maxTokens: number
+  /** 타임아웃 (밀리초) */
+  timeout: number
+}
+
+/**
+ * 모드별 Router 설정
+ * 
+ * @description
+ * - cheap: 빠른 응답, Reviewer 없음
+ * - standard: 균형 잡힌 설정
+ * - strict: 최고 품질, 상세 Reviewer
+ */
+export const ROUTER_CONFIGS: Record<RouterMode, RouterConfig> = {
+  cheap: {
+    mode: 'cheap',
+    answerModel: 'gemini-2.0-flash',
+    reviewerModel: null,
+    maxTokens: 1000,
+    timeout: 10000,
+  },
+  standard: {
+    mode: 'standard',
+    answerModel: 'gemini-2.0-flash',
+    reviewerModel: 'gemini-2.0-flash',
+    maxTokens: 2000,
+    timeout: 15000,
+  },
+  strict: {
+    mode: 'strict',
+    answerModel: 'gemini-3-pro-preview',
+    reviewerModel: 'gemini-3-pro-preview',
+    maxTokens: 4000,
+    timeout: 30000,
+  },
+}
+
