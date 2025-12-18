@@ -7,7 +7,7 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { chunkDocument, type DocumentChunk } from './chunking'
-import { embedBatch, estimateTokenCount } from './embedding'
+import { embedBatch, estimateTokenCount, EMBEDDING_CONFIG } from './embedding'
 import { validateDocumentSize, validateUsage, trackUsage } from './costGuard'
 
 // =============================================================================
@@ -113,13 +113,19 @@ async function saveChunks(
 ): Promise<void> {
   const supabase = createClient()
 
-  // 청크 데이터 변환
+  // ---------------------------------------------------------------------------
+  // 청크 데이터 변환 (임베딩 버전 메타데이터 포함)
+  // ---------------------------------------------------------------------------
   const chunksData = chunks.map((chunk, index) => ({
     document_id: documentId,
     chunk_index: chunk.index,
     content: chunk.content,
     embedding: embeddings ? embeddings[index] : null,
     metadata: chunk.metadata,
+    // 임베딩 버전 관리 필드 (Phase 1 추가)
+    embedding_model_id: EMBEDDING_CONFIG.modelId,
+    embedding_dim: EMBEDDING_CONFIG.dimensions,
+    embedded_at: new Date().toISOString(),
   }))
 
   const { error } = await supabase

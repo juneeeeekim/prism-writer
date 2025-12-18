@@ -8,14 +8,27 @@
 import OpenAI from 'openai'
 
 // =============================================================================
-// 상수
+// 상수 및 설정
 // =============================================================================
 
-/** OpenAI 임베딩 모델 */
-const EMBEDDING_MODEL = 'text-embedding-3-small'
+/**
+ * 임베딩 모델 설정 (버전 관리용)
+ * 
+ * @description
+ * 임베딩 모델 정보를 중앙화하여 버전 관리 용이
+ * DB 저장 시 embedding_model_id, embedding_dim 값으로 사용됨
+ */
+export const EMBEDDING_CONFIG = {
+  /** 임베딩 모델 ID */
+  modelId: 'text-embedding-3-small',
+  /** 임베딩 벡터 차원 수 */
+  dimensions: 1536,
+  /** 벤더/제공자 */
+  vendor: 'openai',
+} as const
 
-/** 임베딩 차원 (text-embedding-3-small) */
-export const EMBEDDING_DIMENSIONS = 1536
+/** 임베딩 차원 (하위 호환성을 위한 alias) */
+export const EMBEDDING_DIMENSIONS = EMBEDDING_CONFIG.dimensions
 
 /** 배치 처리 최대 크기 */
 const MAX_BATCH_SIZE = 100
@@ -109,7 +122,7 @@ export async function embedText(text: string): Promise<number[]> {
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
       const response = await client.embeddings.create({
-        model: EMBEDDING_MODEL,
+        model: EMBEDDING_CONFIG.modelId,
         input: text,
         encoding_format: 'float',
       })
@@ -178,7 +191,7 @@ export async function embedBatch(texts: string[]): Promise<number[][]> {
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
       const response = await client.embeddings.create({
-        model: EMBEDDING_MODEL,
+        model: EMBEDDING_CONFIG.modelId,
         input: validTexts,
         encoding_format: 'float',
       })

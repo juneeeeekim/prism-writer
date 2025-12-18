@@ -7,6 +7,7 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { embedText } from './embedding'
+import { validateACL } from './aclGate'
 
 // =============================================================================
 // 타입 정의
@@ -88,6 +89,14 @@ export async function vectorSearch(
   const { userId, topK = DEFAULT_TOP_K, documentId, minScore = 0 } = options
 
   // ---------------------------------------------------------------------------
+  // 0. ACL 검증 (Phase 2: ACL 게이트)
+  // ---------------------------------------------------------------------------
+  const aclResult = await validateACL({ userId })
+  if (!aclResult.valid) {
+    throw new Error(aclResult.error || '접근 권한이 없습니다.')
+  }
+
+  // ---------------------------------------------------------------------------
   // 1. 쿼리 임베딩 생성
   // ---------------------------------------------------------------------------
   const queryEmbedding = await embedText(query.trim())
@@ -153,6 +162,14 @@ export async function fullTextSearch(
   options: SearchOptions
 ): Promise<SearchResult[]> {
   const { userId, topK = DEFAULT_TOP_K, documentId, minScore = 0 } = options
+
+  // ---------------------------------------------------------------------------
+  // 0. ACL 검증 (Phase 2: ACL 게이트)
+  // ---------------------------------------------------------------------------
+  const aclResult = await validateACL({ userId })
+  if (!aclResult.valid) {
+    throw new Error(aclResult.error || '접근 권한이 없습니다.')
+  }
 
   const supabase = createClient()
 
