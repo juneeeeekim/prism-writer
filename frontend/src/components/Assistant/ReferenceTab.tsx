@@ -9,6 +9,9 @@
 
 import { useState } from 'react'
 import ReferenceCard from './ReferenceCard'
+import DocumentUploader from '@/components/documents/DocumentUploader'
+import DocumentList from '@/components/documents/DocumentList'
+import { searchDocuments, RAGSearchError } from '@/lib/api/rag'
 
 // -----------------------------------------------------------------------------
 // Types
@@ -27,9 +30,14 @@ export default function ReferenceTab() {
   const [query, setQuery] = useState('')
   const [isSearching, setIsSearching] = useState(false)
   const [references, setReferences] = useState<Reference[]>([])
+  // -------------------------------------------------------------------------
+  // 업로드 섹션 State (Phase 1 추가)
+  // -------------------------------------------------------------------------
+  const [showUploader, setShowUploader] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   // ---------------------------------------------------------------------------
-  // Search Handler
+  // Search Handler (Phase 3: 실제 RAG API 연동)
   // ---------------------------------------------------------------------------
   const handleSearch = async () => {
     if (!query.trim()) return
@@ -37,37 +45,30 @@ export default function ReferenceTab() {
     setIsSearching(true)
     
     try {
-      // TODO: 실제 API 연동 (Phase 3에서 구현)
-      // const response = await fetch('/api/v1/search', { ... })
+      // -----------------------------------------------------------------------
+      // 실제 RAG 검색 API 호출 (Phase 3 구현)
+      // -----------------------------------------------------------------------
+      const result = await searchDocuments(query, { topK: 5, threshold: 0.5 })
       
-      // 임시 더미 데이터
-      const dummyReferences: Reference[] = [
-        {
-          id: '1',
-          content: 'RAG(Retrieval-Augmented Generation)는 검색과 생성을 결합한 AI 기술로, 외부 지식 베이스에서 관련 정보를 검색하여 LLM의 답변을 강화합니다.',
-          source: 'AI 기술 개요.pdf (p.12)',
-          similarity: 0.92,
-        },
-        {
-          id: '2',
-          content: '효과적인 글쓰기는 명확한 구조, 논리적 흐름, 그리고 독자를 고려한 표현이 핵심입니다.',
-          source: '글쓰기 가이드.md',
-          similarity: 0.87,
-        },
-        {
-          id: '3',
-          content: '벡터 검색은 텍스트를 고차원 벡터로 변환하여 의미적 유사성을 계산하는 방식입니다.',
-          source: '기술 문서.txt (섹션 3)',
-          similarity: 0.81,
-        },
-      ]
+      // API 응답 → Reference 형식 변환
+      const mappedRefs: Reference[] = result.documents.map((doc) => ({
+        id: doc.chunkId,
+        content: doc.content,
+        source: doc.sourceUri || '업로드된 문서',
+        similarity: doc.scoreComponents.vector || 0,
+      }))
       
-      // 로딩 시뮬레이션
-      await new Promise(resolve => setTimeout(resolve, 800))
-      
-      setReferences(dummyReferences)
+      setReferences(mappedRefs)
     } catch (err) {
-      console.error('검색 실패:', err)
+      // -----------------------------------------------------------------------
+      // 에러 처리 (Phase 3: RAGSearchError 타입 체크)
+      // -----------------------------------------------------------------------
+      if (err instanceof RAGSearchError) {
+        console.error('검색 오류:', err.code, err.message)
+      } else {
+        console.error('검색 실패:', err)
+      }
+      setReferences([])
     } finally {
       setIsSearching(false)
     }
@@ -78,6 +79,39 @@ export default function ReferenceTab() {
   // ---------------------------------------------------------------------------
   return (
     <div className="p-4 space-y-4">
+      {/* ---------------------------------------------------------------
+          자료 업로드 섹션 (Phase 1 추가)
+          --------------------------------------------------------------- */}
+      <div className="mb-4">
+        <button
+          onClick={() => setShowUploader(!showUploader)}
+          className="w-full flex items-center justify-between px-4 py-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors"
+          aria-expanded={showUploader}
+          aria-label="자료 업로드 섹션 열기/닫기"
+        >
+          <span className="font-medium">📤 자료 업로드</span>
+          <span className="text-xl">{showUploader ? '▲' : '▼'}</span>
+        </button>
+        
+        {showUploader && (
+          <div className="mt-3">
+            <DocumentUploader 
+              onUploadSuccess={() => setRefreshKey(prev => prev + 1)}
+            />
+            {/* ---------------------------------------------------------------
+                업로드된 파일 목록 (Phase 2 추가)
+                --------------------------------------------------------------- */}
+            <div className="mt-3 max-h-40 overflow-y-auto">
+              <DocumentList 
+                key={refreshKey}
+                onDocumentDeleted={() => setRefreshKey(prev => prev + 1)}
+                className="text-sm"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* 검색 입력 */}
       <div className="flex gap-2">
         <input
