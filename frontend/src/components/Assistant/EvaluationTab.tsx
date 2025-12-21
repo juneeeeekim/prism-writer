@@ -10,6 +10,7 @@
 import { useState, useCallback } from 'react'
 import EvaluationResult from '@/components/Editor/EvaluationResult'
 import type { EvaluationResult as EvaluationResultType } from '@/lib/llm/parser'
+import { getApiHeaders } from '@/lib/api/utils'
 
 // =============================================================================
 // 타입 정의
@@ -51,9 +52,7 @@ export default function EvaluationTab({ editorContent }: EvaluationTabProps) {
     try {
       const response = await fetch('/api/rag/evaluate', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getApiHeaders(),
         body: JSON.stringify({
           userText: textToEvaluate,
           topK: 5,

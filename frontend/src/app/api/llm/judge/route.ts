@@ -127,7 +127,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<JudgeResp
   // 5. LLM 호출
   // ---------------------------------------------------------------------------
   try {
+    const modelOverride = request.headers.get('x-prism-model-id') || undefined
+
     const response = await generateText(prompt, {
+      model: modelOverride,
       temperature: 0.2, // 일관된 JSON 응답을 위해 낮은 temperature
       maxOutputTokens: 2048,
     })

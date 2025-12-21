@@ -8,7 +8,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { generateText, isLLMAvailable } from '@/lib/llm/gateway'
-import { buildEvaluationPrompt, type SearchResult } from '@/lib/llm/prompts'
+import { buildEvaluationPrompt } from '@/lib/llm/prompts'
 import { parseEvaluationResponse, type EvaluationResult } from '@/lib/llm/parser'
 import { vectorSearch } from '@/lib/rag/search'
 import { DEFAULT_RUBRICS, getEnabledRubrics, type Rubric } from '@/lib/rag/rubrics'
@@ -177,7 +177,7 @@ export async function POST(
     // ---------------------------------------------------------------------------
     // 5. RAG 검색 (근거 수집)
     // ---------------------------------------------------------------------------
-    let searchResults: SearchResult[] = []
+    let searchResults: any[] = []
     try {
       const query = searchQuery || userText.substring(0, 500) // 검색 쿼리 제한
       const results = await vectorSearch(query, {
@@ -216,7 +216,10 @@ export async function POST(
     // ---------------------------------------------------------------------------
     let llmResponse: string
     try {
+      const modelOverride = request.headers.get('x-prism-model-id') || undefined
+
       const response = await generateText(prompt, {
+        model: modelOverride,
         temperature: 0.3, // 일관된 평가를 위해 낮은 온도
         maxOutputTokens: 4096,
       })

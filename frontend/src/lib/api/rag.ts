@@ -6,6 +6,7 @@
 // =============================================================================
 
 import type { EvidencePack, EvidenceItem } from '@/types/rag'
+import { getApiHeaders } from './utils'
 
 // =============================================================================
 // 타입 정의
@@ -99,9 +100,7 @@ export async function searchDocuments(
   try {
     const response = await fetch('/api/rag/search', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getApiHeaders(),
       body: JSON.stringify({
         query: query.trim(),
         topK,

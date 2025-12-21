@@ -75,7 +75,8 @@ const SAMPLE_SEARCH_RESULTS: SearchResult[] = [
 // POST: LLM 테스트 실행
 // =============================================================================
 
-export async function POST(): Promise<NextResponse<TestResponse>> {
+export async function POST(request: Request): Promise<NextResponse<TestResponse>> {
+  const modelOverride = request.headers.get('x-prism-model-id') || undefined
   const results: TestResult[] = []
   let passed = 0
   let failed = 0
@@ -132,6 +133,7 @@ export async function POST(): Promise<NextResponse<TestResponse>> {
     })
 
     const response = await generateText(prompt, {
+      model: modelOverride,
       temperature: 0.3,
       maxOutputTokens: 2048,
     })

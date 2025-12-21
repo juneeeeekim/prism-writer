@@ -12,6 +12,7 @@
 import Link from 'next/link'
 import { useAuth } from '@/hooks/useAuth'
 import UserDropdown from '@/components/ui/UserDropdown'
+import AdminModelSelector from '@/components/admin/AdminModelSelector'
 
 // =============================================================================
 // Props Interface
@@ -76,6 +77,9 @@ export default function AuthHeader({
           </>
         )}
       </div>
+
+      {/* 어드민 모델 셀렉터 (숨겨진 모드) */}
+      <AdminModelSelector />
 
       {/* =================================================================
           Right Section - Toolbar + Auth

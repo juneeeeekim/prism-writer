@@ -5,6 +5,8 @@
 // 역할: 목차 생성 API 호출 클라이언트
 // =============================================================================
 
+import { getApiHeaders } from './utils'
+
 // -----------------------------------------------------------------------------
 // Types
 // -----------------------------------------------------------------------------
@@ -48,9 +50,7 @@ export async function generateOutline(
 ): Promise<OutlineGenerateResponse> {
   const response = await fetch(`${API_BASE_URL}/v1/outline/generate`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: getApiHeaders(),
     body: JSON.stringify({
       topic: request.topic,
       document_ids: request.document_ids || [],
@@ -72,9 +72,7 @@ export async function generateOutline(
 export async function getOutlineTemplates(): Promise<OutlineTemplate[]> {
   const response = await fetch(`${API_BASE_URL}/v1/outline/templates`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: getApiHeaders(),
   })
 
   if (!response.ok) {
