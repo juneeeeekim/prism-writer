@@ -1,14 +1,17 @@
 // =============================================================================
-// PRISM Writer - RAG Search API
+// PRISM Writer - RAG Search API (P2 Phase 3)
 // =============================================================================
 // 파일: frontend/src/app/api/rag/search/route.ts
-// 역할: 벡터 유사도 기반 문서 청크 검색 API
+// 역할: Gemini 임베딩 + 벡터 유사도 기반 문서 청크 검색 API
 // 메서드: POST
+// 변경사항: OpenAI → Gemini embedding, match_document_chunks RPC 사용
 // =============================================================================
 
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { embedText } from '@/lib/rag/embedding'
+import { generateEmbedding, GEMINI_EMBEDDING_CONFIG } from '@/lib/ai/embedding'
+import { buildEvidencePack } from '@/lib/rag/evidencePack'
+import type { EvidencePack, EvidenceItem } from '@/types/rag'
 
 // =============================================================================
 // 타입 정의
@@ -20,28 +23,23 @@ interface SearchRequest {
   query: string
   /** 반환할 결과 개수 (기본: 5, 최대: 20) */
   topK?: number
-  /** 문서 ID 필터 (선택) */
-  documentId?: string
+  /** 최소 유사도 임계값 (기본: 0.5) */
+  threshold?: number
 }
 
-/** 검색 결과 아이템 */
-interface SearchResultItem {
-  /** 청크 ID */
-  chunk_id: string
-  /** 문서 ID */
-  document_id: string
-  /** 청크 내용 */
+/** 검색 결과 아이템 (DB에서 반환되는 형식) */
+interface DBSearchResult {
+  id: number
   content: string
-  /** 유사도 점수 (0~1, 높을수록 유사) */
-  score: number
-  /** 메타데이터 */
-  metadata: Record<string, any>
+  metadata: Record<string, unknown>
+  similarity: number
 }
 
-/** 검색 응답 */
+/** 검색 응답 (EvidencePack 형식) */
 interface SearchResponse {
   success: boolean
-  results?: SearchResultItem[]
+  evidencePack?: EvidencePack
+  documents?: EvidenceItem[]
   message?: string
   error?: string
 }
@@ -56,18 +54,22 @@ const DEFAULT_TOP_K = 5
 /** 최대 Top-K 값 */
 const MAX_TOP_K = 20
 
+/** 기본 유사도 임계값 */
+const DEFAULT_THRESHOLD = 0.5
+
 // =============================================================================
-// POST: 벡터 검색
+// POST: Gemini 임베딩 기반 벡터 검색
 // =============================================================================
 
 /**
- * 벡터 유사도 기반 청크 검색 API
+ * Gemini 임베딩 + 벡터 유사도 기반 청크 검색 API
  * 
  * @description
- * 사용자 쿼리를 임베딩으로 변환하고, 데이터베이스에서 유사한 청크를 검색합니다.
- * pgvector의 코사인 유사도를 사용하여 가장 관련성 높은 청크를 반환합니다.
+ * 1. 사용자 쿼리를 Gemini text-embedding-004로 임베딩 (768차원)
+ * 2. match_document_chunks RPC로 유사한 청크 검색
+ * 3. 결과를 EvidencePack 형식으로 변환하여 반환
  * 
- * @returns JSON response with search results
+ * @returns JSON response with EvidencePack
  */
 export async function POST(request: Request): Promise<NextResponse<SearchResponse>> {
   try {
@@ -90,8 +92,6 @@ export async function POST(request: Request): Promise<NextResponse<SearchRespons
       )
     }
 
-    const userId = session.user.id
-
     // ---------------------------------------------------------------------------
     // 2. 요청 바디 파싱 및 검증
     // ---------------------------------------------------------------------------
@@ -109,7 +109,11 @@ export async function POST(request: Request): Promise<NextResponse<SearchRespons
       )
     }
 
-    const { query, topK = DEFAULT_TOP_K, documentId } = body
+    const { 
+      query, 
+      topK = DEFAULT_TOP_K, 
+      threshold = DEFAULT_THRESHOLD 
+    } = body
 
     // 쿼리 검증
     if (!query || query.trim().length === 0) {
@@ -127,17 +131,17 @@ export async function POST(request: Request): Promise<NextResponse<SearchRespons
     const validTopK = Math.min(Math.max(topK, 1), MAX_TOP_K)
 
     // ---------------------------------------------------------------------------
-    // 3. 쿼리 임베딩 생성
+    // 3. Gemini 임베딩 생성 (768차원)
     // ---------------------------------------------------------------------------
     let queryEmbedding: number[]
     try {
-      queryEmbedding = await embedText(query.trim())
+      queryEmbedding = await generateEmbedding(query.trim())
     } catch (embeddingError) {
-      console.error('Failed to generate query embedding:', embeddingError)
+      console.error('Failed to generate Gemini query embedding:', embeddingError)
       return NextResponse.json(
         {
           success: false,
-          message: '쿼리 임베딩 생성에 실패했습니다.',
+          message: 'Gemini 쿼리 임베딩 생성에 실패했습니다.',
           error: 'EMBEDDING_FAILED',
         },
         { status: 500 }
@@ -145,25 +149,23 @@ export async function POST(request: Request): Promise<NextResponse<SearchRespons
     }
 
     // ---------------------------------------------------------------------------
-    // 4. 벡터 유사도 검색 (pgvector)
+    // 4. match_document_chunks RPC 호출 (P2 Phase 1에서 생성된 함수)
     // ---------------------------------------------------------------------------
-    // PostgreSQL의 search_similar_chunks 함수 사용
-    // 이 함수는 013_rag_chunks_schema.sql에서 정의됨
     const { data: searchResults, error: searchError } = await supabase.rpc(
-      'search_similar_chunks',
+      'match_document_chunks',
       {
         query_embedding: queryEmbedding,
-        user_id_param: userId,
+        match_threshold: threshold,
         match_count: validTopK,
       }
     )
 
     if (searchError) {
-      console.error('Vector search error:', searchError)
+      console.error('Vector search error (match_document_chunks):', searchError)
       return NextResponse.json(
         {
           success: false,
-          message: '검색 중 오류가 발생했습니다.',
+          message: '벡터 검색 중 오류가 발생했습니다.',
           error: 'SEARCH_FAILED',
         },
         { status: 500 }
@@ -171,32 +173,41 @@ export async function POST(request: Request): Promise<NextResponse<SearchRespons
     }
 
     // ---------------------------------------------------------------------------
-    // 5. 결과 필터링 (documentId 필터)
+    // 5. 결과를 EvidenceItem 형식으로 변환
     // ---------------------------------------------------------------------------
-    let filteredResults = searchResults || []
-    if (documentId) {
-      filteredResults = filteredResults.filter(
-        (result: any) => result.document_id === documentId
-      )
-    }
+    const dbResults: DBSearchResult[] = searchResults || []
+    
+    // buildEvidencePack에 전달할 형식으로 변환
+    const searchResultsForPack = dbResults.map((result) => ({
+      id: String(result.id),
+      documentId: (result.metadata?.documentId as string) || 'unknown',
+      content: result.content,
+      score: result.similarity,
+      metadata: result.metadata,
+    }))
 
     // ---------------------------------------------------------------------------
-    // 6. 결과 포맷팅
+    // 6. EvidencePack 빌드 (P1 Phase 4 자산 활용)
     // ---------------------------------------------------------------------------
-    const formattedResults: SearchResultItem[] = filteredResults.map((result: any) => ({
-      chunk_id: result.chunk_id,
-      document_id: result.document_id,
-      content: result.content,
-      score: result.similarity, // 코사인 유사도 (0~1)
-      metadata: result.metadata || {},
-    }))
+    const runId = `search_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    
+    const evidencePack = buildEvidencePack(
+      runId,
+      searchResultsForPack,
+      {
+        query: query.trim(),
+        retrievalConfigId: 'gemini-768',
+        embeddingModelId: GEMINI_EMBEDDING_CONFIG.modelId,
+      }
+    )
 
     // ---------------------------------------------------------------------------
     // 7. 성공 응답
     // ---------------------------------------------------------------------------
     return NextResponse.json({
       success: true,
-      results: formattedResults,
+      evidencePack,
+      documents: evidencePack.items,
     })
   } catch (error) {
     console.error('Unexpected error in RAG search API:', error)
@@ -210,3 +221,4 @@ export async function POST(request: Request): Promise<NextResponse<SearchRespons
     )
   }
 }
+

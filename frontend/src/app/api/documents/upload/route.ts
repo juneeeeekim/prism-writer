@@ -21,8 +21,8 @@ const ALLOWED_FILE_TYPES = {
   'text/markdown': { ext: 'md', name: 'Markdown' },
 } as const
 
-/** 최대 파일 크기 (10MB) */
-const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB in bytes
+/** 최대 파일 크기 (50MB - Supabase Free Plan 최대치) */
+const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB in bytes
 
 /** Supabase Storage 버킷 이름 */
 const STORAGE_BUCKET = 'rag-documents'

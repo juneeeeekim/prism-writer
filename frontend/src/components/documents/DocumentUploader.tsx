@@ -25,7 +25,7 @@ interface DocumentUploaderProps {
 
 const ALLOWED_TYPES = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'text/markdown']
 const ALLOWED_EXTENSIONS = ['pdf', 'docx', 'txt', 'md']
-const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
+const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB (Supabase Free Plan 최대치)
 
 // =============================================================================
 // Component
@@ -47,7 +47,7 @@ export default function DocumentUploader({ onUploadSuccess, className = '' }: Do
   const validateFile = (file: File): string | null => {
     // 파일 크기 검증
     if (file.size > MAX_FILE_SIZE) {
-      return `파일 크기가 너무 큽니다. 최대 10MB까지 업로드 가능합니다. (현재: ${(file.size / (1024 * 1024)).toFixed(1)}MB)`
+      return `파일 크기가 너무 큽니다. 최대 50MB까지 업로드 가능합니다. (현재: ${(file.size / (1024 * 1024)).toFixed(1)}MB)`
     }
 
     // 파일 타입 검증
@@ -220,7 +220,7 @@ export default function DocumentUploader({ onUploadSuccess, className = '' }: Do
                 <span className="text-indigo-600 dark:text-indigo-400">클릭</span>하거나 파일을 드래그하여 업로드
               </p>
               <p className="text-gray-500 dark:text-gray-400 mt-1">
-                PDF, DOCX, TXT, MD (최대 10MB)
+                PDF, DOCX, TXT, MD (최대 50MB)
               </p>
             </>
           )}

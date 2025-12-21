@@ -1,8 +1,9 @@
 // =============================================================================
-// PRISM Writer - RAG Search Page
+// PRISM Writer - RAG Search Page (P2 Phase 4 Updated)
 // =============================================================================
 // 파일: frontend/src/app/rag/page.tsx
-// 역할: RAG 검색 전용 페이지 (모듈형 설계)
+// 역할: RAG 검색 전용 페이지 (실제 API 연동)
+// 변경사항: Mock 데이터 제거 → 실제 searchDocuments API 호출
 // =============================================================================
 
 'use client'
@@ -12,8 +13,9 @@ import AuthHeader from '@/components/auth/AuthHeader'
 import { EvidenceCard, EvidenceList } from '@/components/rag/EvidenceCard'
 import { ModeSelector } from '@/components/rag/ModeSelector'
 import { ReviewBadge } from '@/components/rag/ReviewBadge'
-import type { JudgeResult, JudgeEvidence, RouterMode } from '@/types/rag'
+import type { JudgeResult, JudgeEvidence, RouterMode, EvidencePack } from '@/types/rag'
 import type { VerifiedEvidence } from '@/lib/rag/citationGate'
+import { searchDocuments, documentsToContext, RAGSearchError } from '@/lib/api/rag'
 
 // =============================================================================
 // 타입 정의
@@ -23,6 +25,7 @@ interface SearchState {
   query: string
   mode: RouterMode
   isLoading: boolean
+  isSearching: boolean  // 검색 단계 표시용
   error: string | null
 }
 
@@ -52,13 +55,15 @@ export default function RAGSearchPage() {
     query: '',
     mode: 'standard',
     isLoading: false,
+    isSearching: false,
     error: null,
   })
   
   const [judgeResult, setJudgeResult] = useState<JudgeResponseData | null>(null)
+  const [evidencePack, setEvidencePack] = useState<EvidencePack | null>(null)
 
   // ---------------------------------------------------------------------------
-  // 검색 핸들러
+  // 검색 핸들러 (2단계 파이프라인: 검색 → Judge)
   // ---------------------------------------------------------------------------
   const handleSearch = async () => {
     if (!searchState.query.trim()) {
@@ -66,30 +71,57 @@ export default function RAGSearchPage() {
       return
     }
 
-    setSearchState(prev => ({ ...prev, isLoading: true, error: null }))
+    setSearchState(prev => ({ ...prev, isLoading: true, isSearching: true, error: null }))
     setJudgeResult(null)
+    setEvidencePack(null)
 
     try {
       // -----------------------------------------------------------------
-      // 1단계: Judge API 호출 (RAG 파이프라인)
+      // 1단계: RAG 검색 API 호출 (Gemini 768차원 벡터 검색)
       // -----------------------------------------------------------------
+      let searchResult
+      try {
+        searchResult = await searchDocuments(searchState.query, {
+          topK: 5,
+          threshold: 0.5,
+        })
+        setEvidencePack(searchResult.evidencePack)
+      } catch (searchError) {
+        if (searchError instanceof RAGSearchError) {
+          // 검색 결과가 없어도 Judge 진행 (Mock 컨텍스트로 대체)
+          if (searchError.code === 'NO_RESULTS') {
+            console.warn('검색 결과 없음, 기본 컨텍스트로 진행')
+            searchResult = null
+          } else {
+            throw searchError
+          }
+        } else {
+          throw searchError
+        }
+      }
+
+      setSearchState(prev => ({ ...prev, isSearching: false }))
+
+      // -----------------------------------------------------------------
+      // 2단계: Judge API 호출 (검색된 문서를 컨텍스트로 전달)
+      // -----------------------------------------------------------------
+      const context = searchResult 
+        ? documentsToContext(searchResult.documents)
+        : [
+            // 검색 결과가 없을 경우 안내 메시지
+            {
+              id: 'no-results',
+              content: '검색 결과가 없습니다. 문서를 먼저 업로드해주세요.',
+            },
+          ]
+
       const response = await fetch('/api/llm/judge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           query: searchState.query,
-          mode: searchState.mode, // 모드 전달
-          // 테스트용 샘플 컨텍스트 (실제로는 검색 API에서 가져와야 함)
-          context: [
-            {
-              id: 'sample-chunk-1',
-              content: 'RAG(Retrieval-Augmented Generation)는 검색과 생성을 결합한 기술입니다. 대규모 언어 모델의 환각 문제를 해결하기 위해 외부 지식을 활용합니다.',
-            },
-            {
-              id: 'sample-chunk-2',
-              content: '자연어 처리(NLP)는 컴퓨터가 인간의 언어를 이해하고 생성하는 인공지능의 한 분야입니다.',
-            },
-          ],
+          mode: searchState.mode,
+          context,
         }),
       })
 
@@ -101,12 +133,18 @@ export default function RAGSearchPage() {
 
       setJudgeResult(data)
     } catch (error) {
+      const errorMessage = error instanceof RAGSearchError
+        ? `[${error.code}] ${error.message}`
+        : error instanceof Error 
+          ? error.message 
+          : '알 수 없는 오류'
+      
       setSearchState(prev => ({
         ...prev,
-        error: error instanceof Error ? error.message : '알 수 없는 오류',
+        error: errorMessage,
       }))
     } finally {
-      setSearchState(prev => ({ ...prev, isLoading: false }))
+      setSearchState(prev => ({ ...prev, isLoading: false, isSearching: false }))
     }
   }
 
@@ -153,7 +191,7 @@ export default function RAGSearchPage() {
                 {searchState.isLoading ? (
                   <>
                     <span className="animate-spin">↻</span>
-                    분석 중...
+                    {searchState.isSearching ? '검색 중...' : '분석 중...'}
                   </>
                 ) : (
                   <>
