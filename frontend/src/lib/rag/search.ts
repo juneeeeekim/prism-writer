@@ -5,7 +5,7 @@
 // 역할: 하이브리드 검색 (벡터 + 키워드) 유틸리티
 // =============================================================================
 
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/server'
 import { embedText } from './embedding'
 import { validateACL } from './aclGate'
 import { type ChunkType } from './chunking'

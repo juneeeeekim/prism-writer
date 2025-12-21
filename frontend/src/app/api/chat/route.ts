@@ -9,7 +9,7 @@ import { vectorSearch } from '@/lib/rag/search'
 // 역할: RAG 기반 AI 채팅 API
 // =============================================================================
 
-export const runtime = 'edge'
+export const runtime = 'nodejs'
 
 export async function POST(req: NextRequest) {
   try {
