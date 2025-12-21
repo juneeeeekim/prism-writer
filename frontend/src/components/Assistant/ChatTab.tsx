@@ -37,6 +37,9 @@ export default function ChatTab() {
   // ---------------------------------------------------------------------------
   // Send Message Handler
   // ---------------------------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // Send Message Handler
+  // ---------------------------------------------------------------------------
   const handleSend = async () => {
     if (!input.trim() || isLoading) return
 
@@ -52,17 +55,61 @@ export default function ChatTab() {
     setIsLoading(true)
 
     try {
-      // TODO: 실제 API 연동 (Phase 3에서 구현)
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })),
+        }),
+      })
 
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: `"${input}"에 대해 좋은 질문이네요! 현재는 데모 모드입니다. Phase 3에서 실제 RAG 기반 응답이 연동됩니다.`,
-        timestamp: new Date(),
+      if (!response.ok) throw new Error('Network response was not ok')
+      if (!response.body) throw new Error('No response body')
+
+      // Assistant message placeholder
+      const assistantMessageId = (Date.now() + 1).toString()
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: assistantMessageId,
+          role: 'assistant',
+          content: '',
+          timestamp: new Date(),
+        },
+      ])
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let done = false
+      let accumulatedContent = ''
+
+      while (!done) {
+        const { value, done: doneReading } = await reader.read()
+        done = doneReading
+        const chunkValue = decoder.decode(value, { stream: true })
+        accumulatedContent += chunkValue
+
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMessageId
+              ? { ...msg, content: accumulatedContent }
+              : msg
+          )
+        )
       }
-
-      setMessages((prev) => [...prev, assistantMessage])
+    } catch (error) {
+      console.error('Chat Error:', error)
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 2).toString(),
+          role: 'assistant',
+          content: '죄송합니다. 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+          timestamp: new Date(),
+        },
+      ])
     } finally {
       setIsLoading(false)
     }
