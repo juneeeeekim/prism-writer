@@ -170,20 +170,18 @@ export const DEFAULT_RUBRIC_SET: RubricSet = {
 // =============================================================================
 
 /**
+ * @deprecated v3 템플릿 시스템으로 마이그레이션 예정
+ * @see RubricAdapter
  * 활성화된 루브릭만 필터링
- * 
- * @param rubrics - 루브릭 배열
- * @returns 활성화된 루브릭만 포함된 배열
  */
 export function getEnabledRubrics(rubrics: Rubric[] = DEFAULT_RUBRICS): Rubric[] {
   return rubrics.filter((rubric) => rubric.enabled)
 }
 
 /**
+ * @deprecated v3 템플릿 시스템으로 마이그레이션 예정
+ * @see RubricAdapter
  * 카테고리별 루브릭 그룹화
- * 
- * @param rubrics - 루브릭 배열
- * @returns 카테고리별로 그룹화된 루브릭 맵
  */
 export function groupRubricsByCategory(
   rubrics: Rubric[] = DEFAULT_RUBRICS
@@ -201,11 +199,9 @@ export function groupRubricsByCategory(
 }
 
 /**
+ * @deprecated v3 템플릿 시스템으로 마이그레이션 예정
+ * @see RubricAdapter
  * 루브릭 ID로 루브릭 찾기
- * 
- * @param id - 루브릭 ID
- * @param rubrics - 루브릭 배열
- * @returns 루브릭 또는 undefined
  */
 export function getRubricById(
   id: string,
@@ -215,10 +211,9 @@ export function getRubricById(
 }
 
 /**
+ * @deprecated v3 템플릿 시스템으로 마이그레이션 예정
+ * @see RubricAdapter
  * 카테고리 한글 이름 반환
- * 
- * @param category - 카테고리
- * @returns 한글 카테고리 이름
  */
 export function getCategoryLabel(category: RubricCategory): string {
   const labels: Record<RubricCategory, string> = {
@@ -232,10 +227,9 @@ export function getCategoryLabel(category: RubricCategory): string {
 }
 
 /**
+ * @deprecated v3 템플릿 시스템으로 마이그레이션 예정
+ * @see RubricAdapter
  * 총 가중치 검증
- * 
- * @param rubrics - 루브릭 배열
- * @returns 가중치 합계가 100인지 여부
  */
 export function validateWeights(rubrics: Rubric[] = DEFAULT_RUBRICS): boolean {
   const enabledRubrics = getEnabledRubrics(rubrics)

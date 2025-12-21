@@ -1,3 +1,4 @@
+
 // =============================================================================
 // PRISM Writer - Evaluation API
 // =============================================================================
@@ -9,9 +10,17 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { generateText, isLLMAvailable } from '@/lib/llm/gateway'
 import { buildEvaluationPrompt } from '@/lib/llm/prompts'
-import { parseEvaluationResponse, type EvaluationResult } from '@/lib/llm/parser'
+import { parseEvaluationResponse, type EvaluationResult as LegacyEvaluationResult } from '@/lib/llm/parser'
 import { vectorSearch } from '@/lib/rag/search'
 import { DEFAULT_RUBRICS, getEnabledRubrics, type Rubric } from '@/lib/rag/rubrics'
+
+// v3 Imports
+import { runAlignJudge } from '@/lib/judge/alignJudge'
+import { runUpgradePlanner } from '@/lib/judge/upgradePlanner'
+import { type EvaluationResult, type JudgeResult, type UpgradePlan } from '@/lib/judge/types'
+import { type TemplateSchema } from '@/lib/rag/templateTypes'
+import { logShadowModeComparison } from '@/lib/rag/shadowModeLogger'
+import { RubricAdapter } from '@/lib/rag/rubricAdapter'
 
 // =============================================================================
 // 타입 정의
@@ -27,12 +36,17 @@ interface EvaluateRequest {
   searchQuery?: string
   /** 검색 결과 개수 */
   topK?: number
+  
+  // v3 params
+  useV3?: boolean
+  templateId?: string
 }
 
 /** 평가 응답 */
 interface EvaluateResponse {
   success: boolean
-  result?: EvaluationResult
+  result?: LegacyEvaluationResult // Legacy
+  v3Result?: EvaluationResult // v3
   message?: string
   error?: string
   /** 사용된 루브릭 개수 */
@@ -58,14 +72,6 @@ const MAX_TEXT_LENGTH = 50000
 // POST: 글 평가 실행
 // =============================================================================
 
-/**
- * 사용자 글 평가 API
- * 
- * @description
- * 1. 사용자 글을 받아 RAG 검색으로 관련 근거를 수집
- * 2. 루브릭 기준으로 LLM에게 평가 요청
- * 3. JSON 형식 평가 결과 반환
- */
 export async function POST(
   request: Request
 ): Promise<NextResponse<EvaluateResponse>> {
@@ -73,7 +79,9 @@ export async function POST(
     // ---------------------------------------------------------------------------
     // 1. LLM 사용 가능 여부 확인
     // ---------------------------------------------------------------------------
-    if (!isLLMAvailable()) {
+    const body = await request.json() as EvaluateRequest
+    
+    if (!body.useV3 && !isLLMAvailable()) {
       return NextResponse.json(
         {
           success: false,
@@ -103,38 +111,18 @@ export async function POST(
       )
     }
 
-    const userId = session.user.id
+    const { userText, rubricIds, searchQuery, topK, useV3, templateId } = body
+    const USE_V3_FLAG = process.env.NEXT_PUBLIC_USE_V3_TEMPLATES === 'true'
+    const effectiveUseV3 = useV3 !== undefined ? useV3 : USE_V3_FLAG
 
     // ---------------------------------------------------------------------------
-    // 3. 요청 바디 파싱 및 검증
+    // 3. 입력 유효성 검사
     // ---------------------------------------------------------------------------
-    let body: EvaluateRequest
-    try {
-      body = await request.json()
-    } catch {
+    if (!userText || userText.length < MIN_TEXT_LENGTH) {
       return NextResponse.json(
         {
           success: false,
-          message: '요청 형식이 올바르지 않습니다.',
-          error: 'INVALID_REQUEST',
-        },
-        { status: 400 }
-      )
-    }
-
-    const {
-      userText,
-      rubricIds,
-      searchQuery,
-      topK = DEFAULT_TOP_K,
-    } = body
-
-    // 글 길이 검증
-    if (!userText || userText.trim().length < MIN_TEXT_LENGTH) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: `평가할 글이 너무 짧습니다. 최소 ${MIN_TEXT_LENGTH}자 이상 입력해주세요.`,
+          message: `글자 수가 너무 적습니다. 최소 ${MIN_TEXT_LENGTH}자 이상 작성해주세요.`,
           error: 'TEXT_TOO_SHORT',
         },
         { status: 400 }
@@ -145,130 +133,124 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-          message: `글이 너무 깁니다. 최대 ${MAX_TEXT_LENGTH}자까지 가능합니다.`,
+          message: `글자 수가 너무 많습니다. 최대 ${MAX_TEXT_LENGTH}자까지 가능합니다.`,
           error: 'TEXT_TOO_LONG',
         },
         { status: 400 }
       )
     }
 
-    // ---------------------------------------------------------------------------
-    // 4. 루브릭 선택
-    // ---------------------------------------------------------------------------
-    let selectedRubrics: Rubric[]
-    if (rubricIds && rubricIds.length > 0) {
-      // 지정된 루브릭만 사용
-      selectedRubrics = DEFAULT_RUBRICS.filter((r) => rubricIds.includes(r.id))
-      if (selectedRubrics.length === 0) {
-        return NextResponse.json(
-          {
+    // ===========================================================================
+    // v3 Evaluation Logic (Align Judge + Upgrade Planner)
+    // ===========================================================================
+    if (effectiveUseV3) {
+      // 1. 템플릿 조회
+      let templateSchema: TemplateSchema[] = []
+      
+      if (templateId) {
+        const { data, error } = await supabase
+          .from('rag_templates')
+          .select('schema')
+          .eq('id', templateId)
+          .single()
+          
+        if (error || !data) {
+          throw new Error('Template not found')
+        }
+        templateSchema = data.schema as TemplateSchema[]
+      } else {
+        // 템플릿 ID가 없으면 가장 최근 승인된 템플릿 사용 (Fallback)
+        const { data, error } = await supabase
+          .from('rag_templates')
+          .select('schema')
+          .eq('tenant_id', session.user.id) // 개인 사용자 기준
+          .eq('status', 'approved')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single()
+          
+        if (error || !data) {
+          // 템플릿이 아예 없으면 에러
+          return NextResponse.json({
             success: false,
-            message: '유효한 루브릭이 없습니다.',
-            error: 'INVALID_RUBRICS',
-          },
-          { status: 400 }
-        )
+            message: '사용 가능한 템플릿이 없습니다. 먼저 템플릿을 생성해주세요.',
+            error: 'NO_TEMPLATE_FOUND'
+          }, { status: 404 })
+        }
+        templateSchema = data.schema as TemplateSchema[]
       }
-    } else {
-      // 전체 활성 루브릭 사용
-      selectedRubrics = getEnabledRubrics()
-    }
 
-    // ---------------------------------------------------------------------------
-    // 5. RAG 검색 (근거 수집)
-    // ---------------------------------------------------------------------------
-    let searchResults: any[] = []
-    try {
-      const query = searchQuery || userText.substring(0, 500) // 검색 쿼리 제한
-      const results = await vectorSearch(query, {
-        userId,
-        topK,
-        minScore: 0.5, // 최소 유사도 0.5
-      })
-
-      searchResults = results.map((r) => ({
-        chunkId: r.chunkId,
-        content: r.content,
-        score: r.score,
-        metadata: r.metadata,
-      }))
-    } catch (searchError) {
-      console.warn('RAG 검색 실패, 근거 없이 진행:', searchError)
-      // 검색 실패해도 평가는 계속 진행 (근거 부족으로 처리됨)
-    }
-
-    // ---------------------------------------------------------------------------
-    // 6. 평가 프롬프트 생성
-    // ---------------------------------------------------------------------------
-    const prompt = buildEvaluationPrompt({
-      userText: userText.trim(),
-      rubrics: selectedRubrics.map((r) => ({
-        id: r.id,
-        name: r.name,
-        description: r.description,
-        weight: r.weight,
-      })),
-      searchResults,
-    })
-
-    // ---------------------------------------------------------------------------
-    // 7. LLM 평가 실행
-    // ---------------------------------------------------------------------------
-    let llmResponse: string
-    try {
-      const modelOverride = request.headers.get('x-prism-model-id') || undefined
-
-      const response = await generateText(prompt, {
-        model: modelOverride,
-        temperature: 0.3, // 일관된 평가를 위해 낮은 온도
-        maxOutputTokens: 4096,
-      })
-      llmResponse = response.text
-    } catch (llmError) {
-      console.error('LLM 평가 실패:', llmError)
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'AI 평가 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
-          error: 'LLM_ERROR',
-        },
-        { status: 500 }
+      // 2. 병렬 평가 실행 (Align Judge)
+      const judgePromises = templateSchema.map(criteria => 
+        runAlignJudge(userText, criteria)
       )
+      const judgeResults = await Promise.all(judgePromises)
+
+      // 3. 실패 항목에 대해 Upgrade Plan 수립 (Upgrade Planner)
+      const planPromises = judgeResults.map(async (result, index) => {
+        if (result.status === 'pass') return null
+        
+        const criteria = templateSchema[index]
+        return runUpgradePlanner(result, criteria)
+      })
+      const plans = (await Promise.all(planPromises)).filter(p => p !== null) as UpgradePlan[]
+
+      // 4. 종합 점수 계산 (단순 평균)
+      const passCount = judgeResults.filter(r => r.status === 'pass').length
+      const partialCount = judgeResults.filter(r => r.status === 'partial').length
+      const totalCount = judgeResults.length
+      const score = Math.round(((passCount * 1.0 + partialCount * 0.5) / totalCount) * 100)
+
+      // 5. 결과 반환
+      const v3Result: EvaluationResult = {
+        document_id: 'latest', // TODO: 실제 문서 ID 연동 필요 시 수정
+        template_id: templateId || 'latest',
+        evaluated_at: new Date().toISOString(),
+        judgments: judgeResults,
+        upgrade_plans: plans,
+        overall_score: score
+      }
+
+      // 6. Shadow Mode (v2 병렬 실행 및 로깅)
+      // 주의: 실제 서비스에서는 성능을 위해 비동기로 실행하거나 샘플링할 수 있음
+      try {
+        const v2Result = await runLegacyEvaluation(userText, rubricIds, searchQuery, topK, session.user.id)
+        await logShadowModeComparison(v2Result, v3Result, {
+          userId: session.user.id,
+          userText,
+          templateId: templateId || 'latest'
+        })
+      } catch (shadowError) {
+        console.error('[ShadowMode] Error:', shadowError)
+      }
+
+      return NextResponse.json({
+        success: true,
+        v3Result,
+        message: 'Evaluation completed successfully (v3)',
+      })
     }
 
-    // ---------------------------------------------------------------------------
-    // 8. 결과 파싱
-    // ---------------------------------------------------------------------------
-    const evaluationResult = parseEvaluationResponse(llmResponse, { debug: false })
+    // ===========================================================================
+    // Legacy Evaluation Logic
+    // ===========================================================================
 
-    if (!evaluationResult.success) {
-      console.error('평가 결과 파싱 실패:', evaluationResult.error)
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'AI 응답을 처리하는 중 오류가 발생했습니다.',
-          error: 'PARSE_ERROR',
-        },
-        { status: 500 }
-      )
-    }
+    // 5. 실행
+    const result = await runLegacyEvaluation(userText, rubricIds, searchQuery, topK, session.user.id)
 
-    // ---------------------------------------------------------------------------
-    // 9. 성공 응답
-    // ---------------------------------------------------------------------------
+    // 6. 결과 반환
     return NextResponse.json({
       success: true,
-      result: evaluationResult,
-      rubricCount: selectedRubrics.length,
-      evidenceCount: searchResults.length,
+      result,
     })
-  } catch (error) {
-    console.error('Unexpected error in evaluate API:', error)
+
+  } catch (error: any) {
+    console.error('[Evaluation API] Error:', error)
     return NextResponse.json(
       {
         success: false,
-        message: '서버 오류가 발생했습니다.',
-        error: 'INTERNAL_SERVER_ERROR',
+        message: '평가 중 오류가 발생했습니다.',
+        error: error.message || 'INTERNAL_SERVER_ERROR',
       },
       { status: 500 }
     )
@@ -293,4 +275,60 @@ export async function GET(): Promise<NextResponse> {
     })),
     totalCount: enabledRubrics.length,
   })
+}
+
+// =============================================================================
+// Internal Helper: Legacy Evaluation
+// =============================================================================
+
+async function runLegacyEvaluation(
+  userText: string,
+  rubricIds: string[] | undefined,
+  searchQuery: string | undefined,
+  topK: number | undefined,
+  userId: string
+): Promise<LegacyEvaluationResult> {
+  // 1. 루브릭 필터링
+  let targetRubrics: Rubric[] = getEnabledRubrics()
+  if (rubricIds && rubricIds.length > 0) {
+    targetRubrics = DEFAULT_RUBRICS.filter(r => rubricIds.includes(r.id))
+  }
+
+  if (targetRubrics.length === 0) {
+    throw new Error('No active rubrics found')
+  }
+
+  // 2. RAG 검색
+  const query = searchQuery || userText.substring(0, 200)
+  const searchResults = await vectorSearch(query, {
+    userId,
+    topK: topK || DEFAULT_TOP_K,
+    minScore: 0.7,
+  })
+
+  // 3. 프롬프트 생성
+  const prompt = buildEvaluationPrompt({
+    userText,
+    rubrics: targetRubrics.map(r => ({
+      id: r.id,
+      name: r.name,
+      description: r.description,
+      weight: r.weight
+    })),
+    searchResults: searchResults.map(r => ({
+      chunkId: r.chunkId,
+      content: r.content,
+      score: r.score,
+      metadata: r.metadata
+    }))
+  })
+
+  // 4. LLM 호출
+  const llmResponse = await generateText(prompt, {
+    temperature: 0.2,
+    maxOutputTokens: 2000,
+  })
+
+  // 5. 파싱
+  return parseEvaluationResponse(llmResponse.text)
 }

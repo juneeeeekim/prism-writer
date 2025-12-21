@@ -226,6 +226,39 @@ export async function logTelemetryBatch(records: TelemetryRecord[]): Promise<voi
   // Supabase batch insert 추후 구현
 }
 
+/**
+ * 템플릿 빌드 이벤트 로깅
+ * 
+ * @param event - 템플릿 빌드 관련 정보
+ */
+export async function logTemplateBuildEvent(event: {
+  template_id: string
+  document_id: string
+  build_time_ms: number
+  success: boolean
+  failure_reason?: string
+}): Promise<void> {
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[Telemetry] Template Build Event:', event)
+  }
+
+  // Supabase 저장 (추후 구현)
+  // try {
+  //   const { createClient } = await import('@/lib/supabase/client')
+  //   const supabase = createClient()
+  //   await supabase.from('template_build_logs').insert({
+  //     template_id: event.template_id,
+  //     document_id: event.document_id,
+  //     build_time_ms: event.build_time_ms,
+  //     success: event.success,
+  //     failure_reason: event.failure_reason,
+  //     created_at: new Date().toISOString()
+  //   })
+  // } catch (error) {
+  //   console.error('[Telemetry] Failed to log build event:', error)
+  // }
+}
+
 // =============================================================================
 // Telemetry 집계 유틸리티
 // =============================================================================

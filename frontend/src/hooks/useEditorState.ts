@@ -8,6 +8,8 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { type EvaluationResult } from '@/lib/judge/types'
+import { type TemplateSchema } from '@/lib/rag/templateTypes'
 
 // -----------------------------------------------------------------------------
 // Types
@@ -30,11 +32,17 @@ interface EditorState {
   isDirty: boolean
   lastSavedAt: Date | null
   
+  // v3: 평가 및 템플릿 상태
+  evaluationResult: EvaluationResult | null
+  template: TemplateSchema[] | null
+  
   // 액션
   setContent: (content: string) => void
   setTitle: (title: string) => void
   setOutline: (outline: OutlineItem[]) => void
   setCurrentParagraphIndex: (index: number) => void
+  setEvaluationResult: (result: EvaluationResult | null) => void
+  setTemplate: (template: TemplateSchema[] | null) => void
   insertOutline: (outline: OutlineItem[]) => void
   insertText: (text: string) => void
   markAsSaved: () => void
@@ -54,6 +62,8 @@ export const useEditorState = create<EditorState>()(
       currentParagraphIndex: 0,
       isDirty: false,
       lastSavedAt: null,
+      evaluationResult: null,
+      template: null,
 
       // ---------------------------------------------------------------------------
       // Setters
@@ -65,6 +75,10 @@ export const useEditorState = create<EditorState>()(
       setOutline: (outline) => set({ outline }),
       
       setCurrentParagraphIndex: (currentParagraphIndex) => set({ currentParagraphIndex }),
+
+      setEvaluationResult: (evaluationResult) => set({ evaluationResult }),
+      
+      setTemplate: (template) => set({ template }),
 
       // ---------------------------------------------------------------------------
       // Insert Outline (목차를 마크다운 형식으로 삽입)

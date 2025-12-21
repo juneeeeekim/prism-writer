@@ -8,6 +8,7 @@
 import { createClient } from '@/lib/supabase/client'
 import { embedText } from './embedding'
 import { validateACL } from './aclGate'
+import { type ChunkType } from './chunking'
 
 // =============================================================================
 // 타입 정의
@@ -27,6 +28,8 @@ export interface SearchResult {
   metadata: Record<string, any>
 }
 
+export type Chunk = SearchResult
+
 /** 검색 옵션 */
 export interface SearchOptions {
   /** 사용자 ID */
@@ -37,6 +40,8 @@ export interface SearchOptions {
   documentId?: string
   /** 최소 점수 임계값 (0~1) */
   minScore?: number
+  /** 청크 유형 필터 (Pipeline v3 추가) */
+  chunkType?: ChunkType
 }
 
 /** 하이브리드 검색 옵션 */
@@ -86,7 +91,7 @@ export async function vectorSearch(
   query: string,
   options: SearchOptions
 ): Promise<SearchResult[]> {
-  const { userId, topK = DEFAULT_TOP_K, documentId, minScore = 0 } = options
+  const { userId, topK = DEFAULT_TOP_K, documentId, minScore = 0, chunkType } = options
 
   // ---------------------------------------------------------------------------
   // 0. ACL 검증 (Phase 2: ACL 게이트)
@@ -134,6 +139,13 @@ export async function vectorSearch(
   // 최소 점수 필터
   results = results.filter((result) => result.score >= minScore)
 
+  // ---------------------------------------------------------------------------
+  // Pipeline v3: 청크 유형 필터 (chunkType)
+  // ---------------------------------------------------------------------------
+  if (chunkType) {
+    results = results.filter((result) => result.metadata.chunkType === chunkType)
+  }
+
   return results
 }
 
@@ -161,7 +173,7 @@ export async function fullTextSearch(
   query: string,
   options: SearchOptions
 ): Promise<SearchResult[]> {
-  const { userId, topK = DEFAULT_TOP_K, documentId, minScore = 0 } = options
+  const { userId, topK = DEFAULT_TOP_K, documentId, minScore = 0, chunkType } = options
 
   // ---------------------------------------------------------------------------
   // 0. ACL 검증 (Phase 2: ACL 게이트)
@@ -211,7 +223,7 @@ export async function fullTextSearch(
   // ---------------------------------------------------------------------------
   // 3. 결과 포맷팅 (점수는 간단한 순위 기반)
   // ---------------------------------------------------------------------------
-  const results: SearchResult[] = (data || []).map((item: any, index: number) => ({
+  let results: SearchResult[] = (data || []).map((item: any, index: number) => ({
     chunkId: item.id,
     documentId: item.document_id,
     content: item.content,
@@ -220,7 +232,16 @@ export async function fullTextSearch(
   }))
 
   // 최소 점수 필터
-  return results.filter((result) => result.score >= minScore)
+  results = results.filter((result) => result.score >= minScore)
+
+  // ---------------------------------------------------------------------------
+  // Pipeline v3: 청크 유형 필터 (chunkType)
+  // ---------------------------------------------------------------------------
+  if (chunkType) {
+    results = results.filter((result) => result.metadata.chunkType === chunkType)
+  }
+
+  return results
 }
 
 // =============================================================================

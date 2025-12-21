@@ -3,10 +3,12 @@
 // =============================================================================
 // 파일: frontend/src/lib/rag/reranker.ts
 // 역할: LLM 기반 검색 결과 리랭킹 (선택 기능)
+// Pipeline v3 업그레이드: Example-Specific Re-ranking 추가
 // =============================================================================
 
 import OpenAI from 'openai'
 import type { SearchResult } from './search'
+import { hasQuotes, hasDialogue, hasNumericData } from './chunking'
 
 // =============================================================================
 // 타입 정의
@@ -20,6 +22,8 @@ export interface RerankOptions {
   model?: string
   /** 배치 크기 (한 번에 처리할 청크 수) */
   batchSize?: number
+  /** Pipeline v3: 예시 가중치 적용 여부 (기본: true) */
+  applyExampleBoost?: boolean
 }
 
 /** 리랭킹 결과 */
@@ -28,6 +32,23 @@ interface RerankResult {
   chunkId: string
   /** 관련성 점수 (0~1) */
   relevanceScore: number
+}
+
+/** Pipeline v3: 예시 리랭킹 설정 */
+export interface ExampleRerankerConfig {
+  /** 따옴표 포함 시 가중치 (기본: 1.2) */
+  quoteBoost: number
+  /** 대화체 포함 시 가중치 (기본: 1.1) */
+  dialogueBoost: number
+  /** 구체적 수치 포함 시 가중치 (기본: 1.15) */
+  numericBoost: number
+}
+
+/** 기본 예시 리랭킹 설정 */
+export const DEFAULT_EXAMPLE_RERANKER_CONFIG: ExampleRerankerConfig = {
+  quoteBoost: 1.2,
+  dialogueBoost: 1.1,
+  numericBoost: 1.15,
 }
 
 // =============================================================================
@@ -271,3 +292,58 @@ export function simpleRerank(
     .sort((a, b) => b.score - a.score)
     .slice(0, topK)
 }
+
+// =============================================================================
+// Pipeline v3: Example-Specific Re-ranking
+// =============================================================================
+
+/**
+ * 예시 특화 가중치 적용 (Pipeline v3)
+ * 
+ * @description
+ * 따옴표, 대화체, 구체적 수치가 포함된 청크에 가중치를 주어
+ * 예시 채굴의 정확도를 높입니다.
+ * 
+ * @param results - 검색 결과 배열
+ * @param config - 예시 리랭킹 설정 (선택)
+ * @returns 점수가 조정된 검색 결과
+ * 
+ * @example
+ * ```typescript
+ * const boostedResults = applyExampleBoost(results, {
+ *   quoteBoost: 1.2,
+ *   dialogueBoost: 1.1,
+ *   numericBoost: 1.15
+ * })
+ * ```
+ */
+export function applyExampleBoost(
+  results: SearchResult[],
+  config: ExampleRerankerConfig = DEFAULT_EXAMPLE_RERANKER_CONFIG
+): SearchResult[] {
+  // 원본 배열을 변경하지 않기 위해 새 배열 생성
+  return results.map((result) => {
+    let boostedScore = result.score
+    
+    // ---------------------------------------------------------------------------
+    // 가중치 적용 (중복 적용 가능)
+    // ---------------------------------------------------------------------------
+    if (hasQuotes(result.content)) {
+      boostedScore *= config.quoteBoost
+    }
+    
+    if (hasDialogue(result.content)) {
+      boostedScore *= config.dialogueBoost
+    }
+    
+    if (hasNumericData(result.content)) {
+      boostedScore *= config.numericBoost
+    }
+    
+    return {
+      ...result,
+      score: boostedScore,
+    }
+  }).sort((a, b) => b.score - a.score) // 새로운 점수로 재정렬
+}
+
