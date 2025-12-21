@@ -12,7 +12,10 @@ export type ModelCapability =
   | "text-generation"
   | "streaming"
   | "vision"
-  | "reasoning";
+  | "reasoning"
+  | "thinking"
+  | "search-grounding"
+  | "code-execution";
 
 /**
  * 모델 설정 인터페이스
@@ -30,10 +33,12 @@ export interface ModelConfig {
   costPerOutputToken: number;
   /** 모델의 최대 컨텍스트 토큰 수 */
   maxTokens: number;
+  /** 입력 컨텍스트 윈도우 크기 (참고용) */
+  inputContextWindow?: number;
   /** 시스템 기본 모델 여부 */
   isDefault?: boolean;
-  /** 서비스 티어 (무료/유료 사용자 구분용) */
-  tier?: "free" | "premium";
+  /** 서비스 티어 (무료/유료/개발자 구분용) */
+  tier?: "free" | "premium" | "developer";
   /** 모델 활성화 여부 */
   enabled?: boolean;
 }
@@ -49,40 +54,104 @@ export const MODEL_REGISTRY: Record<string, ModelConfig> = {
   // ---------------------------------------------------------------------------
   // Google Gemini 모델
   // ---------------------------------------------------------------------------
-  "gemini-2.0-flash": {
+  "gemini-3-flash-preview": {
     provider: "gemini",
-    displayName: "Gemini 2.0 Flash",
-    capabilities: ["text-generation", "streaming"],
-    costPerInputToken: 0.000075, // $0.075 per 1K tokens
-    costPerOutputToken: 0.0003,   // $0.30 per 1K tokens
-    maxTokens: 8192,
+    displayName: "Gemini 3.0 Flash Preview",
+    capabilities: [
+      "text-generation",
+      "streaming",
+      "thinking",
+      "search-grounding",
+      "code-execution",
+    ],
+    costPerInputToken: 0.0000005,
+    costPerOutputToken: 0.000003,
+    maxTokens: 65536,
+    inputContextWindow: 1048576,
     isDefault: true,
-    tier: "free",
+    tier: "developer",
     enabled: true,
   },
   "gemini-3-pro-preview": {
     provider: "gemini",
     displayName: "Gemini 3 Pro Preview",
     capabilities: ["text-generation", "streaming", "reasoning"],
-    costPerInputToken: 0.00125,  // $1.25 per 1K tokens
-    costPerOutputToken: 0.005,    // $5.00 per 1K tokens
+    costPerInputToken: 0.00125,
+    costPerOutputToken: 0.005,
     maxTokens: 32768,
     tier: "premium",
     enabled: true,
   },
 
   // ---------------------------------------------------------------------------
-  // OpenAI 모델 (향후 확장 대비)
+  // OpenAI 모델
   // ---------------------------------------------------------------------------
-  "gpt-4o": {
+  "gpt-5.2-2025-12-11": {
     provider: "openai",
-    displayName: "GPT-4o",
-    capabilities: ["text-generation", "vision", "streaming"],
-    costPerInputToken: 0.005,
-    costPerOutputToken: 0.015,
+    displayName: "GPT-5.2",
+    capabilities: [
+      "text-generation",
+      "vision",
+      "streaming",
+      "reasoning",
+      "thinking",
+      "search-grounding",
+      "code-execution",
+    ],
+    costPerInputToken: 0.00000175,
+    costPerOutputToken: 0.000014,
     maxTokens: 128000,
+    inputContextWindow: 400000,
     tier: "premium",
-    enabled: false, // 아직 구현 전이므로 비활성화
+    enabled: true,
+  },
+  "gpt-5-mini-2025-08-07": {
+    provider: "openai",
+    displayName: "GPT-5 mini",
+    capabilities: ["text-generation", "vision", "streaming"],
+    costPerInputToken: 0.00000025,
+    costPerOutputToken: 0.000002,
+    maxTokens: 128000,
+    inputContextWindow: 400000,
+    tier: "free",
+    enabled: true,
+  },
+
+  // ---------------------------------------------------------------------------
+  // Anthropic 모델
+  // ---------------------------------------------------------------------------
+  "claude-4.5-opus-20251124": {
+    provider: "anthropic",
+    displayName: "Claude 4.5 Opus",
+    capabilities: ["text-generation", "vision", "streaming", "reasoning"],
+    costPerInputToken: 0.000005,
+    costPerOutputToken: 0.000025,
+    maxTokens: 128000,
+    inputContextWindow: 200000,
+    tier: "premium",
+    enabled: true,
+  },
+  "claude-4.5-sonnet-20250929": {
+    provider: "anthropic",
+    displayName: "Claude 4.5 Sonnet",
+    capabilities: ["text-generation", "vision", "streaming"],
+    costPerInputToken: 0.000003,
+    costPerOutputToken: 0.000015,
+    maxTokens: 128000,
+    inputContextWindow: 200000,
+    tier: "premium",
+    enabled: true,
+  },
+  "claude-4.5-haiku-20251015": {
+    provider: "anthropic",
+    displayName: "Claude 4.5 Haiku",
+    capabilities: ["text-generation", "streaming"],
+    costPerInputToken: 0.000001,
+    costPerOutputToken: 0.000005,
+    maxTokens: 128000,
+    inputContextWindow: 200000,
+    tier: "free",
+    enabled: true,
   },
 };
 
@@ -103,13 +172,13 @@ export function getModelConfig(modelId: string): ModelConfig | undefined {
 /**
  * 시스템의 기본 모델 ID를 가져옵니다.
  * 
- * @returns 기본 모델 ID (없을 경우 gemini-2.0-flash 반환)
+ * @returns 기본 모델 ID (없을 경우 gemini-3-flash-preview 반환)
  */
 export function getDefaultModelId(): string {
   const defaultEntry = Object.entries(MODEL_REGISTRY).find(
     ([_, config]) => config.isDefault
   );
-  return defaultEntry ? defaultEntry[0] : "gemini-2.0-flash";
+  return defaultEntry ? defaultEntry[0] : "gemini-3-flash-preview";
 }
 
 /**

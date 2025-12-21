@@ -7,6 +7,8 @@
 
 import { LLMProvider } from "./base";
 import { GeminiProvider } from "./gemini";
+import { OpenAIProvider } from "./openai";
+import { AnthropicProvider } from "./anthropic";
 import { getModelConfig } from "@/config/models";
 
 // Provider 인스턴스 캐시 (싱글톤 패턴)
@@ -25,7 +27,12 @@ export function getProvider(providerName: string): LLMProvider {
       case "gemini":
         providerCache.set(providerName, new GeminiProvider());
         break;
-      // 향후 OpenAI, Anthropic 등 추가 시 여기에 케이스 추가
+      case "openai":
+        providerCache.set(providerName, new OpenAIProvider());
+        break;
+      case "anthropic":
+        providerCache.set(providerName, new AnthropicProvider());
+        break;
       default:
         throw new Error(`지원하지 않는 LLM Provider입니다: ${providerName}`);
     }
