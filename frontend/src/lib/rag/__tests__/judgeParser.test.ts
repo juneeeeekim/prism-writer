@@ -5,6 +5,7 @@
 // 역할: judgeParser 함수 단위 테스트
 // =============================================================================
 
+import { describe, it, expect } from 'vitest'
 import { parseJudgeResponse, parseJudgeResponseSafe } from '../judgeParser'
 import type { JudgeResult } from '@/types/rag'
 

@@ -1,10 +1,7 @@
-// =============================================================================
-// PRISM Writer - Telemetry Types
-// =============================================================================
-// 파일: frontend/src/types/telemetry.ts
-// 역할: Telemetry 관련 타입 정의
 // P1 Phase 3.1
 // =============================================================================
+
+import { MODEL_REGISTRY, estimateModelCost } from '@/config/models'
 
 // =============================================================================
 // Telemetry Step 타입
@@ -90,20 +87,12 @@ export interface MeasureStepResult<T> {
  * @description
  * 대략적인 비용 추정용 (정확한 값은 API 응답 참조)
  */
-export const MODEL_COSTS: Record<string, { input: number; output: number }> = {
-  'gemini-2.0-flash': {
-    input: 0.000075,   // $0.075 per 1K tokens
-    output: 0.0003,    // $0.30 per 1K tokens
-  },
-  'gemini-3-pro-preview': {
-    input: 0.00125,    // $1.25 per 1K tokens
-    output: 0.005,     // $5.00 per 1K tokens
-  },
-  'default': {
-    input: 0.0001,
-    output: 0.0004,
-  },
-}
+export const MODEL_COSTS: Record<string, { input: number; output: number }> = Object.fromEntries(
+  Object.entries(MODEL_REGISTRY).map(([id, config]) => [
+    id,
+    { input: config.costPerInputToken, output: config.costPerOutputToken },
+  ])
+)
 
 /**
  * 비용 추정 계산
@@ -118,6 +107,5 @@ export function estimateCost(
   tokensIn: number,
   tokensOut: number
 ): number {
-  const costs = MODEL_COSTS[modelId] ?? MODEL_COSTS['default']
-  return (tokensIn * costs.input / 1000) + (tokensOut * costs.output / 1000)
+  return estimateModelCost(modelId, tokensIn, tokensOut)
 }

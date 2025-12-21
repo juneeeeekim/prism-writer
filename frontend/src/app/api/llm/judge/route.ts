@@ -6,7 +6,7 @@
 // =============================================================================
 
 import { NextRequest, NextResponse } from 'next/server'
-import { generateText, isLLMAvailable } from '@/lib/llm/client'
+import { generateText, isLLMAvailable } from '@/lib/llm/gateway'
 import { buildJudgePrompt, buildJudgePromptWithChunks, getDefaultJudgeResult } from '@/lib/rag/judgePrompt'
 import { parseJudgeResponse, parseJudgeResponseSafe } from '@/lib/rag/judgeParser'
 import { verifyAllCitations, summarizeCitationVerification, type VerifiedEvidence } from '@/lib/rag/citationGate'

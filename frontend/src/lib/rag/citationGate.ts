@@ -39,7 +39,7 @@ export interface VerifiedEvidence extends JudgeEvidence {
 const SIMILARITY_THRESHOLD = 0.6
 
 /** 부분 매칭을 위한 최소 문자열 길이 */
-const MIN_PARTIAL_MATCH_LENGTH = 20
+const MIN_PARTIAL_MATCH_LENGTH = 10
 
 // =============================================================================
 // 유틸리티 함수

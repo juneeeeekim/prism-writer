@@ -7,7 +7,7 @@
 
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { generateText, isLLMAvailable } from '@/lib/llm/client'
+import { generateText, isLLMAvailable } from '@/lib/llm/gateway'
 import { buildEvaluationPrompt, type SearchResult } from '@/lib/llm/prompts'
 import { parseEvaluationResponse, type EvaluationResult } from '@/lib/llm/parser'
 import { vectorSearch } from '@/lib/rag/search'

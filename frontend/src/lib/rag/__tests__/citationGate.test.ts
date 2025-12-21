@@ -5,6 +5,7 @@
 // 역할: verifyCitation 함수 단위 테스트
 // =============================================================================
 
+import { describe, it, expect } from 'vitest'
 import { verifyCitation, verifyAllCitations, summarizeCitationVerification } from '../citationGate'
 import type { JudgeEvidence } from '@/types/rag'
 

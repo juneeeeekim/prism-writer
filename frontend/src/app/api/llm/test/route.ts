@@ -6,7 +6,7 @@
 // =============================================================================
 
 import { NextResponse } from 'next/server'
-import { generateText, isLLMAvailable } from '@/lib/llm/client'
+import { generateText, isLLMAvailable } from '@/lib/llm/gateway'
 import { buildEvaluationPrompt, type RubricItem, type SearchResult } from '@/lib/llm/prompts'
 import { parseEvaluationResponse, validateEvaluationResult, summarizeEvaluationResult } from '@/lib/llm/parser'
 

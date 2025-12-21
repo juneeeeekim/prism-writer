@@ -1,9 +1,7 @@
-// =============================================================================
-// PRISM Writer - RAG Types
-// =============================================================================
-// 파일: frontend/src/types/rag.ts
 // 역할: RAG 시스템 관련 타입 정의
 // =============================================================================
+
+import { getDefaultModelId } from '@/config/models'
 
 // =============================================================================
 // ACL (Access Control List) 관련 타입
@@ -179,29 +177,36 @@ export interface RouterConfig {
  * - standard: 균형 잡힌 설정
  * - strict: 최고 품질, 상세 Reviewer
  */
-export const ROUTER_CONFIGS: Record<RouterMode, RouterConfig> = {
-  cheap: {
-    mode: 'cheap',
-    answerModel: 'gemini-2.0-flash',
-    reviewerModel: null,
-    maxTokens: 1000,
-    timeout: 10000,
-  },
-  standard: {
-    mode: 'standard',
-    answerModel: 'gemini-2.0-flash',
-    reviewerModel: 'gemini-2.0-flash',
-    maxTokens: 2000,
-    timeout: 15000,
-  },
-  strict: {
-    mode: 'strict',
-    answerModel: 'gemini-3-pro-preview',
-    reviewerModel: 'gemini-3-pro-preview',
-    maxTokens: 4000,
-    timeout: 30000,
-  },
+function createRouterConfigs(): Record<RouterMode, RouterConfig> {
+  const defaultModel = getDefaultModelId()
+  const premiumModel = 'gemini-3-pro-preview'
+
+  return {
+    cheap: {
+      mode: 'cheap',
+      answerModel: defaultModel,
+      reviewerModel: null,
+      maxTokens: 1000,
+      timeout: 10000,
+    },
+    standard: {
+      mode: 'standard',
+      answerModel: defaultModel,
+      reviewerModel: defaultModel,
+      maxTokens: 2000,
+      timeout: 15000,
+    },
+    strict: {
+      mode: 'strict',
+      answerModel: premiumModel,
+      reviewerModel: premiumModel,
+      maxTokens: 4000,
+      timeout: 30000,
+    },
+  }
 }
+
+export const ROUTER_CONFIGS = createRouterConfigs()
 
 // =============================================================================
 // Evidence Pack 관련 타입 (P1 Phase 4)

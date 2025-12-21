@@ -7,6 +7,7 @@
 // =============================================================================
 
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { EMBEDDING_REGISTRY } from '@/config/embedding-models'
 
 // =============================================================================
 // 상수 및 설정
@@ -23,9 +24,9 @@ export const GEMINI_EMBEDDING_CONFIG = {
   /** 임베딩 모델 ID */
   modelId: 'text-embedding-004',
   /** 임베딩 벡터 차원 수 */
-  dimensions: 768,
+  dimensions: EMBEDDING_REGISTRY['text-embedding-004'].dimensions,
   /** 벤더/제공자 */
-  vendor: 'google',
+  vendor: EMBEDDING_REGISTRY['text-embedding-004'].provider,
 } as const
 
 /** 임베딩 차원 (편의를 위한 alias) */
