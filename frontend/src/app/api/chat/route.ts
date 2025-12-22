@@ -1,13 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
-import { vectorSearch } from '@/lib/rag/search'
-
 // =============================================================================
 // PRISM Writer - Chat API
 // =============================================================================
 // 파일: frontend/src/app/api/chat/route.ts
-// 역할: RAG 기반 AI 채팅 API
+// 역할: RAG 기반 AI 채팅 API (LLM Gateway 사용)
+// 수정: 2025-12-23 - OpenAI 하드코딩 제거, Gateway 연동으로 Gemini 기본 사용
 // =============================================================================
+
+import { NextRequest, NextResponse } from 'next/server'
+import { vectorSearch } from '@/lib/rag/search'
+import { generateTextStream } from '@/lib/llm/gateway'
+import { getDefaultModel } from '@/config/llm.config'
 
 export const runtime = 'nodejs'
 
@@ -17,18 +19,21 @@ export async function POST(req: NextRequest) {
     const lastMessage = messages[messages.length - 1]
     const query = lastMessage.content
 
+    // -------------------------------------------------------------------------
     // 1. 사용자 ID 확인 (데모용 하드코딩 또는 세션에서 가져오기)
+    // -------------------------------------------------------------------------
     // TODO: 실제 인증 연동 시 req.headers 또는 session에서 가져오기
     const userId = 'demo-user' 
 
+    // -------------------------------------------------------------------------
     // 2. RAG 검색 (Vector Search)
-    // Phase 3 초기 구현: Vector Search만 사용 (Hybrid는 추후 적용)
+    // -------------------------------------------------------------------------
     let context = ''
     try {
       const searchResults = await vectorSearch(query, {
         userId,
         topK: 3,
-        minScore: 0.5, // 적절한 임계값 설정
+        minScore: 0.5,
       })
 
       if (searchResults.length > 0) {
@@ -41,7 +46,9 @@ export async function POST(req: NextRequest) {
       // 검색 실패해도 대화는 계속 진행
     }
 
+    // -------------------------------------------------------------------------
     // 3. 시스템 프롬프트 구성
+    // -------------------------------------------------------------------------
     const systemPrompt = `
 당신은 PRISM Writer의 AI 글쓰기 어시스턴트입니다.
 사용자의 질문에 대해 친절하고 전문적인 답변을 제공하세요.
@@ -56,35 +63,37 @@ ${context ? context : '관련된 참고 자료가 없습니다.'}
 4. 한국어로 답변하세요.
 `
 
-    // 4. OpenAI API 호출 (Streaming)
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    })
+    // -------------------------------------------------------------------------
+    // 4. 대화 히스토리를 포함한 프롬프트 구성
+    // -------------------------------------------------------------------------
+    const conversationHistory = messages.map((m: any) => 
+      `${m.role === 'user' ? '사용자' : 'AI'}: ${m.content}`
+    ).join('\n')
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview', // 또는 gpt-3.5-turbo
-      messages: [
-        { role: 'system', content: systemPrompt },
-        ...messages.map((m: any) => ({
-          role: m.role,
-          content: m.content,
-        })),
-      ],
-      stream: true,
-      temperature: 0.7,
-    })
+    const fullPrompt = `${systemPrompt}\n\n[대화 기록]\n${conversationHistory}\n\nAI:`
 
-    // 5. 스트림 응답 반환
-    // Vercel AI SDK나 단순 ReadableStream 사용 가능. 여기서는 단순 스트림 변환.
+    // -------------------------------------------------------------------------
+    // 5. LLM Gateway를 통한 스트리밍 응답 (기본값: Gemini 3.0 Flash)
+    // -------------------------------------------------------------------------
+    const modelId = getDefaultModel()
+    console.log(`[Chat API] Using model: ${modelId}`)
+
     const stream = new ReadableStream({
       async start(controller) {
-        for await (const chunk of response) {
-          const content = chunk.choices[0]?.delta?.content || ''
-          if (content) {
-            controller.enqueue(new TextEncoder().encode(content))
+        try {
+          for await (const chunk of generateTextStream(fullPrompt, { model: modelId })) {
+            if (chunk.text) {
+              controller.enqueue(new TextEncoder().encode(chunk.text))
+            }
+            if (chunk.done) {
+              break
+            }
           }
+          controller.close()
+        } catch (error) {
+          console.error('Streaming error:', error)
+          controller.error(error)
         }
-        controller.close()
       },
     })
 
@@ -104,3 +113,4 @@ ${context ? context : '관련된 참고 자료가 없습니다.'}
     )
   }
 }
+
