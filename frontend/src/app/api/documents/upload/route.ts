@@ -201,9 +201,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
     // ---------------------------------------------------------------------------
     // 8. 자동 청킹 + 임베딩 트리거 (Phase 3-4)
     // ---------------------------------------------------------------------------
-    // 비동기로 문서 처리 시작 (업로드 응답을 블로킹하지 않음)
+    // 비동기로 문서 처리 시작 (업로드 응답을 블로킹하지 않음 -> Vercel 타임아웃 방지를 위해 await로 변경)
     const { triggerDocumentProcessing } = await import('@/lib/rag/documentProcessor')
-    triggerDocumentProcessing(documentData.id, uploadData.path, userId)
+    await triggerDocumentProcessing(documentData.id, uploadData.path, userId)
 
     // ---------------------------------------------------------------------------
     // 9. 성공 응답

@@ -279,25 +279,24 @@ export async function processDocument(
  * triggerDocumentProcessing(documentId, filePath, userId)
  * ```
  */
-export function triggerDocumentProcessing(
+export async function triggerDocumentProcessing(
   documentId: string,
   filePath: string,
   userId: string
-): void {
-  // 비동기로 처리 (블로킹하지 않음)
-  processDocument(documentId, filePath, userId)
-    .then((result) => {
-      if (result.success) {
-        console.log(
-          `Document processed successfully: ${result.chunksCreated} chunks created, ` +
-          `embeddings: ${result.embeddingsGenerated ? 'yes' : 'no'}` +
-          (result.tokensUsed ? `, tokens used: ${result.tokensUsed}` : '')
-        )
-      } else {
-        console.error(`Document processing failed: ${result.error}`)
-      }
-    })
-    .catch((error) => {
-      console.error('Unexpected error during document processing:', error)
-    })
+): Promise<void> {
+  try {
+    const result = await processDocument(documentId, filePath, userId)
+    
+    if (result.success) {
+      console.log(
+        `Document processed successfully: ${result.chunksCreated} chunks created, ` +
+        `embeddings: ${result.embeddingsGenerated ? 'yes' : 'no'}` +
+        (result.tokensUsed ? `, tokens used: ${result.tokensUsed}` : '')
+      )
+    } else {
+      console.error(`Document processing failed: ${result.error}`)
+    }
+  } catch (error) {
+    console.error('Unexpected error during document processing:', error)
+  }
 }
