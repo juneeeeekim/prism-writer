@@ -55,6 +55,13 @@ export default function ChatTab() {
     setIsLoading(true)
 
     try {
+      // -----------------------------------------------------------------------
+      // Admin Mode에서 선택한 모델 가져오기 (localStorage)
+      // -----------------------------------------------------------------------
+      const selectedModel = typeof window !== 'undefined' 
+        ? localStorage.getItem('prism_selected_model') 
+        : null
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -62,6 +69,7 @@ export default function ChatTab() {
         },
         body: JSON.stringify({
           messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })),
+          model: selectedModel || undefined, // Admin에서 선택한 모델 전달
         }),
       })
 

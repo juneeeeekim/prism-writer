@@ -15,7 +15,10 @@ export const runtime = 'nodejs'
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages } = await req.json()
+    // -------------------------------------------------------------------------
+    // 요청 본문 파싱 (messages + 선택적 model)
+    // -------------------------------------------------------------------------
+    const { messages, model: requestedModel } = await req.json()
     const lastMessage = messages[messages.length - 1]
     const query = lastMessage.content
 
@@ -73,10 +76,11 @@ ${context ? context : '관련된 참고 자료가 없습니다.'}
     const fullPrompt = `${systemPrompt}\n\n[대화 기록]\n${conversationHistory}\n\nAI:`
 
     // -------------------------------------------------------------------------
-    // 5. LLM Gateway를 통한 스트리밍 응답 (기본값: Gemini 3.0 Flash)
+    // 5. LLM Gateway를 통한 스트리밍 응답
+    // Admin Mode에서 선택한 모델이 있으면 사용, 없으면 기본값 (Gemini 3.0 Flash)
     // -------------------------------------------------------------------------
-    const modelId = getDefaultModel()
-    console.log(`[Chat API] Using model: ${modelId}`)
+    const modelId = requestedModel || getDefaultModel()
+    console.log(`[Chat API] Using model: ${modelId} (requested: ${requestedModel || 'none'})`)
 
     const stream = new ReadableStream({
       async start(controller) {
