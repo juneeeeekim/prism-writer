@@ -197,7 +197,10 @@ export default function DocumentList({ onDocumentDeleted, className = '' }: Docu
 
           {/* 삭제 버튼 */}
           <button
-            onClick={() => handleDelete(doc.id, doc.title)}
+            onClick={(e) => {
+              e.stopPropagation()
+              handleDelete(doc.id, doc.title)
+            }}
             disabled={deletingId === doc.id}
             className="ml-4 px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label={`${doc.title} 삭제`}
