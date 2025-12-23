@@ -115,4 +115,35 @@ describe('documentProcessor', () => {
       error_message: '문서 내용이 비어있습니다.'
     })
   })
+
+  it('should handle concurrent document processing', async () => {
+    // Simulate processing multiple documents at once
+    const docs = ['doc-1', 'doc-2', 'doc-3']
+    
+    await Promise.all(docs.map(id => 
+      processDocument(id, `path/${id}`, 'user-123')
+    ))
+
+    // Check if update was called for all documents
+    // 4 updates per document (PARSING, CHUNKING, EMBEDDING, COMPLETED) * 3 documents = 12 calls
+    expect(mockSupabase.update).toHaveBeenCalledTimes(12)
+  })
+
+  it('should handle long running process (timeout simulation)', async () => {
+    // Mock a slow embedding process
+    (embedBatch as any).mockImplementation(async () => {
+      await new Promise(resolve => setTimeout(resolve, 100)) // 100ms delay
+      return [[0.1, 0.2]]
+    })
+
+    const result = await processDocument('doc-slow', 'path/slow', 'user-123')
+
+    expect(result.success).toBe(true)
+    expect(result.documentId).toBe('doc-slow')
+    
+    // Verify it completed successfully despite delay
+    const updateCalls = mockSupabase.update.mock.calls
+    const lastCall = updateCalls[updateCalls.length - 1][0]
+    expect(lastCall).toMatchObject({ status: DocumentStatus.COMPLETED })
+  })
 })
