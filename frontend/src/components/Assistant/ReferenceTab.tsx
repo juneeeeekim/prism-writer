@@ -10,8 +10,9 @@
 import { useState } from 'react'
 import ReferenceCard from './ReferenceCard'
 import DocumentUploader from '@/components/documents/DocumentUploader'
-import DocumentList from '@/components/documents/DocumentList'
+import ReferenceItem from './ReferenceItem' // Phase 3: 신규 컴포넌트
 import { searchDocuments, RAGSearchError } from '@/lib/api/rag'
+import { useDocumentStatus } from '@/hooks/useDocumentStatus' // Phase 3: 신규 Hook
 
 // -----------------------------------------------------------------------------
 // Types
@@ -30,14 +31,17 @@ export default function ReferenceTab() {
   const [query, setQuery] = useState('')
   const [isSearching, setIsSearching] = useState(false)
   const [references, setReferences] = useState<Reference[]>([])
+  
   // -------------------------------------------------------------------------
-  // 업로드 섹션 State (Phase 1 추가)
+  // 업로드 섹션 State
   // -------------------------------------------------------------------------
   const [showUploader, setShowUploader] = useState(false)
-  const [refreshKey, setRefreshKey] = useState(0)
+  
+  // Phase 3: 실시간 문서 상태 조회 Hook 사용
+  const { documents, mutate: refreshDocuments } = useDocumentStatus()
 
   // ---------------------------------------------------------------------------
-  // Search Handler (Phase 3: 실제 RAG API 연동)
+  // Search Handler
   // ---------------------------------------------------------------------------
   const handleSearch = async () => {
     if (!query.trim()) return
@@ -46,7 +50,7 @@ export default function ReferenceTab() {
     
     try {
       // -----------------------------------------------------------------------
-      // 실제 RAG 검색 API 호출 (Phase 3 구현)
+      // 실제 RAG 검색 API 호출
       // -----------------------------------------------------------------------
       const result = await searchDocuments(query, { topK: 5, threshold: 0.5 })
       
@@ -61,7 +65,7 @@ export default function ReferenceTab() {
       setReferences(mappedRefs)
     } catch (err) {
       // -----------------------------------------------------------------------
-      // 에러 처리 (Phase 3: RAGSearchError 타입 체크)
+      // 에러 처리
       // -----------------------------------------------------------------------
       if (err instanceof RAGSearchError) {
         console.error('검색 오류:', err.code, err.message)
@@ -80,7 +84,7 @@ export default function ReferenceTab() {
   return (
     <div className="p-4 space-y-4">
       {/* ---------------------------------------------------------------
-          자료 업로드 섹션 (Phase 1 추가)
+          자료 업로드 섹션
           --------------------------------------------------------------- */}
       <div className="mb-4">
         <button
@@ -94,19 +98,40 @@ export default function ReferenceTab() {
         </button>
         
         {showUploader && (
-          <div className="mt-3">
+          <div className="mt-3 space-y-3">
             <DocumentUploader 
-              onUploadSuccess={() => setRefreshKey(prev => prev + 1)}
+              onUploadSuccess={() => refreshDocuments()}
             />
+            
             {/* ---------------------------------------------------------------
-                업로드된 파일 목록 (Phase 2 추가)
+                업로드된 파일 목록 (Phase 3: 실시간 상태 표시)
                 --------------------------------------------------------------- */}
-            <div className="mt-3 max-h-40 overflow-y-auto">
-              <DocumentList 
-                key={refreshKey}
-                onDocumentDeleted={() => setRefreshKey(prev => prev + 1)}
-                className="text-sm"
-              />
+            <div className="max-h-40 overflow-y-auto space-y-2 border border-gray-200 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-800">
+              {documents.length === 0 ? (
+                <div className="text-center text-sm text-gray-500 py-4">
+                  업로드된 문서가 없습니다.
+                </div>
+              ) : (
+                documents.map((doc) => (
+                  <div 
+                    key={doc.id} 
+                    className="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded transition-colors"
+                  >
+                    <div className="flex-1 min-w-0 mr-2">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {doc.title}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {(doc.file_size / 1024).toFixed(1)} KB
+                      </div>
+                    </div>
+                    <ReferenceItem 
+                      status={doc.status} 
+                      errorMessage={doc.error_message}
+                    />
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}

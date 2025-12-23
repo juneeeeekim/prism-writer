@@ -52,8 +52,8 @@
 
 ### ✅ Phase 2 검증
 
-- [ ] **Unit Test:** `documentProcessor`가 각 단계별로 올바른 Enum 값을 DB에 저장하는지 테스트.
-- [ ] **Integration Test:** 강제로 에러를 발생시켰을 때 `status`가 `failed`로 변하고, `error_message`가 적절히 저장되는지 확인.
+- [x] **Unit Test:** `documentProcessor`가 각 단계별로 올바른 Enum 값을 DB에 저장하는지 테스트.
+- [x] **Integration Test:** 강제로 에러를 발생시켰을 때 `status`가 `failed`로 변하고, `error_message`가 적절히 저장되는지 확인.
 
 ---
 
@@ -63,13 +63,13 @@
 
 ### 3.1 상태 관리 Hook 구현
 
-- [ ] **[Hook] `useDocumentStatus.ts` 구현**
+- [x] **[Hook] `useDocumentStatus.ts` 구현**
   - **내용:** `SWR` 폴링 로직 구현.
   - **최적화:** `data` 내에 `processing_*` 상태인 문서가 하나라도 있을 때만 `refreshInterval`을 3000ms로 설정, 아니면 0(비활성).
 
 ### 3.2 UI 컴포넌트 업그레이드
 
-- [ ] **[UI] `ReferenceItem` 컴포넌트 구현**
+- [x] **[UI] `ReferenceItem` 컴포넌트 구현**
 
   - **파일:** `frontend/src/components/Assistant/ReferenceItem.tsx`
   - **내용:**
@@ -81,7 +81,7 @@
       - `DocumentStatus.EMBEDDING`: "AI 학습 중..."
     - **에러 표시:** `DocumentStatus.FAILED`일 때 빨간색 아이콘 및 툴팁으로 `error_message` 표시.
 
-- [ ] **[UI] `ReferenceTab.tsx` 연동**
+- [x] **[UI] `ReferenceTab.tsx` 연동**
   - **내용:** 기존 리스트를 `ReferenceItem`으로 교체하고 Hook 연동.
 
 ### ✅ Phase 3 검증
