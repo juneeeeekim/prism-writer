@@ -100,6 +100,21 @@ export default function DocumentUploader({ onUploadSuccess, className = '' }: Do
       
       if (onUploadSuccess && data.documentId) {
         onUploadSuccess(data.documentId)
+
+        // [Phase 2: Client-Triggered Processing]
+        // Vercel Timeout 방지를 위해 클라이언트에서 별도로 처리 요청을 보냄.
+        // "Fire and Forget" 패턴: await 하지 않고 요청만 보냄 (UI 블로킹 방지)
+        // 단, 에러 로깅을 위해 catch는 붙임.
+        fetch('/api/documents/process', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ documentId: data.documentId })
+        }).then(res => {
+          if (!res.ok) console.error('Processing trigger failed:', res.statusText)
+          else console.log('Processing triggered successfully')
+        }).catch(err => {
+          console.error('Processing trigger error:', err)
+        })
       }
     } catch (error) {
       console.error('Upload error:', error)
