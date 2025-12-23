@@ -4,6 +4,31 @@
 import { getDefaultModelId } from '@/config/models'
 
 // =============================================================================
+// 문서 상태 관련 타입 (Phase 1: Foundation)
+// =============================================================================
+
+/**
+ * 문서 처리 상태 Enum
+ * 
+ * @description
+ * RAG 문서 처리 파이프라인의 각 단계를 정의합니다.
+ * - QUEUED: 대기열 등록 (기존 pending)
+ * - PARSING: 텍스트 추출 중 (기존 processing 세분화)
+ * - CHUNKING: 청킹 중 (기존 processing 세분화)
+ * - EMBEDDING: 임베딩 생성 중 (기존 processing 세분화)
+ * - COMPLETED: 완료 (기존 ready)
+ * - FAILED: 실패 (기존 error)
+ */
+export enum DocumentStatus {
+  QUEUED = 'queued',
+  PARSING = 'processing_parsing',
+  CHUNKING = 'processing_chunking',
+  EMBEDDING = 'processing_embedding',
+  COMPLETED = 'completed',
+  FAILED = 'failed'
+}
+
+// =============================================================================
 // ACL (Access Control List) 관련 타입
 // =============================================================================
 
@@ -290,4 +315,3 @@ export interface EvidencePack {
   /** 검색 메타데이터 */
   metadata: EvidenceMetadata
 }
-

@@ -9,6 +9,7 @@
 
 import { useState, useEffect } from 'react'
 import { useToast } from '@/hooks/useToast'
+import { DocumentStatus } from '@/types/rag'
 
 // =============================================================================
 // 타입 정의
@@ -20,7 +21,8 @@ interface Document {
   file_path: string
   file_type: string
   file_size: number
-  status: 'pending' | 'processing' | 'ready' | 'error'
+  status: DocumentStatus
+  error_message?: string
   created_at: string
   updated_at: string
 }
@@ -108,27 +110,54 @@ export default function DocumentList({ onDocumentDeleted, className = '' }: Docu
   // ---------------------------------------------------------------------------
   // 헬퍼 함수
   // ---------------------------------------------------------------------------
-  const getStatusBadge = (status: Document['status']) => {
-    const badges = {
-      pending: {
+  const getStatusBadge = (status: DocumentStatus) => {
+    // 상태별 스타일 및 라벨 매핑
+    const badges: Record<string, { label: string; className: string }> = {
+      [DocumentStatus.QUEUED]: {
         label: '대기 중',
         className: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
       },
-      processing: {
-        label: '처리 중',
+      [DocumentStatus.PARSING]: {
+        label: '텍스트 추출',
         className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
       },
-      ready: {
+      [DocumentStatus.CHUNKING]: {
+        label: '분석 중',
+        className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+      },
+      [DocumentStatus.EMBEDDING]: {
+        label: 'AI 학습 중',
+        className: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+      },
+      [DocumentStatus.COMPLETED]: {
         label: '준비됨',
         className: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
       },
-      error: {
+      [DocumentStatus.FAILED]: {
+        label: '오류',
+        className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+      },
+      // 기존 상태 호환성 (마이그레이션 과도기)
+      'pending': {
+        label: '대기 중',
+        className: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+      },
+      'processing': {
+        label: '처리 중',
+        className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+      },
+      'ready': {
+        label: '준비됨',
+        className: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+      },
+      'error': {
         label: '오류',
         className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
       },
     }
 
-    const badge = badges[status]
+    const badge = badges[status] || { label: status, className: 'bg-gray-100 text-gray-500' }
+    
     return (
       <span className={`px-2 py-1 text-xs font-medium rounded ${badge.className}`}>
         {badge.label}
@@ -192,6 +221,11 @@ export default function DocumentList({ onDocumentDeleted, className = '' }: Docu
               <span>{formatFileSize(doc.file_size)}</span>
               <span>•</span>
               <span>{formatDate(doc.created_at)}</span>
+              {doc.error_message && (
+                <span className="text-red-500 text-xs" title={doc.error_message}>
+                  ⚠️ {doc.error_message}
+                </span>
+              )}
             </div>
           </div>
 

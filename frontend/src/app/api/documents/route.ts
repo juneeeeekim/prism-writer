@@ -8,6 +8,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { DocumentStatus } from '@/types/rag'
 
 // =============================================================================
 // 타입 정의
@@ -19,7 +20,8 @@ interface Document {
   file_path: string
   file_type: string
   file_size: number
-  status: 'pending' | 'processing' | 'ready' | 'error'
+  status: DocumentStatus
+  error_message?: string
   created_at: string
   updated_at: string
 }
@@ -68,7 +70,7 @@ export async function GET(): Promise<NextResponse<GetDocumentsResponse>> {
     // ---------------------------------------------------------------------------
     const { data: documents, error } = await supabase
       .from('rag_documents')
-      .select('*')
+      .select('id, title, file_path, file_type, file_size, status, error_message, created_at, updated_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
 
@@ -87,9 +89,12 @@ export async function GET(): Promise<NextResponse<GetDocumentsResponse>> {
     // ---------------------------------------------------------------------------
     // 3. 성공 응답
     // ---------------------------------------------------------------------------
+    // DB에서 가져온 데이터의 status가 Enum과 일치한다고 가정 (마이그레이션으로 보장)
+    const typedDocuments = documents as unknown as Document[]
+
     return NextResponse.json({
       success: true,
-      documents: documents || [],
+      documents: typedDocuments || [],
     })
   } catch (error) {
     console.error('Unexpected error in documents API:', error)

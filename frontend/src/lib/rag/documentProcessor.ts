@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 import { chunkDocument, type DocumentChunk } from './chunking'
 import { embedBatch, estimateTokenCount, EMBEDDING_CONFIG } from './embedding'
 import { validateDocumentSize, validateUsage, trackUsage } from './costGuard'
+import { DocumentStatus } from '@/types/rag'
 
 // =============================================================================
 // 타입 정의
@@ -32,8 +33,6 @@ export interface ProcessingResult {
   error?: string
 }
 
-type DocumentStatus = 'pending' | 'processing' | 'ready' | 'error'
-
 // =============================================================================
 // Helper Functions
 // =============================================================================
@@ -55,15 +54,22 @@ async function updateDocumentStatus(
   const updateData: {
     status: DocumentStatus
     updated_at: string
+    started_at?: string
     metadata?: { error_message?: string }
+    error_message?: string
   } = {
     status,
     updated_at: new Date().toISOString(),
   }
 
-  // 에러 메시지가 있으면 metadata에 저장
+  // 처리 시작 시 started_at 기록
+  if (status === DocumentStatus.PARSING) {
+    updateData.started_at = new Date().toISOString()
+  }
+
+  // 에러 메시지가 있으면 저장 (사용자 노출용)
   if (errorMessage) {
-    updateData.metadata = { error_message: errorMessage }
+    updateData.error_message = errorMessage
   }
 
   const { error } = await supabase
@@ -73,7 +79,8 @@ async function updateDocumentStatus(
 
   if (error) {
     console.error('Failed to update document status:', error)
-    throw new Error(`문서 상태 업데이트 실패: ${error.message}`)
+    // 상태 업데이트 실패는 치명적이지 않으므로 로그만 남기고 throw하지 않음
+    // (이미 에러 처리 중일 수 있으므로)
   }
 }
 
@@ -149,18 +156,6 @@ async function saveChunks(
  * @param userId - 사용자 ID (비용 관리)
  * @param options - 처리 옵션
  * @returns 처리 결과
- * 
- * @example
- * ```typescript
- * const result = await processDocument(docId, filePath, userId, {
- *   chunkSize: 512,
- *   overlap: 50
- * })
- * 
- * if (result.success) {
- *   console.log(`Created ${result.chunksCreated} chunks`)
- * }
- * ```
  */
 export async function processDocument(
   documentId: string,
@@ -170,9 +165,9 @@ export async function processDocument(
 ): Promise<ProcessingResult> {
   try {
     // ---------------------------------------------------------------------------
-    // 1. 상태를 'processing'으로 변경
+    // 1. 상태를 'PARSING'으로 변경 (시작)
     // ---------------------------------------------------------------------------
-    await updateDocumentStatus(documentId, 'processing')
+    await updateDocumentStatus(documentId, DocumentStatus.PARSING)
 
     // ---------------------------------------------------------------------------
     // 2. Storage에서 문서 내용 가져오기
@@ -186,6 +181,8 @@ export async function processDocument(
     // ---------------------------------------------------------------------------
     // 3. 문서 청킹
     // ---------------------------------------------------------------------------
+    await updateDocumentStatus(documentId, DocumentStatus.CHUNKING)
+    
     const chunks = chunkDocument(content, {
       chunkSize: options.chunkSize,
       overlap: options.overlap,
@@ -209,6 +206,8 @@ export async function processDocument(
     // ---------------------------------------------------------------------------
     // 5. 임베딩 생성 (Phase 4)
     // ---------------------------------------------------------------------------
+    await updateDocumentStatus(documentId, DocumentStatus.EMBEDDING)
+
     let embeddings: number[][] | undefined
     let embeddingsGenerated = false
 
@@ -232,9 +231,9 @@ export async function processDocument(
     await saveChunks(documentId, chunks, embeddings)
 
     // ---------------------------------------------------------------------------
-    // 7. 상태를 'ready'로 변경
+    // 7. 상태를 'COMPLETED'로 변경
     // ---------------------------------------------------------------------------
-    await updateDocumentStatus(documentId, 'ready')
+    await updateDocumentStatus(documentId, DocumentStatus.COMPLETED)
 
     // ---------------------------------------------------------------------------
     // 8. 성공 결과 반환
@@ -248,12 +247,20 @@ export async function processDocument(
     }
   } catch (error) {
     // ---------------------------------------------------------------------------
-    // 에러 처리: 상태를 'error'로 변경
+    // 에러 처리: 상태를 'FAILED'로 변경
     // ---------------------------------------------------------------------------
-    const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류'
+    const internalErrorMessage = error instanceof Error ? error.message : 'Unknown error'
+    
+    // 사용자에게 보여줄 메시지 Sanitization
+    let userErrorMessage = '문서 처리 중 오류가 발생했습니다.'
+    if (internalErrorMessage.includes('비어있습니다')) userErrorMessage = '문서 내용이 비어있습니다.'
+    if (internalErrorMessage.includes('청크가 생성되지')) userErrorMessage = '텍스트를 추출할 수 없습니다.'
+    if (internalErrorMessage.includes('Token limit')) userErrorMessage = '일일 사용량을 초과했습니다.'
+
+    console.error(`Document processing failed for ${documentId}:`, error)
 
     try {
-      await updateDocumentStatus(documentId, 'error', errorMessage)
+      await updateDocumentStatus(documentId, DocumentStatus.FAILED, userErrorMessage)
     } catch (updateError) {
       console.error('Failed to update error status:', updateError)
     }
@@ -261,7 +268,7 @@ export async function processDocument(
     return {
       success: false,
       documentId,
-      error: errorMessage,
+      error: userErrorMessage,
     }
   }
 }
@@ -272,12 +279,6 @@ export async function processDocument(
  * @param documentId - 문서 ID
  * @param filePath - Storage 파일 경로
  * @param userId - 사용자 ID
- * 
- * @example
- * ```typescript
- * // 업로드 완료 후 호출
- * triggerDocumentProcessing(documentId, filePath, userId)
- * ```
  */
 export async function triggerDocumentProcessing(
   documentId: string,
@@ -285,18 +286,23 @@ export async function triggerDocumentProcessing(
   userId: string
 ): Promise<void> {
   try {
-    const result = await processDocument(documentId, filePath, userId)
-    
-    if (result.success) {
-      console.log(
-        `Document processed successfully: ${result.chunksCreated} chunks created, ` +
-        `embeddings: ${result.embeddingsGenerated ? 'yes' : 'no'}` +
-        (result.tokensUsed ? `, tokens used: ${result.tokensUsed}` : '')
-      )
-    } else {
-      console.error(`Document processing failed: ${result.error}`)
-    }
+    // 백그라운드 처리를 위해 await 하지 않음 (Vercel Serverless 함수 시간 제한 고려)
+    // 주의: Vercel Hobby 플랜에서는 백그라운드 작업이 보장되지 않을 수 있음.
+    // 실제 프로덕션에서는 QStash나 Inngest 같은 큐 시스템 사용 권장.
+    // 현재는 간단한 구현을 위해 비동기 호출만 함.
+    processDocument(documentId, filePath, userId)
+      .then(result => {
+        if (result.success) {
+          console.log(`Document processed successfully: ${result.documentId}`)
+        } else {
+          console.error(`Document processing failed: ${result.error}`)
+        }
+      })
+      .catch(err => {
+        console.error('Unhandled error in processDocument:', err)
+      })
+      
   } catch (error) {
-    console.error('Unexpected error during document processing:', error)
+    console.error('Unexpected error triggering processing:', error)
   }
 }
