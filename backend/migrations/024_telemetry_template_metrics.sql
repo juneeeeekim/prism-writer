@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS public.template_metrics (
     -- 집계 지표
     usage_count INTEGER DEFAULT 0,          -- 총 사용 횟수
     avg_score FLOAT DEFAULT 0,              -- 평균 평가 점수
-    pass_rate FLOAT DEFAULT 0,              -- Pass 비율
+    pass_rate FLOAT DEFAULT 0,              -- Pass 비율1
     avg_latency_ms FLOAT DEFAULT 0,         -- 평균 처리 시간
     
     -- 피드백 통계
