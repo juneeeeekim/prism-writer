@@ -4,9 +4,10 @@ interface ReferenceItemProps {
   status: DocumentStatus
   errorMessage?: string
   className?: string
+  onDelete?: () => void
 }
 
-export default function ReferenceItem({ status, errorMessage, className = '' }: ReferenceItemProps) {
+export default function ReferenceItem({ status, errorMessage, className = '', onDelete }: ReferenceItemProps) {
   // ---------------------------------------------------------------------------
   // 상태별 UI 설정 (아이콘, 색상, 텍스트)
   // ---------------------------------------------------------------------------
@@ -105,6 +106,19 @@ export default function ReferenceItem({ status, errorMessage, className = '' }: 
           </div>
         </div>
       )}
+
+      {/* 삭제 버튼 (Phase 4 추가) */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation() // 부모 클릭 이벤트 방지
+          if (onDelete) onDelete()
+        }}
+        className="ml-2 p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+        title="문서 삭제"
+        aria-label="문서 삭제"
+      >
+        🗑️
+      </button>
     </div>
   )
 }

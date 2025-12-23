@@ -108,3 +108,67 @@ export async function GET(): Promise<NextResponse<GetDocumentsResponse>> {
     )
   }
 }
+
+/**
+ * 문서 삭제 API
+ * 
+ * @param request - URL with query param ?id={documentId}
+ * @returns JSON response
+ */
+export async function DELETE(request: Request): Promise<NextResponse> {
+  try {
+    // 1. 사용자 인증 확인
+    const supabase = createClient()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+
+    if (!session) {
+      return NextResponse.json(
+        { success: false, message: '로그인이 필요합니다.', error: 'UNAUTHORIZED' },
+        { status: 401 }
+      )
+    }
+
+    // 2. Query Parameter에서 ID 추출
+    const { searchParams } = new URL(request.url)
+    const documentId = searchParams.get('id')
+
+    if (!documentId) {
+      return NextResponse.json(
+        { success: false, message: '문서 ID가 필요합니다.', error: 'BAD_REQUEST' },
+        { status: 400 }
+      )
+    }
+
+    // 3. DB에서 문서 삭제 (Cascade 설정으로 인해 chunks도 자동 삭제됨)
+    // 본인 소유의 문서인지 확인하는 조건(eq('user_id', ...)) 필수
+    const { error } = await supabase
+      .from('rag_documents')
+      .delete()
+      .eq('id', documentId)
+      .eq('user_id', session.user.id)
+
+    if (error) {
+      console.error('Database delete error:', error)
+      return NextResponse.json(
+        { success: false, message: '문서 삭제 중 오류가 발생했습니다.', error: 'DATABASE_ERROR' },
+        { status: 500 }
+      )
+    }
+
+    // 4. (Optional) Storage에서 파일 삭제 로직 추가 가능
+    // 현재는 DB 삭제만으로 프로세스 중단(Processor가 DB 체크 시 실패) 및 목록 제거 효과 있음.
+
+    return NextResponse.json({
+      success: true,
+      message: '문서가 삭제되었습니다.',
+    })
+  } catch (error) {
+    console.error('Unexpected error in delete document API:', error)
+    return NextResponse.json(
+      { success: false, message: '서버 오류가 발생했습니다.', error: 'INTERNAL_SERVER_ERROR' },
+      { status: 500 }
+    )
+  }
+}

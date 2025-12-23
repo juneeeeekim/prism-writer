@@ -128,6 +128,20 @@ export default function ReferenceTab() {
                     <ReferenceItem 
                       status={doc.status} 
                       errorMessage={doc.error_message}
+                      onDelete={async () => {
+                        if (!confirm('정말 이 문서를 삭제하시겠습니까?')) return
+                        
+                        try {
+                          const res = await fetch(`/api/documents?id=${doc.id}`, { method: 'DELETE' })
+                          if (!res.ok) throw new Error('삭제 실패')
+                          
+                          // 성공 시 목록 갱신
+                          refreshDocuments()
+                        } catch (err) {
+                          console.error('문서 삭제 중 오류:', err)
+                          alert('문서 삭제에 실패했습니다.')
+                        }
+                      }}
                     />
                   </div>
                 ))
