@@ -5,7 +5,7 @@
 // 역할: 업로드된 문서를 자동으로 처리 (청킹, 임베딩 등)
 // =============================================================================
 
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/server'
 import { chunkDocument, type DocumentChunk } from './chunking'
 import { embedBatch, estimateTokenCount, EMBEDDING_CONFIG } from './embedding'
 import { validateDocumentSize, validateUsage, trackUsage } from './costGuard'
