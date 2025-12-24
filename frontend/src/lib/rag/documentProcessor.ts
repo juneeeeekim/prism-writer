@@ -130,15 +130,9 @@ async function parsePDF(buffer: Buffer): Promise<string> {
       pdfParser.on('pdfParser_dataReady', (pdfData: any) => {
         try {
           // =================================================================
-          // [DEBUG] pdf2json 추출 결과 상세 로깅
-          // =================================================================
-          console.log('[PDF DEBUG] === pdf2json 추출 시작 ===')
-          console.log('[PDF DEBUG] pdfData 존재:', !!pdfData)
-          console.log('[PDF DEBUG] pdfData.Pages 개수:', pdfData?.Pages?.length || 0)
-          
-          // =================================================================
-          // [FIX] pdfData.Pages에서 직접 텍스트 추출 (getRawTextContent 대신)
-          // pdf2json의 getRawTextContent()가 한글을 제대로 처리하지 못하는 경우가 있음
+          // [PDF PARSER] pdfData.Pages에서 직접 텍스트 추출
+          // pdf2json의 getRawTextContent()가 한글 인코딩 문제가 있어
+          // pdfData.Pages → Texts → R → T 구조에서 직접 추출 및 URL 디코딩
           // =================================================================
           let extractedText = ''
           
@@ -149,7 +143,7 @@ async function parsePDF(buffer: Buffer): Promise<string> {
                   if (textItem.R && Array.isArray(textItem.R)) {
                     for (const run of textItem.R) {
                       if (run.T) {
-                        // URL 인코딩된 텍스트 디코딩
+                        // URL 인코딩된 텍스트 디코딩 (한글 지원)
                         try {
                           const decodedText = decodeURIComponent(run.T)
                           extractedText += decodedText + ' '
@@ -168,29 +162,20 @@ async function parsePDF(buffer: Buffer): Promise<string> {
           
           // Fallback: 직접 추출 실패 시 getRawTextContent 시도
           if (!extractedText.trim()) {
-            console.log('[PDF DEBUG] 직접 추출 실패, getRawTextContent 시도')
             extractedText = pdfParser.getRawTextContent() || ''
           }
           
           const text = extractedText.trim()
           
-          // [DEBUG] 추출된 텍스트 정보
-          console.log('[PDF DEBUG] text 길이 (원본):', extractedText?.length || 0)
-          console.log('[PDF DEBUG] text 길이 (trim 후):', text?.length || 0)
-          console.log('[PDF DEBUG] text 처음 200자:', text?.substring(0, 200) || '(비어있음)')
-          console.log('[PDF DEBUG] 한글 포함 여부:', /[가-힣]/.test(text))
-          console.log('[PDF DEBUG] === pdf2json 추출 끝 ===')
-          // =================================================================
-          
           // 스캔된 이미지 PDF 감지 (텍스트가 비어있는 경우)
           if (!text || text.length === 0) {
-            reject(new Error('PDF에서 텍스트를 추출할 수 없습니다. 스캔된 이미지 PDF는 지원되지 않습니다.'))
+            reject(new Error('PDF에서 텍스트를 추출할 수 없습니다. 텍스트가 포함된 PDF 파일을 사용해 주세요.'))
             return
           }
           
           resolve(text)
         } catch (parseError) {
-          console.error('[PDF DEBUG] parseError:', parseError)
+          console.error('[PDF Parser Error]:', parseError)
           reject(new Error('PDF 텍스트 추출 중 오류가 발생했습니다.'))
         }
       })
