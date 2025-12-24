@@ -8,12 +8,15 @@
 
 'use client'
 
-import { useState } from 'react'
+
+import { useState, useEffect } from 'react'
 import OutlineTab from './OutlineTab'
 import ReferenceTab from './ReferenceTab'
 import ChatTab from './ChatTab'
 import EvaluationTab from './EvaluationTab'
 import ChatSessionList from './ChatSessionList'
+import ChatHistoryOnboarding from './ChatHistoryOnboarding'
+import { FEATURES } from '@/lib/features'
 
 // -----------------------------------------------------------------------------
 // Types
@@ -42,9 +45,23 @@ const TABS: Tab[] = [
 export default function AssistantPanel() {
   const [activeTab, setActiveTab] = useState<TabId>('outline')
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
+  
+  // Feature Flag 확인 (클라이언트 사이드에서 안전하게 접근)
+  const [showSessionList, setShowSessionList] = useState(false)
+
+  useEffect(() => {
+    setShowSessionList(FEATURES.CHAT_SESSION_LIST)
+  }, [])
+
+
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
+      {/* Onboarding Modal (Feature Flag ON && LocalStorage Check handled inside component) */}
+      {showSessionList && (
+        <ChatHistoryOnboarding onDismiss={() => {}} />
+      )}
+
       {/* ... (Tab List remains the same) */}
       <div 
         className="flex border-b border-gray-200 dark:border-gray-700"
@@ -107,10 +124,13 @@ export default function AssistantPanel() {
         >
           {activeTab === 'chat' && (
             <>
-              <ChatSessionList 
-                selectedSessionId={selectedSessionId} 
-                onSelectSession={setSelectedSessionId} 
-              />
+              {/* Feature Flag: 세션 목록 표시 여부 */}
+              {showSessionList && (
+                <ChatSessionList 
+                  selectedSessionId={selectedSessionId} 
+                  onSelectSession={setSelectedSessionId} 
+                />
+              )}
               <div className="flex-1 min-w-0 h-full">
                 <ChatTab 
                   sessionId={selectedSessionId} 
@@ -135,3 +155,4 @@ export default function AssistantPanel() {
     </div>
   )
 }
+
