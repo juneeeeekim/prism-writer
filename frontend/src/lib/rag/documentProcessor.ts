@@ -136,28 +136,54 @@ async function parsePDF(buffer: Buffer): Promise<string> {
           console.log('[PDF DEBUG] pdfData 존재:', !!pdfData)
           console.log('[PDF DEBUG] pdfData.Pages 개수:', pdfData?.Pages?.length || 0)
           
-          // pdf2json의 getRawTextContent() 메서드로 텍스트 추출
-          const text = pdfParser.getRawTextContent()
+          // =================================================================
+          // [FIX] pdfData.Pages에서 직접 텍스트 추출 (getRawTextContent 대신)
+          // pdf2json의 getRawTextContent()가 한글을 제대로 처리하지 못하는 경우가 있음
+          // =================================================================
+          let extractedText = ''
+          
+          if (pdfData && pdfData.Pages && Array.isArray(pdfData.Pages)) {
+            for (const page of pdfData.Pages) {
+              if (page.Texts && Array.isArray(page.Texts)) {
+                for (const textItem of page.Texts) {
+                  if (textItem.R && Array.isArray(textItem.R)) {
+                    for (const run of textItem.R) {
+                      if (run.T) {
+                        // URL 인코딩된 텍스트 디코딩
+                        try {
+                          const decodedText = decodeURIComponent(run.T)
+                          extractedText += decodedText + ' '
+                        } catch {
+                          // 디코딩 실패 시 원본 사용
+                          extractedText += run.T + ' '
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              extractedText += '\n' // 페이지 구분
+            }
+          }
+          
+          // Fallback: 직접 추출 실패 시 getRawTextContent 시도
+          if (!extractedText.trim()) {
+            console.log('[PDF DEBUG] 직접 추출 실패, getRawTextContent 시도')
+            extractedText = pdfParser.getRawTextContent() || ''
+          }
+          
+          const text = extractedText.trim()
           
           // [DEBUG] 추출된 텍스트 정보
-          console.log('[PDF DEBUG] text 타입:', typeof text)
-          console.log('[PDF DEBUG] text 길이 (원본):', text?.length || 0)
-          console.log('[PDF DEBUG] text 길이 (trim 후):', text?.trim()?.length || 0)
+          console.log('[PDF DEBUG] text 길이 (원본):', extractedText?.length || 0)
+          console.log('[PDF DEBUG] text 길이 (trim 후):', text?.length || 0)
           console.log('[PDF DEBUG] text 처음 200자:', text?.substring(0, 200) || '(비어있음)')
-          console.log('[PDF DEBUG] text 마지막 100자:', text?.slice(-100) || '(비어있음)')
-          
-          // [DEBUG] 텍스트 내용 분석
-          if (text) {
-            console.log('[PDF DEBUG] 한글 포함 여부:', /[가-힣]/.test(text))
-            console.log('[PDF DEBUG] 영문 포함 여부:', /[a-zA-Z]/.test(text))
-            console.log('[PDF DEBUG] 숫자 포함 여부:', /[0-9]/.test(text))
-            console.log('[PDF DEBUG] 공백만 있는지:', /^\s*$/.test(text))
-          }
+          console.log('[PDF DEBUG] 한글 포함 여부:', /[가-힣]/.test(text))
           console.log('[PDF DEBUG] === pdf2json 추출 끝 ===')
           // =================================================================
           
           // 스캔된 이미지 PDF 감지 (텍스트가 비어있는 경우)
-          if (!text || text.trim().length === 0) {
+          if (!text || text.length === 0) {
             reject(new Error('PDF에서 텍스트를 추출할 수 없습니다. 스캔된 이미지 PDF는 지원되지 않습니다.'))
             return
           }
