@@ -129,8 +129,32 @@ async function parsePDF(buffer: Buffer): Promise<string> {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       pdfParser.on('pdfParser_dataReady', (pdfData: any) => {
         try {
+          // =================================================================
+          // [DEBUG] pdf2json 추출 결과 상세 로깅
+          // =================================================================
+          console.log('[PDF DEBUG] === pdf2json 추출 시작 ===')
+          console.log('[PDF DEBUG] pdfData 존재:', !!pdfData)
+          console.log('[PDF DEBUG] pdfData.Pages 개수:', pdfData?.Pages?.length || 0)
+          
           // pdf2json의 getRawTextContent() 메서드로 텍스트 추출
           const text = pdfParser.getRawTextContent()
+          
+          // [DEBUG] 추출된 텍스트 정보
+          console.log('[PDF DEBUG] text 타입:', typeof text)
+          console.log('[PDF DEBUG] text 길이 (원본):', text?.length || 0)
+          console.log('[PDF DEBUG] text 길이 (trim 후):', text?.trim()?.length || 0)
+          console.log('[PDF DEBUG] text 처음 200자:', text?.substring(0, 200) || '(비어있음)')
+          console.log('[PDF DEBUG] text 마지막 100자:', text?.slice(-100) || '(비어있음)')
+          
+          // [DEBUG] 텍스트 내용 분석
+          if (text) {
+            console.log('[PDF DEBUG] 한글 포함 여부:', /[가-힣]/.test(text))
+            console.log('[PDF DEBUG] 영문 포함 여부:', /[a-zA-Z]/.test(text))
+            console.log('[PDF DEBUG] 숫자 포함 여부:', /[0-9]/.test(text))
+            console.log('[PDF DEBUG] 공백만 있는지:', /^\s*$/.test(text))
+          }
+          console.log('[PDF DEBUG] === pdf2json 추출 끝 ===')
+          // =================================================================
           
           // 스캔된 이미지 PDF 감지 (텍스트가 비어있는 경우)
           if (!text || text.trim().length === 0) {
@@ -140,6 +164,7 @@ async function parsePDF(buffer: Buffer): Promise<string> {
           
           resolve(text)
         } catch (parseError) {
+          console.error('[PDF DEBUG] parseError:', parseError)
           reject(new Error('PDF 텍스트 추출 중 오류가 발생했습니다.'))
         }
       })
