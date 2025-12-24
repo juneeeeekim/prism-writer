@@ -12,10 +12,10 @@ import { validateDocumentSize, validateUsage, trackUsage } from './costGuard'
 import { DocumentStatus } from '@/types/rag'
 
 // =============================================================================
-// PDF 파싱 라이브러리 (Phase 1: PDF 파싱 구현)
+// PDF 파싱 라이브러리 - [Vercel Fix] 동적 import로 변경됨
 // =============================================================================
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfParse = require('pdf-parse')
+// pdf-parse는 parsePDF() 함수 내에서 동적으로 import됩니다.
+// 이는 Vercel Serverless 환경에서 DOMMatrix 오류를 방지하기 위함입니다.
 
 // =============================================================================
 // 타입 정의
@@ -97,12 +97,41 @@ async function updateDocumentStatus(
 /**
  * PDF 파일에서 텍스트 추출
  * 
+ * [Vercel Fix] pdf-parse는 내부적으로 pdfjs-dist를 사용하는데,
+ * 이 라이브러리가 DOMMatrix (브라우저 API)를 요구합니다.
+ * Vercel Serverless 환경에서는 이 API가 없으므로, 
+ * 페이지 렌더링을 비활성화하는 옵션을 제공합니다.
+ * 
  * @param buffer - PDF 파일 버퍼
  * @returns 추출된 텍스트
  */
 async function parsePDF(buffer: Buffer): Promise<string> {
   try {
-    const pdfData = await pdfParse(buffer)
+    // [Vercel Fix] 동적 import로 변경하고, 테스트 파일 로드 방지
+    // pdf-parse는 기본적으로 test/data 폴더의 파일을 로드하려 함
+    // pagerender 옵션을 null로 설정하여 페이지 렌더링 비활성화
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pdfParseModule = await import('pdf-parse') as any
+    const pdfParseFn = pdfParseModule.default || pdfParseModule
+    
+    // 옵션: 페이지 렌더링 비활성화 (DOMMatrix 오류 방지)
+    const options = {
+      // 커스텀 페이지 렌더링 함수 (텍스트만 추출)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      pagerender: function(pageData: any) {
+        return pageData.getTextContent().then(function(textContent: { items: Array<{ str?: string }> }) {
+          let text = ''
+          for (const item of textContent.items) {
+            if (item.str) {
+              text += item.str + ' '
+            }
+          }
+          return text
+        })
+      }
+    }
+    
+    const pdfData = await pdfParseFn(buffer, options)
     
     // 스캔된 이미지 PDF 감지 (텍스트가 비어있는 경우)
     if (!pdfData.text || pdfData.text.trim().length === 0) {
