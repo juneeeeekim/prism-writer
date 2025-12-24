@@ -21,22 +21,28 @@
 ### 1-1. 처리 전용 API 생성 (New Endpoint)
 
 - **담당**: 👨‍💻 시니어 개발자
-- **파일**: `frontend/src/app/api/documents/process/route.ts` (신규 생성)
+- **파일**: `frontend/src/app/api/documents/process/route.ts` (이미 존재)
 - **내용**:
-  - [ ] **[Import]** `processDocument` 함수 및 Supabase 클라이언트 임포트.
-  - [ ] **[Function]** `POST` 메서드 핸들러 작성.
-  - [ ] **[Validation]** Request Body에서 `documentId` 추출 및 검증.
-  - [ ] **[DB Query]** `rag_documents` 테이블에서 `file_path` 조회.
-  - [ ] **[Logic]** `await processDocument(...)` 호출하여 처리가 완료될 때까지 대기 (Vercel 프로세스 유지).
-  - [ ] **[Response]** 처리 결과(성공/실패) JSON 반환.
+  - [x] **[Import]** `processDocument` 함수 및 Supabase 클라이언트 임포트. → Line 9-12
+  - [x] **[Function]** `POST` 메서드 핸들러 작성. → Line 14-118
+  - [x] **[Validation]** Request Body에서 `documentId` 추출 및 검증. → Lines 36-44
+  - [x] **[DB Query]** `rag_documents` 테이블에서 `file_path` 조회. → Lines 49-62
+  - [x] **[Logic]** `await processDocument(...)` 호출하여 처리가 완료될 때까지 대기. → Line 92
+  - [x] **[Response]** 처리 결과(성공/실패) JSON 반환. → Lines 101-105
   - **품질 체크**:
-    - `try-catch` 블록으로 모든 예외 처리.
-    - 변수명: `processingResult`, `documentData` 등 명확하게 사용.
+    - `try-catch` 블록으로 모든 예외 처리. → ✅ Lines 15, 107-116
+    - 변수명: `processingResult`, `documentData` 등 명확하게 사용. → ✅ 확인됨
 
 ### 1-2. 업로드 API 수정 (Refactoring)
 
 - **담당**: 👨‍💻 시니어 개발자
 - **파일**: `frontend/src/app/api/documents/upload/route.ts`
+- **상태**: ✅ **이미 완료됨**
+- **변경 내용**:
+
+  - [x] `triggerDocumentProcessing` 호출 제거 (Lines 204-207 주석 처리됨)
+  - [x] 업로드 성공 후 `documentId`만 반환하고 처리는 트리거하지 않음
+  - [x] 클라이언트가 별도로 `/api/documents/process` API를 호출하는 구조로 변경됨
 
 - 파일 업로드 UI (업로드 완료 후 처리 상태로 넘어가는 흐름)
 

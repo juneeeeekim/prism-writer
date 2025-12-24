@@ -12,6 +12,12 @@ import { validateDocumentSize, validateUsage, trackUsage } from './costGuard'
 import { DocumentStatus } from '@/types/rag'
 
 // =============================================================================
+// PDF 파싱 라이브러리 (Phase 1: PDF 파싱 구현)
+// =============================================================================
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const pdfParse = require('pdf-parse')
+
+// =============================================================================
 // 타입 정의
 // =============================================================================
 
@@ -84,13 +90,46 @@ async function updateDocumentStatus(
   }
 }
 
+// =============================================================================
+// [Phase 2] 파일 타입별 파싱 로직 (PDF, TXT, MD 지원)
+// =============================================================================
+
 /**
- * Storage에서 문서 내용 가져오기
+ * PDF 파일에서 텍스트 추출
+ * 
+ * @param buffer - PDF 파일 버퍼
+ * @returns 추출된 텍스트
+ */
+async function parsePDF(buffer: Buffer): Promise<string> {
+  try {
+    const pdfData = await pdfParse(buffer)
+    
+    // 스캔된 이미지 PDF 감지 (텍스트가 비어있는 경우)
+    if (!pdfData.text || pdfData.text.trim().length === 0) {
+      throw new Error('PDF에서 텍스트를 추출할 수 없습니다. 스캔된 이미지 PDF는 지원되지 않습니다.')
+    }
+    
+    return pdfData.text
+  } catch (error) {
+    // 암호화된 PDF 또는 파싱 오류 처리
+    if (error instanceof Error) {
+      if (error.message.includes('password')) {
+        throw new Error('암호화된 PDF는 지원되지 않습니다.')
+      }
+      throw error
+    }
+    throw new Error('PDF 파싱 중 오류가 발생했습니다.')
+  }
+}
+
+/**
+ * Storage에서 문서 내용 가져오기 (파일 타입별 파싱)
  * 
  * @param filePath - Storage 파일 경로
+ * @param fileType - 파일 MIME 타입
  * @returns 문서 텍스트
  */
-async function fetchDocumentContent(filePath: string): Promise<string> {
+async function parseDocumentContent(filePath: string, fileType?: string): Promise<string> {
   const supabase = createClient()
 
   const { data, error } = await supabase.storage
@@ -101,9 +140,38 @@ async function fetchDocumentContent(filePath: string): Promise<string> {
     throw new Error(`파일 다운로드 실패: ${error.message}`)
   }
 
-  // Blob을 텍스트로 변환
-  const text = await data.text()
-  return text
+  // ---------------------------------------------------------------------------
+  // 파일 타입별 분기 처리
+  // ---------------------------------------------------------------------------
+  
+  // PDF 파일 처리
+  if (fileType === 'application/pdf' || filePath.toLowerCase().endsWith('.pdf')) {
+    const arrayBuffer = await data.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+    return await parsePDF(buffer)
+  }
+  
+  // TXT, MD 파일 처리 (기존 로직 유지)
+  if (
+    fileType === 'text/plain' || 
+    fileType === 'text/markdown' ||
+    filePath.toLowerCase().endsWith('.txt') ||
+    filePath.toLowerCase().endsWith('.md')
+  ) {
+    return await data.text()
+  }
+  
+  // DOCX 파일 (현재 미지원)
+  if (
+    fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+    filePath.toLowerCase().endsWith('.docx')
+  ) {
+    throw new Error('DOCX 파일은 현재 지원되지 않습니다. PDF, TXT, MD 파일을 사용해 주세요.')
+  }
+  
+  // 알 수 없는 파일 타입 (기본: 텍스트로 시도)
+  console.warn(`Unknown file type: ${fileType}, attempting text parse`)
+  return await data.text()
 }
 
 /**
@@ -154,6 +222,7 @@ async function saveChunks(
  * @param documentId - 문서 ID
  * @param filePath - Storage 파일 경로
  * @param userId - 사용자 ID (비용 관리)
+ * @param fileType - 파일 MIME 타입 (옵션, PDF 파싱에 필요)
  * @param options - 처리 옵션
  * @returns 처리 결과
  */
@@ -161,6 +230,7 @@ export async function processDocument(
   documentId: string,
   filePath: string,
   userId: string,
+  fileType?: string,
   options: ProcessDocumentOptions = {}
 ): Promise<ProcessingResult> {
   try {
@@ -170,9 +240,10 @@ export async function processDocument(
     await updateDocumentStatus(documentId, DocumentStatus.PARSING)
 
     // ---------------------------------------------------------------------------
-    // 2. Storage에서 문서 내용 가져오기
+    // 2. Storage에서 문서 내용 가져오기 (파일 타입별 파싱)
+    // [Phase 2] PDF, TXT, MD 파일 타입별 분기 처리
     // ---------------------------------------------------------------------------
-    const content = await fetchDocumentContent(filePath)
+    const content = await parseDocumentContent(filePath, fileType)
 
     if (!content || content.trim().length === 0) {
       throw new Error('문서 내용이 비어있습니다.')

@@ -71,6 +71,7 @@ CREATE INDEX IF NOT EXISTS idx_usage_records_usage_type ON public.usage_records(
 CREATE INDEX IF NOT EXISTS idx_usage_records_created_at ON public.usage_records(created_at DESC);
 
 -- 일일/월간 집계를 위한 복합 인덱스
+-- [Performance] Optimized for daily_usage_summary view with RLS
 CREATE INDEX IF NOT EXISTS idx_usage_records_user_date 
   ON public.usage_records(user_id, created_at);
 
@@ -78,6 +79,7 @@ CREATE INDEX IF NOT EXISTS idx_usage_records_user_date
 ALTER TABLE public.usage_records ENABLE ROW LEVEL SECURITY;
 
 -- 사용자는 자신의 사용량만 조회 가능
+-- [Integrity] Enforced by daily_usage_summary view (security_invoker=true)
 CREATE POLICY "Users can view own usage records"
   ON public.usage_records FOR SELECT
   USING (auth.uid() = user_id);
@@ -102,6 +104,7 @@ CREATE TABLE IF NOT EXISTS public.evaluation_feedback (
 );
 
 -- 인덱스 생성
+-- [Performance] User ID index required for efficient RLS checks
 CREATE INDEX IF NOT EXISTS idx_evaluation_feedback_user_id ON public.evaluation_feedback(user_id);
 CREATE INDEX IF NOT EXISTS idx_evaluation_feedback_feedback_type ON public.evaluation_feedback(feedback_type);
 CREATE INDEX IF NOT EXISTS idx_evaluation_feedback_created_at ON public.evaluation_feedback(created_at DESC);
@@ -110,6 +113,7 @@ CREATE INDEX IF NOT EXISTS idx_evaluation_feedback_created_at ON public.evaluati
 ALTER TABLE public.evaluation_feedback ENABLE ROW LEVEL SECURITY;
 
 -- 사용자는 자신의 피드백만 조회/수정 가능
+-- [Integrity] Enforced by feedback_summary view (security_invoker=true)
 CREATE POLICY "Users can view own feedback"
   ON public.evaluation_feedback FOR SELECT
   USING (auth.uid() = user_id);
@@ -123,10 +127,13 @@ CREATE POLICY "Users can update own feedback"
   USING (auth.uid() = user_id);
 
 -- =============================================================================
--- 4. 일일 사용량 집계 뷰 (선택)
+-- 4. 일일 사용량 집계 뷰
 -- =============================================================================
 
-CREATE OR REPLACE VIEW public.daily_usage_summary AS
+-- [Security Fix] CVE-2025-55182: Enforce RLS by adding security_invoker = true
+-- [Scope] Personal Data Only: Users will only see their own usage summary.
+-- [Admin Access] Admins must use the Service Role to view global stats.
+CREATE OR REPLACE VIEW public.daily_usage_summary WITH (security_invoker = true) AS
 SELECT 
   user_id,
   DATE(created_at) as usage_date,
@@ -138,10 +145,13 @@ FROM public.usage_records
 GROUP BY user_id, DATE(created_at), usage_type;
 
 -- =============================================================================
--- 5. 피드백 통계 뷰 (선택)
+-- 5. 피드백 통계 뷰
 -- =============================================================================
 
-CREATE OR REPLACE VIEW public.feedback_summary AS
+-- [Security Fix] CVE-2025-55182: Enforce RLS by adding security_invoker = true
+-- [Scope] Personal Data Only: Users will only see their own feedback.
+-- [Admin Access] Admins must use the Service Role to view global stats.
+CREATE OR REPLACE VIEW public.feedback_summary WITH (security_invoker = true) AS
 SELECT 
   DATE_TRUNC('day', created_at) as feedback_date,
   feedback_type,

@@ -150,3 +150,36 @@ Connection successful: APIResponse(data=[], count=None)
 ---
 
 **문서 끝. Supabase 설정 완료 후 Phase 1.2 체크리스트를 업데이트하세요.**
+
+---
+
+## 8. 보안 및 개발 표준 (Security Standards)
+
+### 8.1 View 생성 규칙 (Security Definer vs Invoker)
+
+Supabase(PostgreSQL)에서 View 생성 시, 기본적으로 View는 **생성자(Owner)의 권한**으로 실행됩니다. 이는 RLS(Row Level Security) 정책을 우회하여 데이터 누출 사고로 이어질 수 있습니다 (CVE-2025-55182 유형).
+
+따라서, **모든 View 생성 시 반드시 `security_invoker = true` 옵션을 사용해야 합니다.**
+
+**❌ 잘못된 예시 (Do Not Use):**
+
+```sql
+CREATE VIEW my_view AS SELECT * FROM sensitive_table;
+-- 생성자의 권한으로 실행되어 RLS가 무시됨
+```
+
+**✅ 올바른 예시 (Standard):**
+
+```sql
+CREATE VIEW my_view WITH (security_invoker = true) AS SELECT * FROM sensitive_table;
+-- 호출자(User)의 권한으로 실행되어 RLS가 정상 적용됨
+```
+
+### 8.2 RLS 정책 의존성 명시
+
+View가 특정 RLS 정책에 의존하는 경우, SQL 파일 내에 주석으로 이를 명시하여 유지보수성을 확보하세요.
+
+```sql
+-- [Integrity] Enforced by my_view (security_invoker=true)
+CREATE POLICY "Users can view own data" ...
+```

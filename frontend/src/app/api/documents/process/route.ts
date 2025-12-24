@@ -48,7 +48,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // ---------------------------------------------------------------------------
     const { data: documentData, error: dbError } = await supabase
       .from('rag_documents')
-      .select('id, file_path, status, user_id')
+      .select('id, file_path, file_type, status, user_id')
       .eq('id', documentId)
       .eq('user_id', userId) // 본인 소유 확인
       .single()
@@ -89,7 +89,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // 긴 문서의 경우 10초를 넘길 수 있으므로, 추후에는 QStash 등을 도입해야 함.
     // 현재는 "Client-Triggered" 방식으로 클라이언트가 연결을 유지하는 동안 최대한 처리.
     
-    const result = await processDocument(documentId, documentData.file_path, userId)
+    // [Phase 2] fileType 전달하여 PDF 파싱 지원
+    const result = await processDocument(documentId, documentData.file_path, userId, documentData.file_type)
 
     if (!result.success) {
       throw new Error(result.error || '문서 처리 실패')

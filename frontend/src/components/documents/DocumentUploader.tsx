@@ -27,6 +27,9 @@ const ALLOWED_TYPES = ['application/pdf', 'application/vnd.openxmlformats-office
 const ALLOWED_EXTENSIONS = ['pdf', 'docx', 'txt', 'md']
 const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB (Supabase Free Plan 최대치)
 
+// [Risk Mitigation] 대용량 PDF 경고 임계값 (5MB 이상 PDF는 처리 시간이 길어질 수 있음)
+const PDF_WARNING_SIZE = 5 * 1024 * 1024 // 5MB
+
 // =============================================================================
 // Component
 // =============================================================================
@@ -62,6 +65,18 @@ export default function DocumentUploader({ onUploadSuccess, className = '' }: Do
 
     return null
   }
+  
+  // ---------------------------------------------------------------------------
+  // [Risk Mitigation] 대용량 PDF 경고 체크
+  // ---------------------------------------------------------------------------
+  const checkLargePDFWarning = (file: File): boolean => {
+    const fileExtension = file.name.split('.').pop()?.toLowerCase()
+    if (fileExtension === 'pdf' && file.size > PDF_WARNING_SIZE) {
+      toast.warning(`대용량 PDF 파일입니다 (${(file.size / (1024 * 1024)).toFixed(1)}MB). 처리 시간이 오래 걸릴 수 있습니다.`)
+      return true
+    }
+    return false
+  }
 
   // ---------------------------------------------------------------------------
   // 파일 업로드 처리
@@ -73,6 +88,9 @@ export default function DocumentUploader({ onUploadSuccess, className = '' }: Do
       toast.error(validationError)
       return
     }
+    
+    // [Risk Mitigation] 대용량 PDF 경고 표시 (업로드는 계속 진행)
+    checkLargePDFWarning(file)
 
     setIsUploading(true)
     setUploadProgress(0)

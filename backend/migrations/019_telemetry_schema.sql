@@ -49,6 +49,7 @@ CREATE INDEX IF NOT EXISTS idx_telemetry_run_id
     ON telemetry_logs(run_id);
 
 -- User ID로 사용자별 조회
+-- [Performance] Critical for RLS checks (security_invoker=true)
 CREATE INDEX IF NOT EXISTS idx_telemetry_user_id 
     ON telemetry_logs(user_id);
 
@@ -61,6 +62,7 @@ CREATE INDEX IF NOT EXISTS idx_telemetry_created_at
     ON telemetry_logs(created_at);
 
 -- 복합 인덱스: 사용자 + 시간
+-- [Performance] Optimized for telemetry_daily_stats view with RLS
 CREATE INDEX IF NOT EXISTS idx_telemetry_user_time 
     ON telemetry_logs(user_id, created_at);
 
@@ -71,6 +73,7 @@ CREATE INDEX IF NOT EXISTS idx_telemetry_user_time
 ALTER TABLE telemetry_logs ENABLE ROW LEVEL SECURITY;
 
 -- 사용자는 자신의 로그만 조회 가능
+-- [Integrity] This policy is enforced by telemetry_daily_stats/model_stats views (security_invoker=true)
 CREATE POLICY telemetry_logs_select_policy 
     ON telemetry_logs 
     FOR SELECT 
@@ -87,7 +90,10 @@ CREATE POLICY telemetry_logs_insert_policy
 -- ---------------------------------------------------------------------------
 
 -- 일별 사용량 집계
-CREATE OR REPLACE VIEW telemetry_daily_stats AS
+-- [Security Fix] CVE-2025-55182: Enforce RLS by adding security_invoker = true
+-- [Scope] Personal Data Only: Users will only see their own stats.
+-- [Admin Access] Admins must use the Service Role to view global stats.
+CREATE OR REPLACE VIEW telemetry_daily_stats WITH (security_invoker = true) AS
 SELECT 
     user_id,
     DATE(created_at) AS date,
@@ -102,7 +108,10 @@ FROM telemetry_logs
 GROUP BY user_id, DATE(created_at);
 
 -- 모델별 사용량 집계
-CREATE OR REPLACE VIEW telemetry_model_stats AS
+-- [Security Fix] CVE-2025-55182: Enforce RLS by adding security_invoker = true
+-- [Scope] Personal Data Only: Users will only see their own model usage.
+-- [Admin Access] Admins must use the Service Role to view global stats.
+CREATE OR REPLACE VIEW telemetry_model_stats WITH (security_invoker = true) AS
 SELECT 
     model_id,
     COUNT(*) AS usage_count,
