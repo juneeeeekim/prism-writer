@@ -14,6 +14,31 @@ import { createClient } from '@/lib/supabase/server'
 
 export const runtime = 'nodejs'
 
+// -----------------------------------------------------------------------------
+// Helper: 재시도 로직이 포함된 메시지 저장 함수
+// -----------------------------------------------------------------------------
+async function saveMessageWithRetry(
+  supabase: any,
+  data: { session_id: string; role: string; content: string; model_id?: string },
+  maxRetries: number = 3
+): Promise<boolean> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const { error } = await supabase.from('chat_messages').insert(data)
+      if (error) throw error
+      return true
+    } catch (error) {
+      console.warn(`Message save attempt ${attempt}/${maxRetries} failed:`, error)
+      if (attempt < maxRetries) {
+        // 지수 백오프: 100ms, 200ms, 400ms...
+        await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, attempt - 1)))
+      }
+    }
+  }
+  console.error('All message save attempts failed')
+  return false
+}
+
 export async function POST(req: NextRequest) {
   try {
     // -------------------------------------------------------------------------
@@ -31,20 +56,15 @@ export async function POST(req: NextRequest) {
     const userId = user?.id
 
     // -------------------------------------------------------------------------
-    // 1.5. 사용자 메시지 저장 (세션 ID가 있는 경우)
+    // 1.5. 사용자 메시지 저장 (세션 ID가 있는 경우) - 재시도 로직 포함
     // -------------------------------------------------------------------------
     if (userId && sessionId && lastMessage.role === 'user') {
-      try {
-        await supabase.from('chat_messages').insert({
-          session_id: sessionId,
-          role: 'user',
-          content: lastMessage.content,
-          model_id: requestedModel
-        })
-      } catch (error) {
-        console.error('Failed to save user message:', error)
-        // 메시지 저장 실패해도 대화는 계속 진행
-      }
+      await saveMessageWithRetry(supabase, {
+        session_id: sessionId,
+        role: 'user',
+        content: lastMessage.content,
+        model_id: requestedModel
+      })
     }
 
     // -------------------------------------------------------------------------
@@ -116,23 +136,23 @@ ${context ? context : '관련된 참고 자료가 없습니다.'}
           }
           
           // -----------------------------------------------------------------------
-          // 6. AI 응답 저장 (세션 ID가 있는 경우)
+          // 6. AI 응답 저장 (세션 ID가 있는 경우) - 재시도 로직 포함
           // -----------------------------------------------------------------------
           if (userId && sessionId && fullResponse) {
+            await saveMessageWithRetry(supabase, {
+              session_id: sessionId,
+              role: 'assistant',
+              content: fullResponse,
+              model_id: modelId
+            })
+            
+            // 세션 업데이트 시간 갱신
             try {
-              await supabase.from('chat_messages').insert({
-                session_id: sessionId,
-                role: 'assistant',
-                content: fullResponse,
-                model_id: modelId
-              })
-              
-              // 세션 업데이트 시간 갱신
               await supabase.from('chat_sessions')
                 .update({ updated_at: new Date().toISOString() })
                 .eq('id', sessionId)
             } catch (error) {
-              console.error('Failed to save assistant message:', error)
+              console.warn('Failed to update session timestamp:', error)
             }
           }
 
