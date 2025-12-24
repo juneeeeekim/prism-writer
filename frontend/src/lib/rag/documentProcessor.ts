@@ -357,11 +357,27 @@ export async function processDocument(
     // ---------------------------------------------------------------------------
     const internalErrorMessage = error instanceof Error ? error.message : 'Unknown error'
     
+    // [DEBUG] 상세 에러 로깅 - Vercel Functions 로그에 출력
+    console.error('=== DOCUMENT PROCESSING ERROR ===')
+    console.error('Document ID:', documentId)
+    console.error('File Path:', filePath)
+    console.error('File Type:', fileType)
+    if (error instanceof Error) {
+      console.error('Error Name:', error.name)
+      console.error('Error Message:', error.message)
+      console.error('Error Stack:', error.stack)
+    } else {
+      console.error('Unknown Error:', JSON.stringify(error))
+    }
+    console.error('=================================')
+    
     // 사용자에게 보여줄 메시지 Sanitization
     let userErrorMessage = '문서 처리 중 오류가 발생했습니다.'
     if (internalErrorMessage.includes('비어있습니다')) userErrorMessage = '문서 내용이 비어있습니다.'
     if (internalErrorMessage.includes('청크가 생성되지')) userErrorMessage = '텍스트를 추출할 수 없습니다.'
     if (internalErrorMessage.includes('Token limit')) userErrorMessage = '일일 사용량을 초과했습니다.'
+    if (internalErrorMessage.includes('스캔된 이미지')) userErrorMessage = '스캔된 이미지 PDF는 지원되지 않습니다.'
+    if (internalErrorMessage.includes('암호화된')) userErrorMessage = '암호화된 PDF는 지원되지 않습니다.'
 
     console.error(`Document processing failed for ${documentId}:`, error)
 
