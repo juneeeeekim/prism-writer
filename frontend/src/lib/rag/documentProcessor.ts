@@ -97,58 +97,64 @@ async function updateDocumentStatus(
 /**
  * PDF 파일에서 텍스트 추출
  * 
- * [Vercel Fix] pdf-parse는 내부적으로 pdfjs-dist를 사용하는데,
- * 이 라이브러리가 DOMMatrix (브라우저 API)를 요구합니다.
- * Vercel Serverless 환경에서는 이 API가 없으므로, 
- * 페이지 렌더링을 비활성화하는 옵션을 제공합니다.
+ * [Vercel Fix] pdf2json 라이브러리 사용
+ * - 순수 JavaScript로 작성됨, Canvas/DOM 의존성 없음
+ * - v3.1.6부터 완전히 의존성 없음
+ * - Vercel Serverless 환경에서 안정적으로 작동
  * 
  * @param buffer - PDF 파일 버퍼
  * @returns 추출된 텍스트
  */
 async function parsePDF(buffer: Buffer): Promise<string> {
-  try {
-    // [Vercel Fix] 동적 import로 변경하고, 테스트 파일 로드 방지
-    // pdf-parse는 기본적으로 test/data 폴더의 파일을 로드하려 함
-    // pagerender 옵션을 null로 설정하여 페이지 렌더링 비활성화
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const pdfParseModule = await import('pdf-parse') as any
-    const pdfParseFn = pdfParseModule.default || pdfParseModule
-    
-    // 옵션: 페이지 렌더링 비활성화 (DOMMatrix 오류 방지)
-    const options = {
-      // 커스텀 페이지 렌더링 함수 (텍스트만 추출)
+  return new Promise((resolve, reject) => {
+    try {
+      // [Vercel Fix] pdf2json 동적 import
+      // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+      const PDFParser = require('pdf2json')
+      
+      const pdfParser = new PDFParser()
+      
+      // 에러 핸들러
+      pdfParser.on('pdfParser_dataError', (errData: { parserError: Error }) => {
+        const errorMessage = errData.parserError?.message || 'PDF 파싱 오류'
+        
+        if (errorMessage.toLowerCase().includes('password')) {
+          reject(new Error('암호화된 PDF는 지원되지 않습니다.'))
+        } else {
+          reject(new Error(`PDF 파싱 실패: ${errorMessage}`))
+        }
+      })
+      
+      // 성공 핸들러
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      pagerender: function(pageData: any) {
-        return pageData.getTextContent().then(function(textContent: { items: Array<{ str?: string }> }) {
-          let text = ''
-          for (const item of textContent.items) {
-            if (item.str) {
-              text += item.str + ' '
-            }
+      pdfParser.on('pdfParser_dataReady', (pdfData: any) => {
+        try {
+          // pdf2json의 getRawTextContent() 메서드로 텍스트 추출
+          const text = pdfParser.getRawTextContent()
+          
+          // 스캔된 이미지 PDF 감지 (텍스트가 비어있는 경우)
+          if (!text || text.trim().length === 0) {
+            reject(new Error('PDF에서 텍스트를 추출할 수 없습니다. 스캔된 이미지 PDF는 지원되지 않습니다.'))
+            return
           }
-          return text
-        })
+          
+          resolve(text)
+        } catch (parseError) {
+          reject(new Error('PDF 텍스트 추출 중 오류가 발생했습니다.'))
+        }
+      })
+      
+      // Buffer를 파싱 (parseBuffer 메서드 사용)
+      pdfParser.parseBuffer(buffer)
+      
+    } catch (error) {
+      if (error instanceof Error) {
+        reject(error)
+      } else {
+        reject(new Error('PDF 파싱 중 예기치 않은 오류가 발생했습니다.'))
       }
     }
-    
-    const pdfData = await pdfParseFn(buffer, options)
-    
-    // 스캔된 이미지 PDF 감지 (텍스트가 비어있는 경우)
-    if (!pdfData.text || pdfData.text.trim().length === 0) {
-      throw new Error('PDF에서 텍스트를 추출할 수 없습니다. 스캔된 이미지 PDF는 지원되지 않습니다.')
-    }
-    
-    return pdfData.text
-  } catch (error) {
-    // 암호화된 PDF 또는 파싱 오류 처리
-    if (error instanceof Error) {
-      if (error.message.includes('password')) {
-        throw new Error('암호화된 PDF는 지원되지 않습니다.')
-      }
-      throw error
-    }
-    throw new Error('PDF 파싱 중 오류가 발생했습니다.')
-  }
+  })
 }
 
 /**
