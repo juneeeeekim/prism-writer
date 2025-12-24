@@ -74,6 +74,17 @@ export default function ChatHistoryOnboarding({ onDismiss }: ChatHistoryOnboardi
               이전 대화를 다시 찾아볼 수 있어요.
             </p>
           </div>
+
+          {/* 삭제 정책 안내 */}
+          <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+            <p className="text-xs text-amber-700 dark:text-amber-300">
+              ⏰ 대화 기록은 <strong>30일 후 자동으로 삭제</strong>됩니다.
+              <br/>
+              <span className="text-amber-600 dark:text-amber-400">
+                (Premium 사용자는 90일 보관)
+              </span>
+            </p>
+          </div>
         </div>
 
         {/* Footer / Actions */}
