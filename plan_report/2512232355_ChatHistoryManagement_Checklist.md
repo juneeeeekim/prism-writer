@@ -485,12 +485,41 @@ git push origin main
   - Free 사용자: 30일 보관
   - Premium 사용자 (tier >= 2): 90일 보관
 - [x] 사용자에게 삭제 정책 고지: 온보딩 모달에 안내 문구 추가
-- [ ] Supabase cron 스케줄러 활성화 필요 (**Pro Tier 필요**)
+- [ ] Supabase cron 스케줄러 활성화 필요 (**수동 설정 필요**)
 
 > 📌 **Supabase 프로젝트**: `audrryyklmighhtdssoi.supabase.co`
->
-> - 대시보드에서 Plan 확인 후 pg_cron 활성화 필요
-> - SQL: `SELECT * FROM cleanup_old_messages_by_tier();`
+
+#### 🔧 수동 설정 가이드
+
+1. **Supabase 대시보드 접속**: https://supabase.com/dashboard
+2. **프로젝트 선택** → Settings → Database → Extensions
+3. **pg_cron** 검색 → Enable
+4. **SQL Editor**에서 아래 명령 실행:
+
+```sql
+-- 1. cleanup 함수 생성 (029_cleanup_function_tier.sql 전체 실행)
+-- (이미 실행했다면 생략)
+
+-- 2. cron 스케줄 등록 (매일 오전 3시 KST)
+SELECT cron.schedule(
+    'cleanup-old-chat-messages-by-tier',
+    '0 18 * * *',  -- UTC 18:00 = KST 03:00
+    $$SELECT * FROM cleanup_old_messages_by_tier()$$
+);
+
+-- 3. 등록 확인
+SELECT * FROM cron.job;
+```
+
+5. **테스트** (선택):
+
+```sql
+-- 수동 실행하여 결과 확인
+SELECT * FROM cleanup_old_messages_by_tier();
+```
+
+> ⚠️ **주의**: pg_cron은 **Supabase Pro Tier 이상**에서만 사용 가능합니다.
+> Free Tier인 경우, 외부 스케줄러(GitHub Actions, Vercel Cron 등)를 사용하세요.
 
 ---
 
