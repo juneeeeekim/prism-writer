@@ -15,7 +15,7 @@ interface Message {
 }
 
 interface ChatTabProps {
-  sessionId: string | null
+  sessionId?: string | null  // undefined = Feature Flag OFF (legacy mode)
   onSessionChange: (sessionId: string) => void
 }
 
@@ -44,7 +44,16 @@ export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
   // ---------------------------------------------------------------------------
   useEffect(() => {
     const loadMessages = async () => {
-      if (!sessionId) {
+      // -----------------------------------------------------------------------
+      // Feature Flag OFF (sessionId === undefined): 세션 관리 비활성화, 기존 메시지 유지
+      // Feature Flag ON + 세션 미선택 (sessionId === null): 빈 메시지
+      // Feature Flag ON + 세션 선택 (sessionId exists): API에서 메시지 로드
+      // -----------------------------------------------------------------------
+      if (sessionId === undefined) {
+        // Legacy mode: 세션 관리 안 함, 메시지 유지
+        return
+      }
+      if (sessionId === null) {
         setMessages([])
         return
       }
@@ -91,10 +100,12 @@ export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
 
     try {
       // -----------------------------------------------------------------------
-      // 세션이 없으면 새로 생성
+      // Feature Flag OFF (sessionId === undefined): 세션 생성 안 함
+      // Feature Flag ON + 세션 없음 (sessionId === null): 새 세션 생성
       // -----------------------------------------------------------------------
       let currentSessionId = sessionId
-      if (!currentSessionId) {
+      if (sessionId === null) {
+        // Feature Flag ON이지만 세션이 없으면 새로 생성
         try {
           const sessionRes = await fetch('/api/chat/sessions', {
             method: 'POST',

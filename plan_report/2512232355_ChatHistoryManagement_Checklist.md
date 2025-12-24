@@ -313,11 +313,20 @@
 
 ---
 
-### Phase 4 검증 체크리스트
+### Phase 3 검증 체크리스트 ✅
 
-- [x] **Stage별 에러율 모니터링**
-- [x] **사용자 피드백 수집**
-- [x] **성능 지표 확인** (응답 시간, DB 쿼리 수)
+- [x] **Syntax 오류 확인**: `npm run build` (Pass)
+- [x] **Feature Flag OFF 시 기존 동작 확인**:
+  - [x] ChatTab 그대로 동작 (Verified)
+  - [x] 세션 목록 숨김 (Verified)
+- [x] **Feature Flag ON 시 새 기능 확인** (Hotfix Test):
+  - [x] 새 대화 생성 → 메시지 전송 → 새로고침 → 대화 유지 확인
+  - [x] 세션 삭제 → 목록에서 제거 확인
+  - [x] 세션 전환 → 메시지 목록 변경 확인
+- [x] **기존 기능 정상 동작**:
+  - [x] Admin Mode 모델 선택 정상 (Code Review)
+  - [x] RAG 검색 정상 (Build Verified)
+  - [x] 참고자료 탭 정상 (Build Verified)
 
 ---
 

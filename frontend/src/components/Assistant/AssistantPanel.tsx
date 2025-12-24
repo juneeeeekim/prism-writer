@@ -132,8 +132,9 @@ export default function AssistantPanel() {
                 />
               )}
               <div className="flex-1 min-w-0 h-full">
+                {/* Feature Flag OFF 시 세션 관리 비활성화 (기존 동작 유지) */}
                 <ChatTab 
-                  sessionId={selectedSessionId} 
+                  sessionId={showSessionList ? selectedSessionId : undefined} 
                   onSessionChange={setSelectedSessionId} 
                 />
               </div>
