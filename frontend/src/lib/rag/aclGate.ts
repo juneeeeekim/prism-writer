@@ -31,18 +31,22 @@ const ACL_ERROR_MESSAGES = {
  * 사용자가 소유한 문서 ID 목록을 반환합니다.
  * 
  * @param filter - ACL 필터 옵션
+ * @param supabaseClient - 서버사이드에서 호출 시 전달받은 Supabase 클라이언트 (RLS 인증용)
  * @returns ACL 검증 결과 (valid, allowedDocumentIds, error)
  * 
  * @example
  * ```typescript
- * const result = await validateACL({ userId: 'user-123' })
+ * const result = await validateACL({ userId: 'user-123' }, supabase)
  * if (!result.valid) {
  *   throw new Error(result.error)
  * }
  * // result.allowedDocumentIds 사용
  * ```
  */
-export async function validateACL(filter: ACLFilter): Promise<ACLValidationResult> {
+export async function validateACL(
+  filter: ACLFilter,
+  supabaseClient?: any
+): Promise<ACLValidationResult> {
   const { userId, documentIds, isAdmin } = filter
 
   // ---------------------------------------------------------------------------
@@ -73,7 +77,8 @@ export async function validateACL(filter: ACLFilter): Promise<ACLValidationResul
   // 3. 사용자 소유 문서 목록 조회
   // ---------------------------------------------------------------------------
   try {
-    const supabase = createClient()
+    // [FIX] 서버사이드에서 전달받은 클라이언트가 있으면 사용
+    const supabase = supabaseClient || createClient()
 
     let query = supabase
       .from('rag_documents')

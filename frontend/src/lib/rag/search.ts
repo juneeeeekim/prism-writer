@@ -94,10 +94,13 @@ export async function vectorSearch(
 ): Promise<SearchResult[]> {
   const { userId, topK = DEFAULT_TOP_K, documentId, minScore = 0, chunkType } = options
 
+  // [FIX] Supabase 클라이언트를 먼저 생성하여 ACL 검증에 전달
+  const supabase = createClient()
+
   // ---------------------------------------------------------------------------
   // 0. ACL 검증 (Phase 2: ACL 게이트)
   // ---------------------------------------------------------------------------
-  const aclResult = await validateACL({ userId })
+  const aclResult = await validateACL({ userId }, supabase)
   if (!aclResult.valid) {
     throw new Error(aclResult.error || '접근 권한이 없습니다.')
   }
@@ -111,7 +114,6 @@ export async function vectorSearch(
   // 2. pgvector 검색 (Pipeline v4: search_similar_chunks_v2 함수 사용)
   // ---------------------------------------------------------------------------
   // 주석(시니어 개발자): DB 레벨에서 chunk_type 필터링으로 성능 최적화
-  const supabase = createClient()
   
   // ---------------------------------------------------------------------------
   // Pipeline v4 Feature Flag 체크
@@ -238,15 +240,16 @@ export async function fullTextSearch(
 ): Promise<SearchResult[]> {
   const { userId, topK = DEFAULT_TOP_K, documentId, minScore = 0, chunkType } = options
 
+  // [FIX] Supabase 클라이언트를 먼저 생성하여 ACL 검증에 전달
+  const supabase = createClient()
+
   // ---------------------------------------------------------------------------
   // 0. ACL 검증 (Phase 2: ACL 게이트)
   // ---------------------------------------------------------------------------
-  const aclResult = await validateACL({ userId })
+  const aclResult = await validateACL({ userId }, supabase)
   if (!aclResult.valid) {
     throw new Error(aclResult.error || '접근 권한이 없습니다.')
   }
-
-  const supabase = createClient()
 
   // ---------------------------------------------------------------------------
   // 1. 쿼리 준비 (기본 토큰화)
