@@ -222,14 +222,28 @@ export async function POST(
       const totalCount = judgeResults.length
       const score = Math.round(((passCount * 1.0 + partialCount * 0.5) / totalCount) * 100)
 
-      // 5. 결과 반환
+      // 5. 결과 반환 (v3 -> legacy 형식 변환)
       const v3Result: EvaluationResult = {
-        document_id: 'latest', // TODO: 실제 문서 ID 연동 필요 시 수정
+        document_id: 'latest',
         template_id: templateId || 'latest',
         evaluated_at: new Date().toISOString(),
         judgments: judgeResults,
         upgrade_plans: plans,
         overall_score: score
+      }
+
+      // v3 결과를 legacy 형식으로 변환 (프론트엔드 호환성)
+      const legacyResult: LegacyEvaluationResult = {
+        success: true,
+        evaluations: judgeResults.map((j, i) => ({
+          rubric_item: j.criteria_id,
+          status: j.status === 'pass' ? 'pass' : j.status === 'fail' ? 'fail' : 'partial',
+          evidence_quotes: j.citation ? [j.citation] : [],
+          score: j.status === 'pass' ? 100 : j.status === 'partial' ? 50 : 0,
+          recommendations: plans.find(p => p.criteria_id === j.criteria_id)?.how || j.reasoning,
+        })),
+        overall_summary: `총 ${totalCount}개 기준 중 ${passCount}개 통과, ${partialCount}개 보완 필요`,
+        overall_score: score,
       }
 
       // 6. Shadow Mode (v2 병렬 실행 및 로깅)
@@ -247,7 +261,8 @@ export async function POST(
 
       return NextResponse.json({
         success: true,
-        v3Result,
+        result: legacyResult,  // 프론트엔드 호환을 위해 result 필드로 반환
+        v3Result,  // 추후 마이그레이션을 위해 v3Result도 함께 전달
         message: 'Evaluation completed successfully (v3)',
       })
     }

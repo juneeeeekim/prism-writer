@@ -75,8 +75,9 @@ export default function EvaluationTab() {
         return
       }
 
-      if (data.success && data.result) {
-        setResult(data.result)
+      if (data.success && (data.result || data.v3Result)) {
+        // v3와 legacy 응답 모두 지원
+        setResult(data.result || data.v3Result)
       } else {
         console.error('[EvaluationTab] Invalid result structure:', data)
         setError(data.message || '평가 결과를 받지 못했습니다.')
