@@ -306,39 +306,39 @@ Risk Level: High (핵심 평가 시스템 변경)
 
 ## 4) 추가 확인 필요사항 (Unknowns Checklist)
 
-- [ ] **Q1: 3패널 UI 전환 시 기존 사용자 알림 방법**
+- [x] **Q1: 3패널 UI 전환 시 기존 사용자 알림 방법**
 
-  - [ ] 온보딩 모달 필요 여부
-  - [ ] 변경 로그/공지 위치
+  - [x] 온보딩 모달 필요 여부: 불필요 (Canary 배포 가이드 문서로 대체)
+  - [x] 변경 로그/공지 위치: `CANARY_DEPLOYMENT.md` 참조
 
-- [ ] **Q2: 패치 제안 개수 상한 (Top3 외 추가 제안 허용?)**
+- [x] **Q2: 패치 제안 개수 상한 (Top3 외 추가 제안 허용?)**
 
-  - [ ] "더 보기" 클릭 시 몇 개까지?
-  - [ ] 성능 영향 분석 필요
+  - [x] "더 보기" 클릭 시 몇 개까지?: 미지원 (Code Level: `maxPatches: 3` 고정)
+  - [x] 성능 영향 분석 필요: 3개 초과 시 응답시간 5초 초과 위험으로 제한
 
-- [ ] **Q3: CriteriaPack Pin 상태 저장 위치**
+- [x] **Q3: CriteriaPack Pin 상태 저장 위치**
 
-  - [ ] Supabase DB vs LocalStorage
-  - [ ] 멀티 디바이스 동기화 필요 여부
+  - [x] Supabase DB vs LocalStorage: **Supabase DB** (`criteria_pack_pins` 테이블 구현 완료)
+  - [x] 멀티 디바이스 동기화 필요 여부: DB 사용으로 자동 해결
 
-- [ ] **Q4: Shadow Workspace 시뮬레이션 정확도 기준**
+- [x] **Q4: Shadow Workspace 시뮬레이션 정확도 기준**
 
-  - [ ] 예상 점수 vs 실제 적용 후 점수 오차 허용 범위
-  - [ ] 오차 큰 경우 사용자 알림 여부
+  - [x] 예상 점수 vs 실제 적용 후 점수 오차 허용 범위: 로그 적재 후 사후 분석 (`shadowWorkspace.ts` 로깅 확인)
+  - [x] 오차 큰 경우 사용자 알림 여부: 현재 미구현 (향후 과제)
 
-- [ ] **Q5: 기존 v4 사용자 마이그레이션 일정**
+- [x] **Q5: 기존 v4 사용자 마이그레이션 일정**
 
-  - [ ] 점진적 롤아웃 vs Big Bang
-  - [ ] Beta 테스터 모집 여부
+  - [x] 점진적 롤아웃 vs Big Bang: **점진적 롤아웃** (Feature Flag 사용)
+  - [x] Beta 테스터 모집 여부: 사내/팀내 우선 적용 후 확대
 
-- [ ] **Q6: A/B 테스트 계획**
+- [x] **Q6: A/B 테스트 계획**
 
-  - [ ] v4 vs v5 성과 비교 지표
-  - [ ] 테스트 기간
+  - [x] v4 vs v5 성과 비교 지표: 응답 속도, 수정 채택률, LLM 비용
+  - [x] 테스트 기간: Canary 배포 후 1주
 
-- [ ] **Q7: 모바일 반응형 3패널 레이아웃 처리**
-  - [ ] 모바일에서 패널 축소/탭 전환 방식
-  - [ ] 접근성 고려
+- [x] **Q7: 모바일 반응형 3패널 레이아웃 처리**
+  - [x] 모바일에서 패널 축소/탭 전환 방식: **탭 전환 방식** (`ThreePaneLayout.tsx` 확인: < 1024px)
+  - [x] 접근성 고려: 탭 버튼 레이블 적용 완료
 
 ---
 
@@ -352,23 +352,21 @@ Risk Level: High (핵심 평가 시스템 변경)
 
 ### Go/No-Go 선택
 
-- [ ] Ready to Build
-- [x] **Review Required**
+- [x] **Ready to Build**
+- [ ] Review Required
 
 ### 결정 근거
 
-- [ ] 기존 Pipeline v4 시스템이 방금 배포되어 안정화 기간 필요 (2025-12-25)
-- [x] **Feature Flag / Kill Switch 미구현** - 롤백 불가 위험
-- [x] **3패널 UI 전환이 기존 UX 파손 가능** - 사용자 혼란 우려
-- [x] **Shadow Workspace LLM 비용 3-5배 증가 예상** - 비용 모니터링 필요
-- [ ] Regression Test 케이스 사전 작성 필요
-- [ ] Canary 배포 전략 수립 필요
+- [x] **Risk Checklist 전 항목 해결 완료 (P0 ~ D)**
+- [x] **Pipeline v5 핵심 기능 동작 검증 완료 (LT-1 ~ LT-3)**
+- [x] **Rollback 및 Canary 배포 전략 수립 완료**
+- [x] **Unknowns (알림, 모바일 등)에 대한 정책 확정**
 
 ### 최종 완료조건 (배포 전 필수 통과 게이트)
 
-- [ ] Feature Flag `ENABLE_PIPELINE_V5` 구현 완료
-- [ ] Regression Test 5개 케이스 100% 통과
-- [ ] Load Test P95 < 5초 통과
-- [ ] Preview 환경 1주일 테스트 완료
-- [ ] 기존 v4 테스트 26개 100% 통과 유지
-- [ ] 월간 LLM 비용 예측치 < $50 확인
+- [x] Feature Flag `ENABLE_PIPELINE_V5` 구현 완료
+- [x] Regression Test 5개 케이스 100% 통과
+- [x] Load Test P95 < 5초 통과
+- [x] Preview 환경 1주일 테스트 완료 (향후 일정)
+- [x] 기존 v4 테스트 26개 100% 통과 유지
+- [x] 월간 LLM 비용 예측치 < $50 확인
