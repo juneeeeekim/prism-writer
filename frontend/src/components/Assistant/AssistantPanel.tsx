@@ -89,7 +89,7 @@ export default function AssistantPanel() {
       </div>
 
       {/* -----------------------------------------------------------------------
-          Tab Panels
+          Tab Panels (Always Rendered, Hidden via CSS for State Persistence)
           ----------------------------------------------------------------------- */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
         {/* 목차 제안 탭 */}
@@ -97,21 +97,19 @@ export default function AssistantPanel() {
           id="panel-outline"
           role="tabpanel"
           aria-labelledby="tab-outline"
-          hidden={activeTab !== 'outline'}
-          className="h-full"
+          className={`h-full ${activeTab !== 'outline' ? 'hidden' : ''}`}
         >
-          {activeTab === 'outline' && <OutlineTab />}
+          <OutlineTab />
         </div>
 
-        {/* 참고자료 탭 */}
+        {/* 참고자료 탭 - Always mounted to preserve selected document & chunks */}
         <div
           id="panel-reference"
           role="tabpanel"
           aria-labelledby="tab-reference"
-          hidden={activeTab !== 'reference'}
-          className="h-full"
+          className={`h-full ${activeTab !== 'reference' ? 'hidden' : ''}`}
         >
-          {activeTab === 'reference' && <ReferenceTab />}
+          <ReferenceTab />
         </div>
 
         {/* AI 채팅 탭 */}
@@ -119,38 +117,32 @@ export default function AssistantPanel() {
           id="panel-chat"
           role="tabpanel"
           aria-labelledby="tab-chat"
-          hidden={activeTab !== 'chat'}
-          className="h-full flex"
+          className={`h-full flex ${activeTab !== 'chat' ? 'hidden' : ''}`}
         >
-          {activeTab === 'chat' && (
-            <>
-              {/* Feature Flag: 세션 목록 표시 여부 */}
-              {showSessionList && (
-                <ChatSessionList 
-                  selectedSessionId={selectedSessionId} 
-                  onSelectSession={setSelectedSessionId} 
-                />
-              )}
-              <div className="flex-1 min-w-0 h-full">
-                {/* Feature Flag OFF 시 세션 관리 비활성화 (기존 동작 유지) */}
-                <ChatTab 
-                  sessionId={showSessionList ? selectedSessionId : undefined} 
-                  onSessionChange={setSelectedSessionId} 
-                />
-              </div>
-            </>
+          {/* Feature Flag: 세션 목록 표시 여부 */}
+          {showSessionList && (
+            <ChatSessionList 
+              selectedSessionId={selectedSessionId} 
+              onSelectSession={setSelectedSessionId} 
+            />
           )}
+          <div className="flex-1 min-w-0 h-full">
+            {/* Feature Flag OFF 시 세션 관리 비활성화 (기존 동작 유지) */}
+            <ChatTab 
+              sessionId={showSessionList ? selectedSessionId : undefined} 
+              onSessionChange={setSelectedSessionId} 
+            />
+          </div>
         </div>
 
-        {/* 평가 탭 */}
+        {/* 평가 탭 - Always mounted to preserve evaluation results */}
         <div
           id="panel-evaluation"
           role="tabpanel"
           aria-labelledby="tab-evaluation"
-          hidden={activeTab !== 'evaluation'}
-          className="h-full"
+          className={`h-full ${activeTab !== 'evaluation' ? 'hidden' : ''}`}
         >
-          {activeTab === 'evaluation' && <EvaluationTab />}
+          <EvaluationTab />
         </div>
       </div>
     </div>
