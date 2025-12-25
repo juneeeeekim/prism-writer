@@ -104,7 +104,7 @@ export async function validateACL(
     // ---------------------------------------------------------------------------
     // 4. 접근 가능한 문서 목록 반환
     // ---------------------------------------------------------------------------
-    const allowedDocumentIds = (data || []).map((doc) => doc.id)
+    const allowedDocumentIds = (data || []).map((doc: { id: string }) => doc.id)
 
     if (allowedDocumentIds.length === 0) {
       console.log('[ACL] 접근 가능한 문서 없음 (userId:', userId, ')')
