@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 
 // -----------------------------------------------------------------------------
 // Types
@@ -18,6 +18,13 @@ interface ChatSessionListProps {
 }
 
 // -----------------------------------------------------------------------------
+// Constants - 리사이즈 제한값
+// -----------------------------------------------------------------------------
+const MIN_WIDTH = 180  // 최소 너비 (px)
+const MAX_WIDTH = 400  // 최대 너비 (px)
+const DEFAULT_WIDTH = 256  // 기본 너비 (w-64 = 256px)
+
+// -----------------------------------------------------------------------------
 // Component
 // -----------------------------------------------------------------------------
 export default function ChatSessionList({ 
@@ -27,6 +34,54 @@ export default function ChatSessionList({
   const [sessions, setSessions] = useState<ChatSession[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
+  
+  // ===========================================================================
+  // [RESIZE] 사이드바 너비 리사이즈 상태 관리
+  // ===========================================================================
+  const [width, setWidth] = useState(DEFAULT_WIDTH)
+  const [isResizing, setIsResizing] = useState(false)
+  const sidebarRef = useRef<HTMLDivElement>(null)
+
+  // ===========================================================================
+  // [RESIZE] 마우스 드래그 이벤트 핸들러
+  // ===========================================================================
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsResizing(true)
+  }, [])
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isResizing) return
+    
+    const newWidth = e.clientX - (sidebarRef.current?.getBoundingClientRect().left || 0)
+    
+    // 최소/최대 너비 제한 적용
+    if (newWidth >= MIN_WIDTH && newWidth <= MAX_WIDTH) {
+      setWidth(newWidth)
+    }
+  }, [isResizing])
+
+  const handleMouseUp = useCallback(() => {
+    setIsResizing(false)
+  }, [])
+
+  // 글로벌 마우스 이벤트 리스너 등록/해제
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+      // 드래그 중 텍스트 선택 방지
+      document.body.style.cursor = 'col-resize'
+      document.body.style.userSelect = 'none'
+    }
+    
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+  }, [isResizing, handleMouseMove, handleMouseUp])
 
   // ---------------------------------------------------------------------------
   // Load Sessions
@@ -103,7 +158,11 @@ export default function ChatSessionList({
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <div className="flex flex-col h-full border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 w-64 flex-shrink-0">
+    <div 
+      ref={sidebarRef}
+      className="flex flex-col h-full border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex-shrink-0 relative"
+      style={{ width: `${width}px` }}
+    >
       {/* Header & New Chat Button */}
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <button
@@ -161,6 +220,20 @@ export default function ChatSessionList({
           </ul>
         )}
       </div>
+
+      {/* =========================================================================
+          [RESIZE] 드래그 핸들 (사이드바 오른쪽 가장자리)
+          ========================================================================= */}
+      <div
+        onMouseDown={handleMouseDown}
+        className={`absolute top-0 right-0 w-1 h-full cursor-col-resize transition-colors
+          ${isResizing 
+            ? 'bg-prism-primary' 
+            : 'bg-transparent hover:bg-gray-300 dark:hover:bg-gray-600'
+          }`}
+        title="드래그하여 너비 조절"
+      />
     </div>
   )
 }
+
