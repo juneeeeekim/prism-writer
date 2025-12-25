@@ -20,6 +20,15 @@ export type TelemetryStep =
   | 'review'    // Reviewer 검토
   | 'citation'  // 인용 검증
 
+/**
+ * Pipeline v4: 실행 유형 타입
+ * 
+ * @description
+ * build: 템플릿 빌드 과정 (Phase A)
+ * judge: 사용자 텍스트 평가 과정 (Phase B)
+ */
+export type TelemetryRunType = 'build' | 'judge'
+
 // =============================================================================
 // Telemetry Record 인터페이스
 // =============================================================================
@@ -37,6 +46,8 @@ export interface TelemetryRecord {
   userId: string
   /** 파이프라인 단계 */
   step: TelemetryStep
+  /** Pipeline v4: 실행 유형 (build/judge), Optional for backward compatibility */
+  runType?: TelemetryRunType
   /** 시작 시간 (Unix timestamp ms) */
   startTime: number
   /** 종료 시간 (Unix timestamp ms) */

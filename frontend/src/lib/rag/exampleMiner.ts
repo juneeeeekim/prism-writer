@@ -27,6 +27,8 @@ export interface ExampleSet {
   negative_examples: string[]
   remediation_steps: string[]
   source_citations: string[]
+  /** Pipeline v4: 예시 생성의 근거가 된 원본 규칙 인용문 (Optional - 하위 호환성) */
+  source_rule_quotes?: string[]
   confidence_score: number
   is_generated: boolean
 }

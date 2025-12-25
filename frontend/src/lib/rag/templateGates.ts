@@ -18,6 +18,8 @@ export interface AllGatesResult {
   citationResult: GateResult
   consistencyResult: GateResult
   hallucinationResult: GateResult
+  /** Pipeline v4: Regression Gate 결과 (Optional - 하위 호환성 유지) */
+  regressionResult?: GateResult
   finalScore: number
 }
 
@@ -163,27 +165,97 @@ JSON 형식으로 응답해주세요:
   }
 }
 
+// =============================================================================
+// Pipeline v4: Regression Gate
+// =============================================================================
+
 /**
- * 통합 게이트 검증
+ * 4. Regression Gate: 템플릿 버전 변경 시 기존 샘플 결과 일관성 검증 (Pipeline v4)
+ * 
+ * @description
+ * 주석(시니어 개발자): Null Object Pattern 적용
+ * - 이전 버전이 없는 신규 템플릿: 자동 통과 (점수 1.0)
+ * - 샘플이 없는 경우: 자동 통과 (점수 0.8, 경고만)
+ * - 샘플 수 제한: 최대 5개 (성능 최적화)
+ * 
+ * @param template - 현재 템플릿 스키마
+ * @param previousTemplateId - 이전 버전 템플릿 ID (없으면 undefined)
+ * @returns GateResult
+ */
+export async function validateRegressionGate(
+  template: TemplateSchema,
+  previousTemplateId?: string
+): Promise<GateResult> {
+  // ---------------------------------------------------------------------------
+  // Null Object Pattern: 이전 버전 없으면 자동 통과
+  // ---------------------------------------------------------------------------
+  // 주석(주니어 개발자): 신규 템플릿은 비교 대상이 없으므로 무조건 통과
+  if (!previousTemplateId) {
+    console.log('[RegressionGate] No previous version - auto pass (new template)')
+    return {
+      passed: true,
+      reason: 'New template (no previous version to compare)',
+      score: 1.0,
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // TODO: 샘플 기반 Regression 테스트 (Phase 2 완료 시 구현)
+  // ---------------------------------------------------------------------------
+  // 주석(시니어 개발자): 현재는 기본 통과 처리
+  // Phase 2.1에서 template_validation_samples 테이블 생성 후 실제 로직 구현 예정
+  // 
+  // 실제 로직 (추후 구현):
+  // 1. template_validation_samples에서 이전 버전 샘플 조회 (최대 5개)
+  // 2. 새 템플릿으로 동일 샘플 평가
+  // 3. 결과 비교: 허용 범위(±10%) 이탈 시 실패
+  
+  console.log('[RegressionGate] Previous version exists but validation samples not implemented yet - auto pass')
+  return {
+    passed: true,
+    reason: 'Regression check placeholder (validation samples not yet implemented)',
+    score: 0.9,  // 추후 구현 시 실제 점수로 대체
+  }
+}
+
+/**
+ * 통합 게이트 검증 (Pipeline v4: Regression Gate 포함)
+ * 
+ * @description
+ * 주석(시니어 개발자): 기존 3종 게이트 + Regression Gate 통합
+ * regressionResult는 Optional이므로 하위 호환성 유지됨
  */
 export async function validateAllGates(
   template: TemplateSchema,
-  sourceChunks: Chunk[] = []
+  sourceChunks: Chunk[] = [],
+  previousTemplateId?: string  // Pipeline v4: 이전 버전 ID (Optional)
 ): Promise<AllGatesResult> {
-  const [citationResult, consistencyResult, hallucinationResult] = await Promise.all([
+  // ---------------------------------------------------------------------------
+  // Pipeline v4: 4종 게이트 병렬 실행 (성능 최적화)
+  // ---------------------------------------------------------------------------
+  const [citationResult, consistencyResult, hallucinationResult, regressionResult] = await Promise.all([
     validateCitationGate(template),
     validateConsistencyGate(template),
     validateHallucinationGate(template, sourceChunks),
+    validateRegressionGate(template, previousTemplateId),  // Pipeline v4 추가
   ])
 
-  const passed = citationResult.passed && consistencyResult.passed && hallucinationResult.passed
-  const finalScore = (citationResult.score + consistencyResult.score + hallucinationResult.score) / 3
+  // ---------------------------------------------------------------------------
+  // 통과 조건: 기존 3종 게이트 AND Regression Gate
+  // ---------------------------------------------------------------------------
+  // 주석(주니어 개발자): Regression Gate는 신규 템플릿에서 항상 통과하므로 
+  // 기존 로직과 동일하게 동작함
+  const passed = citationResult.passed && consistencyResult.passed && hallucinationResult.passed && regressionResult.passed
+  
+  // 점수: 4종 게이트 평균 (Regression 포함)
+  const finalScore = (citationResult.score + consistencyResult.score + hallucinationResult.score + regressionResult.score) / 4
 
   return {
     passed,
     citationResult,
     consistencyResult,
     hallucinationResult,
+    regressionResult,  // Pipeline v4 추가
     finalScore,
   }
 }

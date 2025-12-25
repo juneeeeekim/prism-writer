@@ -9,6 +9,7 @@
 import type { 
   TelemetryRecord, 
   TelemetryStep, 
+  TelemetryRunType,
   PartialTelemetry, 
   MeasureStepResult 
 } from '@/types/telemetry'
@@ -31,6 +32,38 @@ export function generateRunId(): string {
   const timestamp = Date.now()
   const random = Math.random().toString(36).slice(2, 9)
   return `run_${timestamp}_${random}`
+}
+
+// =============================================================================
+// Pipeline v4: Build/Judge Run ID 분리
+// =============================================================================
+
+/**
+ * Pipeline v4: 템플릿 빌드용 Run ID 생성
+ * 
+ * @description
+ * 주석(시니어 개발자): build_ 접두사로 judge와 구분
+ * 
+ * @returns 빌드용 run_id
+ */
+export function generateBuildRunId(): string {
+  const timestamp = Date.now()
+  const random = Math.random().toString(36).slice(2, 9)
+  return `build_${timestamp}_${random}`
+}
+
+/**
+ * Pipeline v4: 텍스트 평가용 Run ID 생성
+ * 
+ * @description
+ * 주석(주니어 개발자): judge_ 접두사로 build와 구분
+ * 
+ * @returns 평가용 run_id
+ */
+export function generateJudgeRunId(): string {
+  const timestamp = Date.now()
+  const random = Math.random().toString(36).slice(2, 9)
+  return `judge_${timestamp}_${random}`
 }
 
 // =============================================================================

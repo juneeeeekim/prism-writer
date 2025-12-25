@@ -107,44 +107,70 @@ export async function vectorSearch(
   const queryEmbedding = await embedText(query.trim())
 
   // ---------------------------------------------------------------------------
-  // 2. pgvector 검색 (search_similar_chunks 함수 사용)
+  // 2. pgvector 검색 (Pipeline v4: search_similar_chunks_v2 함수 사용)
   // ---------------------------------------------------------------------------
+  // 주석(시니어 개발자): DB 레벨에서 chunk_type 필터링으로 성능 최적화
   const supabase = createClient()
-  const { data, error } = await supabase.rpc('search_similar_chunks', {
+  
+  // Pipeline v4: chunk_type 필터를 DB 레벨에서 적용
+  const { data, error } = await supabase.rpc('search_similar_chunks_v2', {
     query_embedding: queryEmbedding,
     user_id_param: userId,
     match_count: topK,
+    chunk_type_filter: chunkType || null,  // NULL이면 모든 타입 검색
   })
 
   if (error) {
-    throw new Error(`벡터 검색 실패: ${error.message}`)
+    // 주석(주니어 개발자): v2 함수 없으면 기존 함수로 폴백
+    console.warn('[vectorSearch] search_similar_chunks_v2 실패, 기존 함수로 폴백:', error.message)
+    const { data: fallbackData, error: fallbackError } = await supabase.rpc('search_similar_chunks', {
+      query_embedding: queryEmbedding,
+      user_id_param: userId,
+      match_count: topK,
+    })
+    
+    if (fallbackError) {
+      throw new Error(`벡터 검색 실패: ${fallbackError.message}`)
+    }
+    
+    // 폴백 시 클라이언트 사이드 필터링
+    let fallbackResults: SearchResult[] = (fallbackData || []).map((item: any) => ({
+      chunkId: item.chunk_id,
+      documentId: item.document_id,
+      content: item.content,
+      score: item.similarity,
+      metadata: { ...item.metadata, chunkType: item.chunk_type },
+    }))
+    
+    if (documentId) {
+      fallbackResults = fallbackResults.filter((result) => result.documentId === documentId)
+    }
+    fallbackResults = fallbackResults.filter((result) => result.score >= minScore)
+    if (chunkType) {
+      fallbackResults = fallbackResults.filter((result) => result.metadata.chunkType === chunkType)
+    }
+    
+    return fallbackResults
   }
 
   // ---------------------------------------------------------------------------
-  // 3. 결과 필터링 및 포맷팅
+  // 3. 결과 포맷팅 (Pipeline v4: DB에서 이미 필터링됨)
   // ---------------------------------------------------------------------------
   let results: SearchResult[] = (data || []).map((item: any) => ({
     chunkId: item.chunk_id,
     documentId: item.document_id,
     content: item.content,
     score: item.similarity,
-    metadata: item.metadata || {},
+    metadata: { ...item.metadata, chunkType: item.chunk_type },  // chunk_type을 metadata에 포함
   }))
 
-  // 문서 ID 필터
+  // 문서 ID 필터 (DB 레벨에서 안 했으므로 여기서 처리)
   if (documentId) {
     results = results.filter((result) => result.documentId === documentId)
   }
 
   // 최소 점수 필터
   results = results.filter((result) => result.score >= minScore)
-
-  // ---------------------------------------------------------------------------
-  // Pipeline v3: 청크 유형 필터 (chunkType)
-  // ---------------------------------------------------------------------------
-  if (chunkType) {
-    results = results.filter((result) => result.metadata.chunkType === chunkType)
-  }
 
   return results
 }
@@ -191,9 +217,9 @@ export async function fullTextSearch(
   const searchQuery = query.trim()
 
   // ---------------------------------------------------------------------------
-  // 2. Full Text Search 쿼리 실행
+  // 2. Full Text Search 쿼리 실행 (Pipeline v4: chunk_type 필터 추가)
   // ---------------------------------------------------------------------------
-  // PostgreSQL의 textSearch를 사용 (content 컬럼에서 검색)
+  // 주석(시니어 개발자): DB 레벨에서 chunk_type 필터링으로 성능 최적화
   let queryBuilder = supabase
     .from('rag_chunks')
     .select(
@@ -202,6 +228,7 @@ export async function fullTextSearch(
       document_id,
       content,
       metadata,
+      chunk_type,
       rag_documents!inner(user_id)
     `
     )
@@ -214,6 +241,11 @@ export async function fullTextSearch(
     queryBuilder = queryBuilder.eq('document_id', documentId)
   }
 
+  // Pipeline v4: DB 레벨 chunk_type 필터
+  if (chunkType) {
+    queryBuilder = queryBuilder.eq('chunk_type', chunkType)
+  }
+
   const { data, error } = await queryBuilder
 
   if (error) {
@@ -221,25 +253,19 @@ export async function fullTextSearch(
   }
 
   // ---------------------------------------------------------------------------
-  // 3. 결과 포맷팅 (점수는 간단한 순위 기반)
+  // 3. 결과 포맷팅 (Pipeline v4: chunk_type을 metadata에 포함)
   // ---------------------------------------------------------------------------
+  // 주석(주니어 개발자): DB에서 이미 chunk_type 필터링됨
   let results: SearchResult[] = (data || []).map((item: any, index: number) => ({
     chunkId: item.id,
     documentId: item.document_id,
     content: item.content,
     score: 1 - index / topK, // 순위 기반 점수 (1 ~ 0)
-    metadata: item.metadata || {},
+    metadata: { ...item.metadata, chunkType: item.chunk_type },  // chunk_type을 metadata에 포함
   }))
 
   // 최소 점수 필터
   results = results.filter((result) => result.score >= minScore)
-
-  // ---------------------------------------------------------------------------
-  // Pipeline v3: 청크 유형 필터 (chunkType)
-  // ---------------------------------------------------------------------------
-  if (chunkType) {
-    results = results.filter((result) => result.metadata.chunkType === chunkType)
-  }
 
   return results
 }
