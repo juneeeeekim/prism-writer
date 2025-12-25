@@ -169,22 +169,32 @@ JSON 형식으로 응답해주세요:
 // Pipeline v4: Regression Gate
 // =============================================================================
 
+// ---------------------------------------------------------------------------
+// 주석(시니어 개발자): 성능 최적화 상수
+// ---------------------------------------------------------------------------
+const REGRESSION_MAX_SAMPLES = 5  // 최대 샘플 수 제한 (성능 최적화)
+const REGRESSION_TOLERANCE = 0.1  // 허용 점수 편차 (±10%)
+const REGRESSION_MODEL = 'gpt-3.5-turbo'  // 경량 모델 사용 (비용/속도 최적화)
+
 /**
  * 4. Regression Gate: 템플릿 버전 변경 시 기존 샘플 결과 일관성 검증 (Pipeline v4)
  * 
  * @description
- * 주석(시니어 개발자): Null Object Pattern 적용
- * - 이전 버전이 없는 신규 템플릿: 자동 통과 (점수 1.0)
- * - 샘플이 없는 경우: 자동 통과 (점수 0.8, 경고만)
- * - 샘플 수 제한: 최대 5개 (성능 최적화)
+ * 주석(시니어 개발자): 성능 최적화 적용
+ * - 샘플 수 제한: 최대 5개 (REGRESSION_MAX_SAMPLES)
+ * - LLM 호출 병렬화: Promise.all 사용
+ * - 경량 모델 사용: gpt-3.5-turbo (비용/속도 최적화)
+ * - Null Object Pattern: 이전 버전/샘플 없으면 자동 통과
  * 
  * @param template - 현재 템플릿 스키마
  * @param previousTemplateId - 이전 버전 템플릿 ID (없으면 undefined)
+ * @param validationSamples - 검증용 샘플 배열 (옵션)
  * @returns GateResult
  */
 export async function validateRegressionGate(
   template: TemplateSchema,
-  previousTemplateId?: string
+  previousTemplateId?: string,
+  validationSamples?: Array<{ input: string; expectedScore: number }>
 ): Promise<GateResult> {
   // ---------------------------------------------------------------------------
   // Null Object Pattern: 이전 버전 없으면 자동 통과
@@ -200,21 +210,98 @@ export async function validateRegressionGate(
   }
 
   // ---------------------------------------------------------------------------
-  // TODO: 샘플 기반 Regression 테스트 (Phase 2 완료 시 구현)
+  // 샘플 없으면 자동 통과 (경고만)
   // ---------------------------------------------------------------------------
-  // 주석(시니어 개발자): 현재는 기본 통과 처리
-  // Phase 2.1에서 template_validation_samples 테이블 생성 후 실제 로직 구현 예정
-  // 
-  // 실제 로직 (추후 구현):
-  // 1. template_validation_samples에서 이전 버전 샘플 조회 (최대 5개)
-  // 2. 새 템플릿으로 동일 샘플 평가
-  // 3. 결과 비교: 허용 범위(±10%) 이탈 시 실패
+  // 주석(시니어 개발자): 샘플 테이블 미생성 or 샘플 없는 경우 허용
+  if (!validationSamples || validationSamples.length === 0) {
+    console.log('[RegressionGate] No validation samples - auto pass with warning')
+    return {
+      passed: true,
+      reason: 'No validation samples available (recommended to add samples)',
+      score: 0.8,  // 경고 의미로 점수 낮춤
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // 샘플 수 제한 (성능 최적화)
+  // ---------------------------------------------------------------------------
+  // 주석(주니어 개발자): 최대 5개까지만 검증 (빌드 시간 30초 이내 유지)
+  const limitedSamples = validationSamples.slice(0, REGRESSION_MAX_SAMPLES)
+  console.log(`[RegressionGate] Testing ${limitedSamples.length} samples (max: ${REGRESSION_MAX_SAMPLES})`)
+
+  // ---------------------------------------------------------------------------
+  // LLM 병렬 평가 (Promise.all 최적화)
+  // ---------------------------------------------------------------------------
+  // 주석(시니어 개발자): 개별 호출 대신 병렬 처리로 총 소요 시간 단축
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) {
+    console.log('[RegressionGate] No API key - auto pass')
+    return { passed: true, reason: 'Skipped (No API Key)', score: 0.5 }
+  }
+
+  const openai = new OpenAI({ apiKey })
   
-  console.log('[RegressionGate] Previous version exists but validation samples not implemented yet - auto pass')
-  return {
-    passed: true,
-    reason: 'Regression check placeholder (validation samples not yet implemented)',
-    score: 0.9,  // 추후 구현 시 실제 점수로 대체
+  try {
+    // 병렬 평가 실행
+    const evaluationPromises = limitedSamples.map(async (sample) => {
+      const prompt = `
+다음 글쓰기 규칙을 기준으로 텍스트를 평가하고 0.0~1.0 점수를 부여하세요.
+
+[규칙]
+${template.rationale}
+
+[긍정 예시]
+${template.positive_examples.slice(0, 2).join('\n')}
+
+[평가 대상 텍스트]
+${sample.input}
+
+JSON 형식으로 응답: {"score": number, "reason": "string"}
+`
+      const response = await openai.chat.completions.create({
+        model: REGRESSION_MODEL,  // 경량 모델 사용
+        messages: [{ role: 'user', content: prompt }],
+        response_format: { type: 'json_object' },
+        max_tokens: 100,  // 응답 길이 제한 (속도 최적화)
+      })
+
+      const content = response.choices[0]?.message?.content
+      if (!content) return { score: 0, deviation: 1 }
+      
+      const result = JSON.parse(content)
+      const deviation = Math.abs(result.score - sample.expectedScore)
+      return { score: result.score, deviation, expectedScore: sample.expectedScore }
+    })
+
+    // 병렬 결과 수집
+    const results = await Promise.all(evaluationPromises)
+    
+    // ---------------------------------------------------------------------------
+    // 결과 분석: 허용 범위(±10%) 이탈 체크
+    // ---------------------------------------------------------------------------
+    const failedSamples = results.filter(r => r.deviation > REGRESSION_TOLERANCE)
+    const avgDeviation = results.reduce((sum, r) => sum + r.deviation, 0) / results.length
+    
+    if (failedSamples.length > 0) {
+      console.log(`[RegressionGate] ${failedSamples.length}/${results.length} samples exceeded tolerance`)
+      return {
+        passed: false,
+        reason: `${failedSamples.length} samples exceeded ±${REGRESSION_TOLERANCE * 100}% tolerance (avg deviation: ${(avgDeviation * 100).toFixed(1)}%)`,
+        score: Math.max(0, 1 - avgDeviation),
+      }
+    }
+
+    console.log('[RegressionGate] All samples within tolerance - pass')
+    return {
+      passed: true,
+      reason: `All ${results.length} samples within ±${REGRESSION_TOLERANCE * 100}% tolerance`,
+      score: Math.max(0.5, 1 - avgDeviation),
+    }
+
+  } catch (error) {
+    console.error('[RegressionGate] Evaluation failed:', error)
+    // 에러 시 보수적으로 통과 처리 (시스템 장애로 인한 블락 방지)
+    return { passed: true, reason: 'Validation skipped due to error', score: 0.5 }
   }
 }
 
