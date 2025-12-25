@@ -4,6 +4,26 @@ import { type TemplateSchema } from '../rag/templateTypes'
 import { type JudgeResult, type UpgradePlan } from './types'
 
 // =============================================================================
+// Helper: JSON Sanitization
+// =============================================================================
+
+function sanitizeJSON(text: string): string {
+  let cleaned = text.trim()
+  
+  // 마크다운 코드 블록 제거
+  if (cleaned.startsWith('```json')) {
+    cleaned = cleaned.replace(/^```json\s*/, '').replace(/\s*```$/, '')
+  } else if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```\s*/, '').replace(/\s*```$/, '')
+  }
+  
+  // trailing comma 제거 (배열 및 객체)
+  cleaned = cleaned.replace(/,(\s*[}\]])/g, '$1')
+  
+  return cleaned.trim()
+}
+
+// =============================================================================
 // Upgrade Planner (Stage 2)
 // =============================================================================
 
@@ -50,8 +70,8 @@ ${criteria.positive_examples.join('\n')}
 3. How: 구체적으로 어떻게 고쳐야 하는지 단계별 설명
 4. Example: 문제 문장을 긍정 예시 스타일로 수정한 예시 제시
 
-[출력 형식]
-JSON 객체로 응답해주세요.
+[CRITICAL: JSON 포맷 준수]
+반드시 순수 JSON만 출력하세요. 마크다운 코드 블록이나 추가 설명 없이 JSON만 반환하세요.
 {
   "what": "string",
   "why": "string",
@@ -63,15 +83,20 @@ JSON 객체로 응답해주세요.
   try {
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { responseMimeType: 'application/json' },
+      generationConfig: { 
+        responseMimeType: 'application/json',
+        temperature: 0.1
+      },
     })
 
     const response = result.response
-    const text = response.text()
+    const rawText = response.text()
     
-    if (!text) throw new Error('No content generated')
+    if (!rawText) throw new Error('No content generated')
 
-    const parsed = JSON.parse(text)
+    // JSON 정제 및 파싱
+    const sanitizedText = sanitizeJSON(rawText)
+    const parsed = JSON.parse(sanitizedText)
 
     return {
       criteria_id: criteria.criteria_id || 'unknown',
