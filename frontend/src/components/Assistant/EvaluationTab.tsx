@@ -13,6 +13,46 @@ import type { EvaluationResult as V5EvaluationResult } from '@/lib/judge/types'
 import { getApiHeaders } from '@/lib/api/utils'
 import { useEditorState } from '@/hooks/useEditorState'
 
+
+// =============================================================================
+// Helper: Legacy Adapter for Backward Compatibility
+// =============================================================================
+
+interface LegacyEvaluationResult {
+  evaluations: Array<{
+    rubric_item: string
+    status: 'pass' | 'fail' | 'partial'
+    recommendations: string
+    evidence_quotes: string[]
+    score: number
+  }>
+  overall_score: number
+}
+
+function adaptLegacyToV5(legacy: LegacyEvaluationResult): V5EvaluationResult {
+  return {
+    document_id: 'legacy-adapter',
+    template_id: 'default',
+    evaluated_at: new Date().toISOString(),
+    overall_score: legacy.overall_score,
+    judgments: legacy.evaluations.map(e => ({
+      criteria_id: e.rubric_item,
+      status: e.status,
+      reasoning: e.recommendations, // Legacy recommendation as reasoning
+      citation: e.evidence_quotes?.[0] || ''
+    })),
+    upgrade_plans: legacy.evaluations
+      .filter(e => e.status !== 'pass')
+      .map(e => ({
+        criteria_id: e.rubric_item,
+        what: '개선이 필요한 항목입니다',
+        why: 'AI 분석 결과 기준에 미치지 못했습니다.',
+        how: e.recommendations, // Use legacy recommendation as 'how'
+        example: ''
+      }))
+  }
+}
+
 // =============================================================================
 // Component
 // =============================================================================
@@ -67,16 +107,14 @@ export default function EvaluationTab() {
         return
       }
 
-      // [V5 Integration] v3Result 우선 사용 (없으면 legacy result를 adapter로 변환해야 하지만, 
-      // V5 플래그가 켜져있으므로 v3Result가 항상 옴)
+      // [V5 Integration] v3Result 우선 사용
       if (data.success && data.v3Result) {
         setResult(data.v3Result)
       } else if (data.success && data.result) {
-        // Fallback: Legacy result만 있는 경우 (드문 케이스)
-        // 임시로 에러 처리하거나, Legacy UI를 보여줘야 함.
-        // 여기서는 v5 데이터가 없다고 알림
-        console.warn('[EvaluationTab] v3Result missing, falling back to legacy is not supported by FeedbackPanel')
-        setError('상세 평가 데이터를 불러오지 못했습니다.')
+        // [Risk Mitigation] Legacy Adapter (Backend Rollback 대응)
+        console.warn('[EvaluationTab] v3Result missing, adapting legacy result')
+        const adapted = adaptLegacyToV5(data.result)
+        setResult(adapted)
       } else {
         console.error('[EvaluationTab] Invalid result structure:', data)
         setError(data.message || '평가 결과를 받지 못했습니다.')
@@ -92,8 +130,36 @@ export default function EvaluationTab() {
   // ---------------------------------------------------------------------------
   // 렌더링
   // ---------------------------------------------------------------------------
+  const showInitialState = !result && !isLoading
+
   return (
     <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
+      {/* -----------------------------------------------------------------------
+          헤더 및 평가 버튼 (초기 상태에서만 표시)
+          ----------------------------------------------------------------------- */}
+      {showInitialState && (
+        <div className="p-4 pb-0">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              글 평가
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              AI가 루브릭 기준으로 글을 분석하고 피드백을 제공합니다.
+            </p>
+
+            <button
+              onClick={handleEvaluate}
+              className="w-full px-4 py-3 bg-prism-primary hover:bg-prism-primary/90 
+                      text-white font-medium rounded-lg 
+                      transition-colors flex items-center justify-center gap-2 shadow-sm"
+              aria-label="지금 평가하기"
+            >
+              📊 평가하기
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* -----------------------------------------------------------------------
           에러 메시지
           ----------------------------------------------------------------------- */}
@@ -104,15 +170,27 @@ export default function EvaluationTab() {
       )}
 
       {/* -----------------------------------------------------------------------
-          v5 피드백 패널 (UI 위임)
+          v5 피드백 패널 (결과 또는 로딩 중일 때 표시)
           ----------------------------------------------------------------------- */}
-      <div className="flex-1 overflow-hidden">
-        <FeedbackPanel 
-          evaluation={result}
-          isLoading={isLoading}
-          onEvaluate={handleEvaluate}
-        />
-      </div>
+      {(result || isLoading) && (
+        <div className="flex-1 overflow-hidden">
+          <FeedbackPanel 
+            evaluation={result}
+            isLoading={isLoading}
+            onEvaluate={handleEvaluate}
+          />
+        </div>
+      )}
+
+      {/* -----------------------------------------------------------------------
+          안내 정보 (초기 상태에서만 표시)
+          ----------------------------------------------------------------------- */}
+      {showInitialState && (
+        <div className="mx-4 mt-auto mb-4 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs text-gray-500 dark:text-gray-400 shadow-sm">
+          <p>💡 평가는 업로드된 문서를 근거로 수행됩니다.</p>
+          <p className="mt-1">문서를 먼저 업로드하면 더 정확한 피드백을 받을 수 있습니다.</p>
+        </div>
+      )}
     </div>
   )
 }
