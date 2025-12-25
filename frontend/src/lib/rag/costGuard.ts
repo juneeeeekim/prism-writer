@@ -111,13 +111,16 @@ async function getTodayUsage(userId: string): Promise<number> {
  * @param userId - 사용자 ID
  * @param tokensUsed - 사용한 토큰 수
  * @param metadata - 추가 메타데이터
+ * @param supabaseClient - 서버사이드에서 호출 시 전달받은 Supabase 클라이언트 (RLS 인증용)
  */
 async function recordUsage(
   userId: string,
   tokensUsed: number,
-  metadata?: Record<string, any>
+  metadata?: Record<string, any>,
+  supabaseClient?: any
 ): Promise<void> {
-  const supabase = createClient()
+  // 서버사이드에서 전달받은 클라이언트가 있으면 사용, 없으면 클라이언트용 생성
+  const supabase = supabaseClient || createClient()
 
   const { error } = await supabase
     .from('embedding_usage')
@@ -219,12 +222,13 @@ export async function validateUsage(
 export async function trackUsage(
   userId: string,
   tokensUsed: number,
-  documentId?: string
+  documentId?: string,
+  supabaseClient?: any
 ): Promise<void> {
   await recordUsage(userId, tokensUsed, {
     document_id: documentId,
     timestamp: new Date().toISOString(),
-  })
+  }, supabaseClient)
 }
 
 /**
