@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
     // Ordering by chunk_index to maintain document flow
     const { data: chunks, error: chunkError } = await supabase
       .from('rag_chunks')
-      .select('id, chunk_index, content, metadata')
+      .select('id, chunk_index, content, metadata, chunk_type')
       .eq('document_id', documentId)
       .order('chunk_index', { ascending: true })
 

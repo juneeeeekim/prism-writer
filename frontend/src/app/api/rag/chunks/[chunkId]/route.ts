@@ -19,9 +19,9 @@ export async function PATCH(
   }
 
   const body = await req.json()
-  const { content, isPinned } = body
+  const { content, isPinned, chunkType } = body
 
-  if (content === undefined && isPinned === undefined) {
+  if (content === undefined && isPinned === undefined && chunkType === undefined) {
     return NextResponse.json({ error: 'No changes provided' }, { status: 400 })
   }
 
@@ -81,6 +81,11 @@ export async function PATCH(
     if (isPinned !== undefined) {
       newMetadata = { ...newMetadata, isPinned }
       updates.metadata = newMetadata
+    }
+
+    // Logic: Chunk Type Update
+    if (chunkType !== undefined && ['rule', 'example', 'general'].includes(chunkType)) {
+      updates.chunk_type = chunkType
     }
 
     // 4. Perform Update

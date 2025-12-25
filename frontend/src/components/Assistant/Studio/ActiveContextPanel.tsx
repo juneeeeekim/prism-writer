@@ -83,7 +83,12 @@ export default function ActiveContextPanel({
             <p className="text-xs mt-1">{error}</p>
           </div>
         ) : (
-          <ChunkList chunks={chunks} onUpdateChunk={updateChunk} />
+          <ChunkList 
+            chunks={chunks} 
+            onUpdateChunk={(chunkId, content, isPinned, chunkType) => 
+              updateChunk(chunkId, content, isPinned, chunkType)
+            } 
+          />
         )}
       </div>
     </div>

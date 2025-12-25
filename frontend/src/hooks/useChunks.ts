@@ -8,6 +8,7 @@ export interface ChunkData {
   chunk_index: number  // Changed from 'index' to match DB schema
   content: string
   metadata: any // Using specific type if available
+  chunk_type: 'rule' | 'example' | 'general'  // DB column: chunk_type_enum
   // Add status for UI state
   isEditing?: boolean
   isPinned?: boolean
@@ -18,7 +19,7 @@ interface UseChunksReturn {
   isLoading: boolean
   error: string | null
   refreshChunks: () => Promise<void>
-  updateChunk: (chunkId: string, newContent?: string, isPinned?: boolean) => Promise<void>
+  updateChunk: (chunkId: string, newContent?: string, isPinned?: boolean, chunkType?: 'rule' | 'example' | 'general') => Promise<void>
 }
 
 export function useChunks(documentId: string | null): UseChunksReturn {
@@ -52,12 +53,12 @@ export function useChunks(documentId: string | null): UseChunksReturn {
     }
   }, [documentId])
 
-  const updateChunk = async (chunkId: string, newContent?: string, isPinned?: boolean) => {
+  const updateChunk = async (chunkId: string, newContent?: string, isPinned?: boolean, chunkType?: 'rule' | 'example' | 'general') => {
     try {
       const res = await fetch(`/api/rag/chunks/${chunkId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: newContent, isPinned })
+        body: JSON.stringify({ content: newContent, isPinned, chunkType })
       })
       
       if (!res.ok) throw new Error('Update failed')
