@@ -4,6 +4,32 @@ import { type TemplateSchema } from '../rag/templateTypes'
 import { type JudgeResult } from './types'
 
 // =============================================================================
+// Helper: JSON Sanitization
+// =============================================================================
+
+/**
+ * LLM이 생성한 JSON 텍스트를 정제합니다.
+ * - 마크다운 코드 블록 제거 (```json ... ```)
+ * - trailing comma 제거
+ * - 불필요한 공백 제거
+ */
+function sanitizeJSON(text: string): string {
+  let cleaned = text.trim()
+  
+  // 마크다운 코드 블록 제거
+  if (cleaned.startsWith('```json')) {
+    cleaned = cleaned.replace(/^```json\s*/, '').replace(/\s*```$/, '')
+  } else if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```\s*/, '').replace(/\s*```$/, '')
+  }
+  
+  // trailing comma 제거 (배열 및 객체)
+  cleaned = cleaned.replace(/,(\s*[}\]])/g, '$1')
+  
+  return cleaned.trim()
+}
+
+// =============================================================================
 // Align Judge (Stage 1)
 // =============================================================================
 
@@ -58,10 +84,10 @@ ${userText}
 3. partial: 일부만 충족하거나 애매함
 ${evidenceContext ? '4. 업로드된 참고자료가 있다면, 이를 근거로 활용하여 판정하세요.' : ''}
 
-[출력 형식]
-JSON 객체로 응답해주세요.
+[CRITICAL: JSON 포맷 준수]
+반드시 아래 형식의 순수 JSON만 출력하세요. 마크다운 코드 블록이나 추가 설명 없이 JSON만 반환하세요.
 {
-  "status": "pass" | "fail" | "partial",
+  "status": "pass",
   "reasoning": "판정 이유 (한글로 간결하게)",
   "citation": "판정의 근거가 되는 사용자 글의 일부 문장 (없으면 null)"
 }
@@ -70,15 +96,20 @@ JSON 객체로 응답해주세요.
   try {
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { responseMimeType: 'application/json' },
+      generationConfig: { 
+        responseMimeType: 'application/json',
+        temperature: 0.1  // 엄격한 JSON 생성을 위해 낮은 온도
+      },
     })
 
     const response = result.response
-    const text = response.text()
+    const rawText = response.text()
     
-    if (!text) throw new Error('No content generated')
+    if (!rawText) throw new Error('No content generated')
 
-    const parsed = JSON.parse(text)
+    // JSON 정제 및 파싱
+    const sanitizedText = sanitizeJSON(rawText)
+    const parsed = JSON.parse(sanitizedText)
 
     return {
       criteria_id: criteria.criteria_id || 'unknown',
@@ -88,6 +119,7 @@ JSON 객체로 응답해주세요.
     }
   } catch (error) {
     console.error('[AlignJudge] Error:', error)
+    console.error('[AlignJudge] Raw response (if available):', error)
     // 에러 발생 시 보수적으로 partial 처리 (사용자에게 혼란을 주지 않기 위해)
     return {
       criteria_id: criteria.criteria_id || 'unknown',
