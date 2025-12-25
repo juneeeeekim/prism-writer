@@ -5,7 +5,7 @@ import { DocumentChunk } from '@/lib/rag/chunking'
 // Extending DocumentChunk to include database ID and extended status
 export interface ChunkData {
   id: string
-  index: number
+  chunk_index: number  // Changed from 'index' to match DB schema
   content: string
   metadata: any // Using specific type if available
   // Add status for UI state

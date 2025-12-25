@@ -42,12 +42,12 @@ export async function GET(req: NextRequest) {
     }
 
     // 3. Fetch Chunks
-    // Ordering by index to maintain document flow
+    // Ordering by chunk_index to maintain document flow
     const { data: chunks, error: chunkError } = await supabase
       .from('rag_chunks')
-      .select('id, index, content, metadata')
+      .select('id, chunk_index, content, metadata')
       .eq('document_id', documentId)
-      .order('index', { ascending: true })
+      .order('chunk_index', { ascending: true })
 
     if (chunkError) {
       console.error('Error fetching chunks:', chunkError)

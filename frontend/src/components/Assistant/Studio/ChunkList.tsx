@@ -76,7 +76,7 @@ export default function ChunkList({ chunks, onUpdateChunk }: ChunkListProps) {
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                  <span className="text-xs font-mono text-gray-400 dark:text-gray-500">
-                  #{chunk.index + 1}
+                  #{chunk.chunk_index + 1}
                 </span>
                 
                 {/* Pin Badge */}
