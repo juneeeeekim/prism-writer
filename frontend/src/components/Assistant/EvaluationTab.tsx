@@ -11,34 +11,35 @@ import { useState, useCallback } from 'react'
 import EvaluationResult from '@/components/Editor/EvaluationResult'
 import type { EvaluationResult as EvaluationResultType } from '@/lib/llm/parser'
 import { getApiHeaders } from '@/lib/api/utils'
+import { useEditorState } from '@/hooks/useEditorState'
 
 // =============================================================================
 // 타입 정의
 // =============================================================================
 
-interface EvaluationTabProps {
-  /** 평가할 텍스트 (에디터에서 전달받음) */
-  editorContent?: string
-}
+// (editorContent prop 제거됨 - useEditorState 훅 직접 사용)
 
 // =============================================================================
 // Component
 // =============================================================================
 
-export default function EvaluationTab({ editorContent }: EvaluationTabProps) {
+export default function EvaluationTab() {
   // ---------------------------------------------------------------------------
   // 상태
   // ---------------------------------------------------------------------------
   const [isLoading, setIsLoading] = useState(false)
   const [result, setResult] = useState<EvaluationResultType | null>(null)
   const [error, setError] = useState<string | null>(null)
+  
+  // [FIX] useEditorState 훅으로 에디터 내용 직접 가져오기
+  const { content } = useEditorState()
 
   // ---------------------------------------------------------------------------
   // 평가 실행 핸들러
   // ---------------------------------------------------------------------------
   const handleEvaluate = useCallback(async () => {
-    // 에디터 내용이 없으면 localStorage에서 가져오기 시도
-    const textToEvaluate = editorContent || localStorage.getItem('prism-editor-content') || ''
+    // [FIX] 훅에서 가져온 content 사용
+    const textToEvaluate = content
 
     if (!textToEvaluate || textToEvaluate.trim().length < 50) {
       setError('평가할 글이 너무 짧습니다. 최소 50자 이상 입력해주세요.')
@@ -77,7 +78,7 @@ export default function EvaluationTab({ editorContent }: EvaluationTabProps) {
     } finally {
       setIsLoading(false)
     }
-  }, [editorContent])
+  }, [content])
 
   // ---------------------------------------------------------------------------
   // 렌더링
