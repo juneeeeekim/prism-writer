@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/server'
 import { embedText } from './embedding'
 import { validateACL } from './aclGate'
 import { type ChunkType } from './chunking'
+import { PIPELINE_V4_FLAGS } from './featureFlags'
 
 // =============================================================================
 // 타입 정의
@@ -111,6 +112,42 @@ export async function vectorSearch(
   // ---------------------------------------------------------------------------
   // 주석(시니어 개발자): DB 레벨에서 chunk_type 필터링으로 성능 최적화
   const supabase = createClient()
+  
+  // ---------------------------------------------------------------------------
+  // Pipeline v4 Feature Flag 체크
+  // ---------------------------------------------------------------------------
+  // 주석(시니어 개발자): ENABLE_PIPELINE_V4=false 시 v3 로직으로 즉시 롤백
+  if (!PIPELINE_V4_FLAGS.useChunkTypeFilter) {
+    console.log('[vectorSearch] Pipeline v4 disabled - using v3 search')
+    const { data: v3Data, error: v3Error } = await supabase.rpc('search_similar_chunks', {
+      query_embedding: queryEmbedding,
+      user_id_param: userId,
+      match_count: topK,
+    })
+    
+    if (v3Error) {
+      throw new Error(`벡터 검색 실패: ${v3Error.message}`)
+    }
+    
+    // v3 결과 반환 (클라이언트 사이드 필터링)
+    let v3Results: SearchResult[] = (v3Data || []).map((item: any) => ({
+      chunkId: item.chunk_id,
+      documentId: item.document_id,
+      content: item.content,
+      score: item.similarity,
+      metadata: { ...item.metadata, chunkType: item.chunk_type },
+    }))
+    
+    if (documentId) {
+      v3Results = v3Results.filter((result) => result.documentId === documentId)
+    }
+    v3Results = v3Results.filter((result) => result.score >= minScore)
+    if (chunkType) {
+      v3Results = v3Results.filter((result) => result.metadata.chunkType === chunkType)
+    }
+    
+    return v3Results
+  }
   
   // Pipeline v4: chunk_type 필터를 DB 레벨에서 적용
   const { data, error } = await supabase.rpc('search_similar_chunks_v2', {

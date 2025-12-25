@@ -4,6 +4,7 @@ import { mineRulesByCategory, saveRulesToDatabase, type Rule, type RuleCategory 
 import { processExamplesForRule, saveExamplesToDatabase, type Example, type ExampleSet } from './exampleMiner'
 import { validateAllGates, type AllGatesResult } from './templateGates'
 import { type TemplateSchema, type TemplateBuilderResult, type Template } from './templateTypes'
+import { PIPELINE_V4_FLAGS } from './featureFlags'
 import { v4 as uuidv4 } from 'uuid'
 
 // =============================================================================
@@ -156,11 +157,16 @@ export class TemplateBuilder {
     // Pipeline v4: 템플릿 저장 후 Validation Sample 자동 생성
     // ---------------------------------------------------------------------------
     // 주석(시니어 개발자): Regression Gate 활성화를 위해 최소 3개 샘플 보장
-    try {
-      await this.generateValidationSamples(template.id, schemas)
-    } catch (sampleError: any) {
-      // 샘플 생성 실패해도 템플릿은 반환 (경고만)
-      this.log(`⚠️ Warning: Failed to generate validation samples: ${sampleError.message}`)
+    // Feature Flag 체크: v4 비활성화 시 샘플 생성 스킵
+    if (PIPELINE_V4_FLAGS.autoGenerateValidationSamples) {
+      try {
+        await this.generateValidationSamples(template.id, schemas)
+      } catch (sampleError: any) {
+        // 샘플 생성 실패해도 템플릿은 반환 (경고만)
+        this.log(`⚠️ Warning: Failed to generate validation samples: ${sampleError.message}`)
+      }
+    } else {
+      this.log('ℹ️ Pipeline v4 disabled - skipping validation sample generation')
     }
 
     return template

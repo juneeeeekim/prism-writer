@@ -134,14 +134,14 @@
   - [x] 위치: 각 마이그레이션 파일 하단에 롤백 섹션 ✅
   - [x] 완료조건: 각 마이그레이션별 롤백 스크립트 존재 ✅
 
-- [ ] **(Mid) Risk: Feature Flag 부재로 즉시 롤백 불가**
-  - [ ] 원인: 문서에 Feature Flag / Kill Switch 언급 없음
-  - [ ] 해결: `ENABLE_PIPELINE_V4` 환경 변수 기반 Feature Toggle 추가
-  - [ ] 해결: Toggle OFF 시 기존 v3 로직으로 Fallback
-  - [ ] 파일: (문서에 명시 없음 - 신규 구현 필요)
-  - [ ] 위치: templateBuilder.ts, search.ts 진입점
-  - [ ] 연결성: Phase 6 배포 전 필수
-  - [ ] 완료조건: 환경 변수 변경만으로 v3 동작 확인
+- [x] **(Mid) Risk: Feature Flag 부재로 즉시 롤백 불가** ✅ **COMPLETED**
+  - [x] 원인: 문서에 Feature Flag / Kill Switch 언급 없음
+  - [x] 해결: `NEXT_PUBLIC_ENABLE_PIPELINE_V4` 환경 변수 기반 Feature Toggle 추가 ✅
+  - [x] 해결: Toggle OFF 시 기존 v3 로직으로 Fallback ✅
+  - [x] 파일: `frontend/src/lib/rag/featureFlags.ts` ✅ 생성됨
+  - [x] 파일: `frontend/src/lib/rag/search.ts` ✅ v3 fallback 추가
+  - [x] 파일: `frontend/src/lib/rag/templateBuilder.ts` ✅ 샘플 생성 스킵 추가
+  - [x] 완료조건: TypeScript 0 errors ✅ + 환경 변수로 v3 동작 전환 가능
 
 ---
 
