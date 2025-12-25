@@ -29,7 +29,7 @@ function sanitizeJSON(text: string): string {
 
 /**
  * 기준을 충족하지 못한 글에 대해 구체적인 수정 계획을 제안합니다.
- * - 모델: gemini-1.5-pro (정교한 추론)
+ * - 모델: gemini-1.5-pro-latest (정교한 추론)
  */
 export async function runUpgradePlanner(
   judgeResult: JudgeResult,
@@ -46,7 +46,7 @@ export async function runUpgradePlanner(
   }
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' })
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro-latest' })
 
   const prompt = `
 당신은 전문 글쓰기 코치(Upgrade Planner)입니다.
