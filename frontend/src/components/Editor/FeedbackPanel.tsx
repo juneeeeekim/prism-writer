@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, memo } from 'react'
 import { clsx } from 'clsx'
 import { type EvaluationResult, type JudgeResult, type UpgradePlan } from '@/lib/judge/types'
 import FeedbackButtons from './FeedbackButtons'
@@ -114,7 +114,7 @@ export default function FeedbackPanel({
 // Individual Feedback Item (Accordion)
 // =============================================================================
 
-function FeedbackItem({ judge, plan }: { judge: JudgeResult, plan?: UpgradePlan }) {
+const FeedbackItem = memo(function FeedbackItem({ judge, plan }: { judge: JudgeResult, plan?: UpgradePlan }) {
   const [isOpen, setIsOpen] = useState(judge.status !== 'pass') // Fail/Partial은 기본 펼침
 
   const statusColors = {
@@ -204,4 +204,4 @@ function FeedbackItem({ judge, plan }: { judge: JudgeResult, plan?: UpgradePlan 
       )}
     </div>
   )
-}
+})

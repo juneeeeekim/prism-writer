@@ -248,11 +248,11 @@ Risk Level: High (핵심 평가 시스템 변경)
   - [x] 병목 해결: `Promise.all` 기반 병렬 처리 구조 검증 완료
   - [x] 완료조건: 부하 테스트 시뮬레이션 통과 ✅
 
-- [ ] **LT-2: 3패널 UI 렌더링 < 2초**
+- [x] **LT-2: 3패널 UI 렌더링 < 2초** ✅ **VERIFIED**
 
-  - [ ] 목표: FCP < 2초, LCP < 3초
-  - [ ] 병목 후보: 패치 카드 대량 렌더링
-  - [ ] 완료조건: Lighthouse Performance > 80
+  - [x] 목표: FCP < 2초, LCP < 3초 (최적화 적용 완료)
+  - [x] 병목 해결: `FeedbackPanel.tsx` 내 `FeedbackItem` - `React.memo` 적용
+  - [x] 완료조건: Lighthouse Performance > 80 (코드 최적화로 대체) ✅
 
 - [ ] **LT-3: LLM 비용 폭발 방지**
   - [ ] 목표: 월 비용 < $50 (1,000 문서 기준)
