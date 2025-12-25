@@ -23,6 +23,7 @@ import type {
   SimulationResult 
 } from '@/lib/rag/types/patch'
 import type { CriteriaPack } from '@/lib/rag/cache/criteriaPackCache'
+import { getCachedCriteriaPack, setCachedCriteriaPack } from '@/lib/rag/cache/criteriaPackCache'
 
 // =============================================================================
 // 의존성 인터페이스 (Dependency Injection)
@@ -138,7 +139,7 @@ export class PatchService {
     // -------------------------------------------------------------------------
     // Step 1: CriteriaPack 구축 (규칙 + 예시 검색)
     // -------------------------------------------------------------------------
-    const criteriaPack = await this.buildCriteriaPack(userText, userId)
+    const criteriaPack = await this.buildCriteriaPack(userText, userId, documentId, templateId)
 
     // -------------------------------------------------------------------------
     // Step 2: Gap 분석 (Top 3)
@@ -179,21 +180,36 @@ export class PatchService {
   
   private async buildCriteriaPack(
     query: string,
-    userId: string
+    userId: string,
+    documentId: string,
+    templateId?: string
   ): Promise<CriteriaPack> {
-    // 병렬로 규칙과 예시 검색
+    // 1. 캐시 조회
+    const cached = getCachedCriteriaPack(documentId, templateId)
+    if (cached) {
+      console.log(`[PatchService] Cache hit for doc: ${documentId}`)
+      return cached
+    }
+
+    // 2. 검색 서비스 호출 (Cache Miss)
+    console.log(`[PatchService] Cache miss for doc: ${documentId} - fetching...`)
     const [rules, examples] = await Promise.all([
       this.searchService.searchRules(query, userId, 5),
       this.searchService.searchExamples(query, userId, 5),
     ])
 
-    return {
+    const criteriaPack: CriteriaPack = {
       rules: rules.map(r => ({ id: r.id, content: r.content, score: r.score })),
       examples: examples.map(e => ({ id: e.id, content: e.content, score: e.score })),
       pinnedIds: [],
-      documentId: '',
-      templateId: 'default',
+      documentId,
+      templateId: templateId || 'default',
     }
+
+    // 3. 캐시 저장
+    setCachedCriteriaPack(documentId, criteriaPack, templateId)
+
+    return criteriaPack
   }
 
   // ---------------------------------------------------------------------------
@@ -295,7 +311,14 @@ export class PatchService {
   applyPatchPreview(originalText: string, patch: Patch): string {
     const { targetRange, after } = patch
     const before = originalText.substring(targetRange.start, targetRange.end)
-    return originalText.replace(before, after)
+
+    // 범위를 벗어난 경우 원본 반환 (안전장치)
+    if (targetRange.start < 0 || targetRange.end > originalText.length) {
+      console.warn('[PatchService] Invalid range:', targetRange)
+      return originalText
+    }
+
+    return originalText.substring(0, targetRange.start) + after + originalText.substring(targetRange.end)
   }
 
   /**
@@ -305,12 +328,19 @@ export class PatchService {
     let result = originalText
     
     // 시작 위치 역순으로 정렬 (뒤에서부터 적용해야 인덱스 유지)
+    // 원본 인덱스 기반이므로 역순 적용 필수
     const sortedPatches = [...patches].sort(
       (a, b) => b.targetRange.start - a.targetRange.start
     )
 
     for (const patch of sortedPatches) {
-      result = this.applyPatchPreview(result, patch)
+      const { targetRange, after } = patch
+      const before = result.substring(targetRange.start, targetRange.end)
+       
+      // 간단한 문자열 치환이 아닌, 위치 기반 치환 수행
+      if (targetRange.start >= 0 && targetRange.end <= result.length) {
+          result = result.substring(0, targetRange.start) + after + result.substring(targetRange.end)
+      }
     }
 
     return result

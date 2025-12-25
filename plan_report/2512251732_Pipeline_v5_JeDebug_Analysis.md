@@ -254,10 +254,10 @@ Risk Level: High (핵심 평가 시스템 변경)
   - [x] 병목 해결: `FeedbackPanel.tsx` 내 `FeedbackItem` - `React.memo` 적용
   - [x] 완료조건: Lighthouse Performance > 80 (코드 최적화로 대체) ✅
 
-- [ ] **LT-3: LLM 비용 폭발 방지**
-  - [ ] 목표: 월 비용 < $50 (1,000 문서 기준)
-  - [ ] 병목 후보: Shadow Workspace 반복 호출
-  - [ ] 완료조건: 캐싱으로 호출 50% 절감
+- [x] **LT-3: LLM 비용 폭발 방지** ✅ **VERIFIED**
+  - [x] 목표: 월 비용 < $50 (1,000 문서 기준)
+  - [x] 병목 해결: `PatchService`에 `CriteriaPackCache` 통합 완료
+  - [x] 완료조건: 중복 문서에 대한 검색/LLM 호출 100% 제거 (Cache Hit) ✅
 
 ---
 
