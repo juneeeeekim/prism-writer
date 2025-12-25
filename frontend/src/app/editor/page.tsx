@@ -3,6 +3,7 @@
 // =============================================================================
 // 파일: frontend/src/app/editor/page.tsx
 // 역할: Dual Pane Editor 메인 페이지 (에디터 + 어시스턴트 조립)
+// Pipeline v5 준비: Feature Flag로 2패널/3패널 전환 가능
 // =============================================================================
 
 'use client'
@@ -20,6 +21,10 @@ import ReferencePanel from '@/components/Editor/ReferencePanel'
 import FeedbackPanel from '@/components/Editor/FeedbackPanel'
 import { useEditorState } from '@/hooks/useEditorState'
 import { createClient } from '@/lib/supabase/client'
+// ---------------------------------------------------------------------------
+// Pipeline v5: 중앙 집중 Feature Flag 사용
+// ---------------------------------------------------------------------------
+import { isFeatureEnabled, getUILayoutType, logFeatureFlags } from '@/config/featureFlags'
 
 // -----------------------------------------------------------------------------
 // Editor Page Component
@@ -33,17 +38,21 @@ export default function EditorPage() {
     setTemplate 
   } = useEditorState()
   
-  const [isV3Mode, setIsV3Mode] = useState(false)
+  // ---------------------------------------------------------------------------
+  // Feature Flag 기반 UI 레이아웃 결정
+  // ---------------------------------------------------------------------------
+  const [isThreePanelMode, setIsThreePanelMode] = useState(false)
   const [isEvaluating, setIsEvaluating] = useState(false)
 
-  // Feature Flag 확인
+  // Feature Flag 확인 (클라이언트 사이드)
   useEffect(() => {
-    const v3Enabled = process.env.NEXT_PUBLIC_USE_V3_TEMPLATES === 'true'
-    setIsV3Mode(v3Enabled)
+    // 중앙 집중 Feature Flag 사용
+    const useThreePanel = isFeatureEnabled('ENABLE_THREE_PANEL_UI')
+    setIsThreePanelMode(useThreePanel)
     
-    // 임시: v3 모드일 때 테스트용 템플릿 로드 (실제로는 문서 선택 시 로드)
-    if (v3Enabled) {
-      // TODO: 템플릿 로드 로직
+    // 디버그 로그 (개발 환경에서만)
+    if (process.env.NODE_ENV === 'development') {
+      logFeatureFlags()
     }
   }, [])
 
@@ -109,7 +118,7 @@ export default function EditorPage() {
           Main Content
           ----------------------------------------------------------------------- */}
       <div className="flex-1 overflow-hidden">
-        {isV3Mode ? (
+        {isThreePanelMode ? (
           <ThreePaneLayout
             leftPanel={
               <ReferencePanel 
