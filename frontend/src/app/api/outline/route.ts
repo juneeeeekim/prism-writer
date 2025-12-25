@@ -120,7 +120,7 @@ export async function POST(
     const searchResults = await vectorSearch(topic, {
       userId: user.id,
       topK,
-      minScore: 0.5, // 목차 생성은 넓은 범위의 자료 활용
+      minScore: 0.3, // 유사도 임계값 완화 (0.5 -> 0.3)
       // Note: documentId 단일 필터만 지원 (다중 문서는 추후 확장)
     })
 

@@ -157,10 +157,10 @@ export default function OutlineTab() {
           {/* 참고자료 없음 경고 */}
           {sourcesUsed === 0 && generatedOutline.length > 0 && (
             <div className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded-lg border border-amber-200 dark:border-amber-800">
-              ⚠️ 업로드된 참고자료 없이 일반 지식으로 생성되었습니다.
+              ⚠️ 업로드된 참고자료 중 관련 내용을 찾지 못해 일반 지식으로 생성되었습니다.
               <br />
               <span className="text-gray-500 dark:text-gray-400">
-                참고자료를 업로드하면 더 정확한 목차를 받을 수 있습니다.
+                주제와 더 밀접한 관련이 있는 자료를 업로드해보세요.
               </span>
             </div>
           )}
