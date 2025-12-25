@@ -362,9 +362,8 @@ export async function processDocument(
       await trackUsage(userId, totalTokens, documentId)
     } catch (embeddingError) {
       console.error('Failed to generate embeddings:', embeddingError)
-      // 임베딩 실패해도 청크는 저장 (임베딩 없이)
-      embeddings = undefined
-      embeddingsGenerated = false
+      // [수정] 임베딩 실패는 검색 불가로 이어지므로 에러로 처리
+      throw new Error(`임베딩 생성 실패: ${embeddingError instanceof Error ? embeddingError.message : 'Unknown error'}`)
     }
 
     // ---------------------------------------------------------------------------
