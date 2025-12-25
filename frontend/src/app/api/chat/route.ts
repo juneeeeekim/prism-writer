@@ -7,7 +7,7 @@
 // =============================================================================
 
 import { NextRequest, NextResponse } from 'next/server'
-import { vectorSearch } from '@/lib/rag/search'
+import { hybridSearch, type SearchResult } from '@/lib/rag/search'
 import { generateTextStream } from '@/lib/llm/gateway'
 import { getDefaultModel } from '@/config/llm.config'
 import { createClient } from '@/lib/supabase/server'
@@ -68,20 +68,26 @@ export async function POST(req: NextRequest) {
     }
 
     // -------------------------------------------------------------------------
-    // 2. RAG 검색 (Vector Search)
+    // 2. RAG 검색 (Hybrid Search: Vector + Keyword)
     // -------------------------------------------------------------------------
     let context = ''
     try {
-      const searchResults = await vectorSearch(query, {
-        userId: userId || 'demo-user', // Fallback for RAG if not logged in
-        topK: 3,
-        minScore: 0.5,
+      // Pipeline v5 Upgrade: vectorSearch → hybridSearch 변경
+      // 사용자의 구체적이지 않은 질문에도 키워드 매칭으로 문맥을 찾을 수 있도록 개선
+      const searchResults = await hybridSearch(query, {
+        userId: userId || 'demo-user',
+        topK: 5,            // 문맥 확보를 위해 3 -> 5개로 증가
+        minScore: 0.35,     // 채팅의 자유도 고려하여 임계값 완화 (0.5 -> 0.35)
+        vectorWeight: 0.6,  // 의미 기반 검색 비중
+        keywordWeight: 0.4  // 키워드 매칭 비중 (기본값보다 높임)
       })
 
       if (searchResults.length > 0) {
         context = searchResults
           .map((result) => `[참고 문서: ${result.metadata?.title || 'Untitled'}]\n${result.content}`)
           .join('\n\n')
+      } else {
+        console.log('[Chat API] No relevant documents found via hybrid search.')
       }
     } catch (error) {
       console.warn('RAG search failed:', error)
