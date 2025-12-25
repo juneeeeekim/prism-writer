@@ -346,8 +346,8 @@ Risk Level: High (핵심 평가 시스템 변경)
 
 ### Confidence 선택
 
-- [ ] High
-- [x] **Mid**
+- [x] **High**
+- [ ] Mid
 - [ ] Low
 
 ### Go/No-Go 선택
