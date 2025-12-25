@@ -17,6 +17,7 @@ export default function OutlineTab() {
   const [topic, setTopic] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [generatedOutline, setGeneratedOutline] = useState<OutlineItem[]>([])
+  const [sourcesUsed, setSourcesUsed] = useState<number>(0)
   const [error, setError] = useState<string | null>(null)
   
   const { insertOutline } = useEditorState()
@@ -32,6 +33,7 @@ export default function OutlineTab() {
     
     setIsLoading(true)
     setError(null)
+    setSourcesUsed(0)
     
     try {
       // -----------------------------------------------------------------------
@@ -60,6 +62,7 @@ export default function OutlineTab() {
       }
 
       setGeneratedOutline(data.outline || [])
+      setSourcesUsed(data.sourcesUsed || 0)
     } catch (err) {
       setError(err instanceof Error ? err.message : '목차 생성에 실패했습니다. 다시 시도해주세요.')
     } finally {
@@ -125,8 +128,13 @@ export default function OutlineTab() {
       {/* 생성된 목차 */}
       {generatedOutline.length > 0 && (
         <div className="space-y-3">
-          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
             📋 생성된 목차
+            {sourcesUsed > 0 && (
+              <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">
+                📚 참고자료 {sourcesUsed}개 활용
+              </span>
+            )}
           </h3>
           
           <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2">
@@ -145,6 +153,17 @@ export default function OutlineTab() {
               </div>
             ))}
           </div>
+
+          {/* 참고자료 없음 경고 */}
+          {sourcesUsed === 0 && generatedOutline.length > 0 && (
+            <div className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded-lg border border-amber-200 dark:border-amber-800">
+              ⚠️ 업로드된 참고자료 없이 일반 지식으로 생성되었습니다.
+              <br />
+              <span className="text-gray-500 dark:text-gray-400">
+                참고자료를 업로드하면 더 정확한 목차를 받을 수 있습니다.
+              </span>
+            </div>
+          )}
 
           {/* 에디터에 삽입 버튼 */}
           <button
