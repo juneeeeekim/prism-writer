@@ -1,7 +1,7 @@
 
 import { type TemplateSchema } from './templateTypes'
 import { type Chunk } from './search'
-import OpenAI from 'openai'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
 // =============================================================================
 // 타입 정의
@@ -60,12 +60,20 @@ export async function validateCitationGate(template: TemplateSchema): Promise<Ga
 
 /**
  * 2. Consistency Gate: 긍정/부정 예시의 논리적 일관성 검증 (LLM)
+ * 주석(LLM 전문 개발자): Gemini 3 Flash로 업그레이드 (2025-12-25)
  */
 export async function validateConsistencyGate(template: TemplateSchema): Promise<GateResult> {
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) return { passed: true, reason: 'Skipped (No API Key)', score: 0.5 }
+  const apiKey = process.env.GOOGLE_API_KEY
+  if (!apiKey) return { passed: true, reason: 'Skipped (No GOOGLE_API_KEY)', score: 0.5 }
 
-  const openai = new OpenAI({ apiKey })
+  const genAI = new GoogleGenerativeAI(apiKey)
+  const model = genAI.getGenerativeModel({ 
+    model: 'gemini-3-flash-preview',
+    generationConfig: {
+      temperature: 1.0,  // Gemini 3 권장 (Gemini_3_Flash_Reference.md)
+      responseMimeType: 'application/json',
+    },
+  })
   
   const prompt = `
 다음 글쓰기 규칙과 예시들을 분석하여 논리적 일관성을 평가해주세요.
@@ -93,16 +101,18 @@ JSON 형식으로 응답해주세요:
 `
 
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' },
+    const response = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
     })
 
-    const content = response.choices[0]?.message?.content
+    const content = response.response.text()
     if (!content) throw new Error('No content')
     
-    return JSON.parse(content) as GateResult
+    // JSON 파싱 (Gemini는 JSON 응답을 텍스트로 반환할 수 있음)
+    const jsonMatch = content.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) throw new Error('No JSON in response')
+    
+    return JSON.parse(jsonMatch[0]) as GateResult
   } catch (error) {
     console.error('[ConsistencyGate] Validation failed:', error)
     // 에러 시 보수적으로 통과 처리 (시스템 장애로 인한 블락 방지)
@@ -114,6 +124,7 @@ JSON 형식으로 응답해주세요:
  * 3. Hallucination Gate: 원본 팩트 왜곡 여부 검증 (LLM)
  * - 스타일 템플릿의 경우 팩트 체크가 덜 중요할 수 있으나, 
  *   생성된 예시가 원본의 맥락을 완전히 벗어나는지 확인
+ * 주석(LLM 전문 개발자): Gemini 3 Flash로 업그레이드 (2025-12-25)
  */
 export async function validateHallucinationGate(
   template: TemplateSchema,
@@ -124,10 +135,17 @@ export async function validateHallucinationGate(
     return { passed: true, reason: 'No source chunks to compare', score: 0.5 }
   }
 
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) return { passed: true, reason: 'Skipped (No API Key)', score: 0.5 }
+  const apiKey = process.env.GOOGLE_API_KEY
+  if (!apiKey) return { passed: true, reason: 'Skipped (No GOOGLE_API_KEY)', score: 0.5 }
 
-  const openai = new OpenAI({ apiKey })
+  const genAI = new GoogleGenerativeAI(apiKey)
+  const model = genAI.getGenerativeModel({ 
+    model: 'gemini-3-flash-preview',
+    generationConfig: {
+      temperature: 1.0,  // Gemini 3 권장 (Gemini_3_Flash_Reference.md)
+      responseMimeType: 'application/json',
+    },
+  })
   const context = sourceChunks.map(c => c.content).join('\n\n')
 
   const prompt = `
@@ -149,16 +167,18 @@ JSON 형식으로 응답해주세요:
 `
 
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo', // 팩트 체크는 가벼운 모델로도 가능
-      messages: [{ role: 'user', content: prompt }],
-      response_format: { type: 'json_object' },
+    const response = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
     })
 
-    const content = response.choices[0]?.message?.content
+    const content = response.response.text()
     if (!content) throw new Error('No content')
 
-    return JSON.parse(content) as GateResult
+    // JSON 파싱 (Gemini는 JSON 응답을 텍스트로 반환할 수 있음)
+    const jsonMatch = content.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) throw new Error('No JSON in response')
+
+    return JSON.parse(jsonMatch[0]) as GateResult
   } catch (error) {
     console.error('[HallucinationGate] Validation failed:', error)
     return { passed: true, reason: 'Validation skipped due to error', score: 0.5 }
@@ -171,10 +191,12 @@ JSON 형식으로 응답해주세요:
 
 // ---------------------------------------------------------------------------
 // 주석(시니어 개발자): 성능 최적화 상수
+// 주석(LLM 전문 개발자): Gemini 3 Flash로 업그레이드 (2025-12-25)
 // ---------------------------------------------------------------------------
 const REGRESSION_MAX_SAMPLES = 5  // 최대 샘플 수 제한 (성능 최적화)
 const REGRESSION_TOLERANCE = 0.1  // 허용 점수 편차 (±10%)
-const REGRESSION_MODEL = 'gpt-3.5-turbo'  // 경량 모델 사용 (비용/속도 최적화)
+const REGRESSION_MODEL = 'gemini-3-flash-preview'  // Gemini 3 Flash (비용/속도/성능 최적화)
+const REGRESSION_THINKING_LEVEL = 'low'  // 빠른 응답용 (Gemini_3_Flash_Reference.md 권장)
 
 /**
  * 4. Regression Gate: 템플릿 버전 변경 시 기존 샘플 결과 일관성 검증 (Pipeline v4)
@@ -183,7 +205,8 @@ const REGRESSION_MODEL = 'gpt-3.5-turbo'  // 경량 모델 사용 (비용/속도
  * 주석(시니어 개발자): 성능 최적화 적용
  * - 샘플 수 제한: 최대 5개 (REGRESSION_MAX_SAMPLES)
  * - LLM 호출 병렬화: Promise.all 사용
- * - 경량 모델 사용: gpt-3.5-turbo (비용/속도 최적화)
+ * - Gemini 3 Flash 모델 사용 (비용/속도/성능 최적화)
+ * - thinking_level: 'low' (빠른 응답, Gemini 3 권장 설정)
  * - Null Object Pattern: 이전 버전/샘플 없으면 자동 통과
  * 
  * @param template - 현재 템플릿 스키마
@@ -233,13 +256,24 @@ export async function validateRegressionGate(
   // LLM 병렬 평가 (Promise.all 최적화)
   // ---------------------------------------------------------------------------
   // 주석(시니어 개발자): 개별 호출 대신 병렬 처리로 총 소요 시간 단축
-  const apiKey = process.env.OPENAI_API_KEY
+  // ---------------------------------------------------------------------------
+  // Gemini 3 Flash 초기화 (LLM 전문 개발자)
+  // ---------------------------------------------------------------------------
+  const apiKey = process.env.GOOGLE_API_KEY
   if (!apiKey) {
-    console.log('[RegressionGate] No API key - auto pass')
-    return { passed: true, reason: 'Skipped (No API Key)', score: 0.5 }
+    console.log('[RegressionGate] No GOOGLE_API_KEY - auto pass')
+    return { passed: true, reason: 'Skipped (No GOOGLE_API_KEY)', score: 0.5 }
   }
 
-  const openai = new OpenAI({ apiKey })
+  const genAI = new GoogleGenerativeAI(apiKey)
+  const model = genAI.getGenerativeModel({ 
+    model: REGRESSION_MODEL,
+    generationConfig: {
+      temperature: 1.0,  // Gemini 3 권장 (Gemini_3_Flash_Reference.md)
+      responseMimeType: 'application/json',
+      maxOutputTokens: 100,  // 응답 길이 제한 (속도 최적화)
+    },
+  })
   
   try {
     // 병렬 평가 실행
@@ -258,17 +292,22 @@ ${sample.input}
 
 JSON 형식으로 응답: {"score": number, "reason": "string"}
 `
-      const response = await openai.chat.completions.create({
-        model: REGRESSION_MODEL,  // 경량 모델 사용
-        messages: [{ role: 'user', content: prompt }],
-        response_format: { type: 'json_object' },
-        max_tokens: 100,  // 응답 길이 제한 (속도 최적화)
+      // ---------------------------------------------------------------------------
+      // Gemini 3 Flash API 호출 (LLM 프롬프트 전문가)
+      // ---------------------------------------------------------------------------
+      const response = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        // thinking_level은 generationConfig에 포함되지 않음 (API 레벨에서 처리)
       })
 
-      const content = response.choices[0]?.message?.content
+      const content = response.response.text()
       if (!content) return { score: 0, deviation: 1 }
       
-      const result = JSON.parse(content)
+      // JSON 파싱 (Gemini는 JSON 응답을 텍스트로 반환할 수 있음)
+      const jsonMatch = content.match(/\{[\s\S]*\}/)
+      if (!jsonMatch) return { score: 0, deviation: 1 }
+      
+      const result = JSON.parse(jsonMatch[0])
       const deviation = Math.abs(result.score - sample.expectedScore)
       return { score: result.score, deviation, expectedScore: sample.expectedScore }
     })

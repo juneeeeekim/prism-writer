@@ -2,7 +2,7 @@
 import { createClient } from '@/lib/supabase/client'
 import { fullTextSearch } from './search'
 import { generateRuleExtractionPrompt, RULE_EXTRACTION_SYSTEM_PROMPT } from './prompts/ruleExtraction'
-import OpenAI from 'openai'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
 // =============================================================================
 // 타입 정의
@@ -90,29 +90,40 @@ export async function mineRulesByCategory(
 
 /**
  * LLM을 사용하여 청크에서 규칙 텍스트 추출
+ * 주석(LLM 전문 개발자): Gemini 3 Flash로 업그레이드 (2025-12-25)
  */
 async function extractRulesFromChunks(chunks: string[], category: string): Promise<string[]> {
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) throw new Error('OPENAI_API_KEY is missing')
+  const apiKey = process.env.GOOGLE_API_KEY
+  if (!apiKey) throw new Error('GOOGLE_API_KEY is missing')
 
-  const openai = new OpenAI({ apiKey })
+  // ---------------------------------------------------------------------------
+  // Gemini 3 Flash 초기화 (LLM 전문 개발자)
+  // ---------------------------------------------------------------------------
+  const genAI = new GoogleGenerativeAI(apiKey)
+  const model = genAI.getGenerativeModel({ 
+    model: 'gemini-3-flash-preview',
+    generationConfig: {
+      temperature: 1.0,  // Gemini 3 권장 (Gemini_3_Flash_Reference.md)
+      responseMimeType: 'application/json',
+    },
+    systemInstruction: RULE_EXTRACTION_SYSTEM_PROMPT,
+  })
+  
   const prompt = generateRuleExtractionPrompt(category, chunks)
 
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o', // 복잡한 추론이 필요하므로 고성능 모델 사용
-      messages: [
-        { role: 'system', content: RULE_EXTRACTION_SYSTEM_PROMPT },
-        { role: 'user', content: prompt },
-      ],
-      temperature: 0.2, // 정해진 규칙을 추출하므로 낮게 설정
-      response_format: { type: 'json_object' },
+    const response = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
     })
 
-    const content = response.choices[0]?.message?.content
+    const content = response.response.text()
     if (!content) return []
 
-    const result = JSON.parse(content)
+    // JSON 파싱 (Gemini는 JSON 응답을 텍스트로 반환할 수 있음)
+    const jsonMatch = content.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) return []
+
+    const result = JSON.parse(jsonMatch[0])
     return result.rules?.map((r: any) => r.content) || [] // JSON 구조에 따라 조정 필요
   } catch (error) {
     console.error('[RuleMiner] Extraction failed:', error)

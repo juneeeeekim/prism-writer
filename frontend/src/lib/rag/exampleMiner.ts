@@ -109,29 +109,41 @@ async function mineExamplesForRule(rule: Rule, userId: string): Promise<ExampleS
 
 /**
  * LLM을 사용하여 규칙에 맞는 예시를 생성합니다.
+ * 주석(LLM 전문 개발자): Gemini 3 Flash로 업그레이드 (2025-12-25)
  */
 async function generateExamplesForRule(rule: Rule, sourceChunks: string[]): Promise<ExampleSet> {
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) throw new Error('OPENAI_API_KEY is missing')
+  const apiKey = process.env.GOOGLE_API_KEY
+  if (!apiKey) throw new Error('GOOGLE_API_KEY is missing')
 
-  const openai = new OpenAI({ apiKey })
+  // ---------------------------------------------------------------------------
+  // Gemini 3 Flash 초기화 (LLM 전문 개발자)
+  // ---------------------------------------------------------------------------
+  const { GoogleGenerativeAI } = await import('@google/generative-ai')
+  const genAI = new GoogleGenerativeAI(apiKey)
+  const model = genAI.getGenerativeModel({ 
+    model: 'gemini-3-flash-preview',
+    generationConfig: {
+      temperature: 1.0,  // Gemini 3 권장 (Gemini_3_Flash_Reference.md)
+      responseMimeType: 'application/json',
+    },
+    systemInstruction: EXAMPLE_GENERATION_SYSTEM_PROMPT,
+  })
+  
   const prompt = generateExampleGenerationPrompt(rule.content, sourceChunks)
 
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: EXAMPLE_GENERATION_SYSTEM_PROMPT },
-        { role: 'user', content: prompt },
-      ],
-      temperature: 0.7, // 창의적인 예시 생성을 위해 약간 높임
-      response_format: { type: 'json_object' },
+    const response = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
     })
 
-    const content = response.choices[0]?.message?.content
+    const content = response.response.text()
     if (!content) throw new Error('No content generated')
 
-    const result = JSON.parse(content)
+    // JSON 파싱 (Gemini는 JSON 응답을 텍스트로 반환할 수 있음)
+    const jsonMatch = content.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) throw new Error('No JSON in response')
+
+    const result = JSON.parse(jsonMatch[0])
     
     return {
       positive_examples: result.positive_examples || [],

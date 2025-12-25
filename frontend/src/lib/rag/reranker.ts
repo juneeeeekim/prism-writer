@@ -4,9 +4,10 @@
 // 파일: frontend/src/lib/rag/reranker.ts
 // 역할: LLM 기반 검색 결과 리랭킹 (선택 기능)
 // Pipeline v3 업그레이드: Example-Specific Re-ranking 추가
+// Pipeline v4: Gemini 3 Flash로 업그레이드 (2025-12-25)
 // =============================================================================
 
-import OpenAI from 'openai'
+import { GoogleGenerativeAI, type GenerativeModel } from '@google/generative-ai'
 import type { SearchResult } from './search'
 import { hasQuotes, hasDialogue, hasNumericData } from './chunking'
 
@@ -55,8 +56,8 @@ export const DEFAULT_EXAMPLE_RERANKER_CONFIG: ExampleRerankerConfig = {
 // 상수
 // =============================================================================
 
-/** 기본 모델 */
-const DEFAULT_MODEL = 'gpt-3.5-turbo'
+/** 기본 모델 - Gemini 3 Flash (Pipeline v4) */
+const DEFAULT_MODEL = 'gemini-3-flash-preview'
 
 /** 기본 Top-K */
 const DEFAULT_TOP_K = 5
@@ -65,31 +66,37 @@ const DEFAULT_TOP_K = 5
 const DEFAULT_BATCH_SIZE = 10
 
 // =============================================================================
-// OpenAI 클라이언트 초기화
+// Gemini 클라이언트 초기화 (Pipeline v4)
 // =============================================================================
 
-let openaiClient: OpenAI | null = null
+let geminiModel: GenerativeModel | null = null
 
 /**
- * OpenAI 클라이언트 가져오기 (지연 초기화)
+ * Gemini 모델 가져오기 (지연 초기화)
+ * 주석(LLM 전문 개발자): Gemini 3 Flash로 업그레이드 (2025-12-25)
  */
-function getOpenAIClient(): OpenAI {
-  if (!openaiClient) {
-    const apiKey = process.env.OPENAI_API_KEY
+function getGeminiModel(): GenerativeModel {
+  if (!geminiModel) {
+    const apiKey = process.env.GOOGLE_API_KEY
 
     if (!apiKey) {
       throw new Error(
-        'OPENAI_API_KEY 환경 변수가 설정되지 않았습니다. ' +
-        '.env.local 파일에 OPENAI_API_KEY를 추가해주세요.'
+        'GOOGLE_API_KEY 환경 변수가 설정되지 않았습니다. ' +
+        '.env.local 파일에 GOOGLE_API_KEY를 추가해주세요.'
       )
     }
 
-    openaiClient = new OpenAI({
-      apiKey,
+    const genAI = new GoogleGenerativeAI(apiKey)
+    geminiModel = genAI.getGenerativeModel({
+      model: DEFAULT_MODEL,
+      generationConfig: {
+        temperature: 1.0,  // Gemini 3 권장 (Gemini_3_Flash_Reference.md)
+        maxOutputTokens: 10,
+      },
     })
   }
 
-  return openaiClient
+  return geminiModel
 }
 
 // =============================================================================
@@ -98,10 +105,11 @@ function getOpenAIClient(): OpenAI {
 
 /**
  * LLM을 사용하여 쿼리-청크 관련성 평가
+ * 주석(LLM 전문 개발자): Gemini 3 Flash로 업그레이드 (2025-12-25)
  * 
  * @param query - 검색 쿼리
  * @param chunk - 청크 내용
- * @param model - 사용할 모델
+ * @param model - 사용할 모델 (unused, Gemini 사용)
  * @returns 관련성 점수 (0~1)
  */
 async function evaluateRelevance(
@@ -109,7 +117,7 @@ async function evaluateRelevance(
   chunk: string,
   model: string
 ): Promise<number> {
-  const client = getOpenAIClient()
+  const gemini = getGeminiModel()
 
   // ---------------------------------------------------------------------------
   // 프롬프트 구성
@@ -129,26 +137,17 @@ async function evaluateRelevance(
 숫자만 답변해주세요 (예: 0.85):`
 
   // ---------------------------------------------------------------------------
-  // LLM 호출
+  // Gemini 3 Flash 호출
   // ---------------------------------------------------------------------------
   try {
-    const response = await client.chat.completions.create({
-      model,
-      messages: [
-        {
-          role: 'system',
-          content: '당신은 텍스트 관련성 평가 전문가입니다. 숫자만 답변해주세요.',
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-      temperature: 0, // 일관성을 위해 temperature를 0으로 설정
-      max_tokens: 10,
+    const response = await gemini.generateContent({
+      contents: [{
+        role: 'user',
+        parts: [{ text: '당신은 텍스트 관련성 평가 전문가입니다. 숫자만 답변해주세요.\n\n' + prompt }]
+      }],
     })
 
-    const content = response.choices[0]?.message?.content?.trim()
+    const content = response.response.text()?.trim()
     if (!content) {
       throw new Error('LLM 응답이 비어있습니다.')
     }
@@ -156,7 +155,10 @@ async function evaluateRelevance(
     // ---------------------------------------------------------------------------
     // 점수 파싱
     // ---------------------------------------------------------------------------
-    const score = parseFloat(content)
+    // 숫자만 추출 (텍스트가 포함될 수 있음)
+    const scoreMatch = content.match(/([0-9]+\.?[0-9]*)/)
+    const score = scoreMatch ? parseFloat(scoreMatch[1]) : 0.5
+    
     if (isNaN(score) || score < 0 || score > 1) {
       console.warn(`Invalid relevance score: ${content}, defaulting to 0.5`)
       return 0.5
