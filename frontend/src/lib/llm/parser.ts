@@ -189,29 +189,49 @@ export function parseEvaluationResponse(
   // ---------------------------------------------------------------------------
   const jsonString = extractJSON(response)
   if (!jsonString) {
+    console.warn('[Parser] JSON 형식을 찾을 수 없음, fallback 결과 반환')
+    
+    // [FIX] JSON이 없어도 기본 평가 결과 반환
     return {
-      success: false,
-      error: 'JSON 형식을 찾을 수 없습니다.',
-      evaluations: [],
-      overall_summary: '',
-      overall_score: 0,
+      success: true,
+      evaluations: [{
+        rubric_item: 'system_error',
+        status: 'partial' as EvaluationStatus,
+        evidence_quotes: [],
+        score: 50,
+        recommendations: 'AI 응답 형식을 처리할 수 없습니다. 잠시 후 다시 시도해주세요.',
+      }],
+      overall_summary: 'AI 응답을 분석할 수 없습니다. 다시 시도해주세요.',
+      overall_score: 50,
       rawResponse: debug ? response : undefined,
     }
   }
 
   // ---------------------------------------------------------------------------
-  // 2. JSON 파싱
+  // 2. JSON 파싱 (실패 시 fallback 반환)
   // ---------------------------------------------------------------------------
   let parsed: any
   try {
-    parsed = JSON.parse(jsonString)
+    // JSON 정제 (trailing comma, 마크다운 블록 제거)
+    let cleanedJson = jsonString.trim()
+    cleanedJson = cleanedJson.replace(/,(\s*[}\]])/g, '$1')
+    
+    parsed = JSON.parse(cleanedJson)
   } catch (parseError) {
+    console.warn('[Parser] JSON 파싱 실패, fallback 결과 반환:', parseError)
+    
+    // [FIX] 파싱 실패해도 기본 평가 결과 반환 (사용자 경험 개선)
     return {
-      success: false,
-      error: `JSON 파싱 실패: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`,
-      evaluations: [],
-      overall_summary: '',
-      overall_score: 0,
+      success: true,
+      evaluations: [{
+        rubric_item: 'system_error',
+        status: 'partial' as EvaluationStatus,
+        evidence_quotes: [],
+        score: 50,
+        recommendations: 'AI 평가 시스템이 일시적으로 불안정합니다. 잠시 후 다시 시도해주세요.',
+      }],
+      overall_summary: 'AI 분석 중 일시적 오류가 발생했습니다. 결과가 완전하지 않을 수 있습니다.',
+      overall_score: 50,
       rawResponse: debug ? response : undefined,
     }
   }
