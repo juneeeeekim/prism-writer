@@ -61,8 +61,16 @@ export default function EvaluationTab() {
       })
 
       const data = await response.json()
+      
+      // [디버깅] 전체 응답 로그 출력
+      console.log('[EvaluationTab] API Response:', {
+        status: response.status,
+        ok: response.ok,
+        data: data
+      })
 
       if (!response.ok) {
+        console.error('[EvaluationTab] API Error:', data)
         setError(data.message || '평가 중 오류가 발생했습니다.')
         return
       }
@@ -70,11 +78,20 @@ export default function EvaluationTab() {
       if (data.success && data.result) {
         setResult(data.result)
       } else {
+        console.error('[EvaluationTab] Invalid result structure:', data)
         setError(data.message || '평가 결과를 받지 못했습니다.')
       }
     } catch (err) {
-      console.error('Evaluation error:', err)
-      setError('서버 연결에 실패했습니다.')
+      console.error('[EvaluationTab] Unexpected error:', err)
+      // 에러 객체의 전체 정보 출력
+      if (err instanceof Error) {
+        console.error('[EvaluationTab] Error details:', {
+          name: err.name,
+          message: err.message,
+          stack: err.stack
+        })
+      }
+      setError(`서버 연결 실패: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
       setIsLoading(false)
     }
