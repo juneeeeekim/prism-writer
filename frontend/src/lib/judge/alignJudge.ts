@@ -10,10 +10,15 @@ import { type JudgeResult } from './types'
 /**
  * 사용자 글이 템플릿 기준을 충족하는지 판정합니다.
  * - 모델: gemini-1.5-flash (빠른 속도)
+ * 
+ * @param userText - 사용자가 작성한 글
+ * @param criteria - 평가 기준 (템플릿 스키마)
+ * @param evidenceContext - P0 Fix: 업로드된 참고자료 컨텍스트 (optional)
  */
 export async function runAlignJudge(
   userText: string,
-  criteria: TemplateSchema
+  criteria: TemplateSchema,
+  evidenceContext?: string
 ): Promise<JudgeResult> {
   const apiKey = process.env.GOOGLE_API_KEY
   if (!apiKey) {
@@ -22,6 +27,13 @@ export async function runAlignJudge(
 
   const genAI = new GoogleGenerativeAI(apiKey)
   const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+
+  // ---------------------------------------------------------------------------
+  // P0 Fix: 참고자료 섹션 추가 (있는 경우에만)
+  // ---------------------------------------------------------------------------
+  const evidenceSection = evidenceContext 
+    ? `\n[업로드된 참고자료]\n${evidenceContext}\n`
+    : ''
 
   const prompt = `
 당신은 엄격한 글쓰기 평가관(Align Judge)입니다.
@@ -36,7 +48,7 @@ ${criteria.positive_examples.join('\n')}
 
 [참고: 부정 예시]
 ${criteria.negative_examples.join('\n')}
-
+${evidenceSection}
 [사용자 글]
 ${userText}
 
@@ -44,6 +56,7 @@ ${userText}
 1. pass: 기준을 명확하게 충족함
 2. fail: 기준을 명확하게 위반함
 3. partial: 일부만 충족하거나 애매함
+${evidenceContext ? '4. 업로드된 참고자료가 있다면, 이를 근거로 활용하여 판정하세요.' : ''}
 
 [출력 형식]
 JSON 객체로 응답해주세요.

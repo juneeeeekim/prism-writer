@@ -180,9 +180,27 @@ export async function POST(
         templateSchema = data.schema as TemplateSchema[]
       }
 
-      // 2. 병렬 평가 실행 (Align Judge)
+      // -----------------------------------------------------------------------
+      // P0 Fix: 업로드된 참고자료 검색 (vectorSearch 연동)
+      // 템플릿 기준 + 참고자료 근거를 결합하여 평가
+      // -----------------------------------------------------------------------
+      const searchQuery = body.searchQuery || userText.substring(0, 200)
+      const evidenceResults = await vectorSearch(searchQuery, {
+        userId: session.user.id,
+        topK: topK || DEFAULT_TOP_K,
+        minScore: 0.6,
+      })
+
+      // 참고자료 컨텍스트 생성
+      const evidenceContext = evidenceResults.length > 0
+        ? evidenceResults.map((r, i) => `[참고자료 ${i + 1}] ${r.content}`).join('\n\n')
+        : ''
+
+      console.log(`[v3 Evaluation] 참고자료 ${evidenceResults.length}개 활용`)
+
+      // 2. 병렬 평가 실행 (Align Judge) - 참고자료 컨텍스트 포함
       const judgePromises = templateSchema.map(criteria => 
-        runAlignJudge(userText, criteria)
+        runAlignJudge(userText, criteria, evidenceContext)
       )
       const judgeResults = await Promise.all(judgePromises)
 

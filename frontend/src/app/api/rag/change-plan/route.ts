@@ -102,6 +102,41 @@ export async function POST(request: NextRequest): Promise<NextResponse<ChangePla
     }
 
     // -------------------------------------------------------------------------
+    // S (Security): 문서 소유권 검증 (RLS + API 레벨 이중 검증)
+    // -------------------------------------------------------------------------
+    // 주석(시니어 개발자): Supabase RLS가 기본 보호를 제공하지만,
+    // API 레벨에서도 명시적으로 검증하여 보안을 강화합니다.
+    // 이렇게 하면 RLS 정책 실수나 우회 시도를 방지할 수 있습니다.
+    // -------------------------------------------------------------------------
+    
+    // documentId가 'new'나 'latest' 같은 특수값이 아닌 경우 소유권 검증
+    const isSpecialDocumentId = ['new', 'latest', 'draft'].includes(documentId)
+    
+    if (!isSpecialDocumentId) {
+      const { data: document, error: docError } = await supabase
+        .from('rag_documents')
+        .select('id, user_id')
+        .eq('id', documentId)
+        .single()
+
+      if (docError || !document) {
+        return NextResponse.json({
+          success: false,
+          message: 'Document not found',
+        }, { status: 404 })
+      }
+
+      // 문서 소유자 검증
+      if (document.user_id !== user.id) {
+        console.warn(`[Security] Unauthorized access attempt: User ${user.id} tried to access document ${documentId} owned by ${document.user_id}`)
+        return NextResponse.json({
+          success: false,
+          message: 'You do not have permission to access this document',
+        }, { status: 403 })
+      }
+    }
+
+    // -------------------------------------------------------------------------
     // 4. 캐시 확인 (CriteriaPack)
     // -------------------------------------------------------------------------
     let criteriaPack = getCachedCriteriaPack(documentId, templateId)

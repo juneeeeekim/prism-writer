@@ -34,26 +34,34 @@ export default function OutlineTab() {
     setError(null)
     
     try {
-      // TODO: 실제 API 연동 (Phase 3에서 구현)
-      // const response = await fetch('/api/v1/outline/generate', { ... })
-      
-      // 임시 더미 데이터
-      const dummyOutline: OutlineItem[] = [
-        { title: '서론', depth: 1 },
-        { title: '배경 및 목적', depth: 2 },
-        { title: '본론', depth: 1 },
-        { title: '핵심 내용 1', depth: 2 },
-        { title: '핵심 내용 2', depth: 2 },
-        { title: '결론', depth: 1 },
-        { title: '요약 및 제언', depth: 2 },
-      ]
-      
-      // 로딩 시뮬레이션
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      setGeneratedOutline(dummyOutline)
+      // -----------------------------------------------------------------------
+      // P0 Fix: 내부 API Route 호출 (vectorSearch 연동됨)
+      // 업로드된 참고자료를 기반으로 목차 생성
+      // -----------------------------------------------------------------------
+      const response = await fetch('/api/outline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          topic: topic.trim(),
+          maxDepth: 3,
+          topK: 10,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || '목차 생성에 실패했습니다.')
+      }
+
+      // 참고자료 사용 정보 로그
+      if (data.sourcesUsed > 0) {
+        console.log(`[OutlineTab] 참고자료 ${data.sourcesUsed}개 활용`)
+      }
+
+      setGeneratedOutline(data.outline || [])
     } catch (err) {
-      setError('목차 생성에 실패했습니다. 다시 시도해주세요.')
+      setError(err instanceof Error ? err.message : '목차 생성에 실패했습니다. 다시 시도해주세요.')
     } finally {
       setIsLoading(false)
     }

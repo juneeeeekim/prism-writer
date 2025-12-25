@@ -139,6 +139,9 @@ export interface SimulationResult {
   
   /** 시뮬레이션 시간 */
   simulatedAt: string
+  
+  /** 에러 메시지 (실패 시) */
+  error?: string
 }
 
 // =============================================================================
