@@ -112,7 +112,8 @@ export async function POST(
     }
 
     const { userText, rubricIds, searchQuery, topK, useV3, templateId } = body
-    const USE_V3_FLAG = process.env.NEXT_PUBLIC_USE_V3_TEMPLATES === 'true'
+    // [FIX] ENABLE_PIPELINE_V5 플래그 사용 (3Panel UI와 분리)
+    const USE_V3_FLAG = process.env.ENABLE_PIPELINE_V5 !== 'false'
     const effectiveUseV3 = useV3 !== undefined ? useV3 : USE_V3_FLAG
 
     // ---------------------------------------------------------------------------
