@@ -9,12 +9,14 @@ interface FeedbackPanelProps {
   evaluation?: EvaluationResult | null
   isLoading?: boolean
   onEvaluate?: () => void
+  onApplyPlan?: (plan: UpgradePlan) => Promise<void>
 }
 
 export default function FeedbackPanel({
   evaluation,
   isLoading = false,
   onEvaluate,
+  onApplyPlan,
 }: FeedbackPanelProps) {
   if (isLoading) {
     return (
@@ -88,6 +90,7 @@ export default function FeedbackPanel({
               key={judge.criteria_id} 
               judge={judge} 
               plan={plan} 
+              onApplyPlan={onApplyPlan}
             />
           )
         })}
@@ -114,8 +117,28 @@ export default function FeedbackPanel({
 // Individual Feedback Item (Accordion)
 // =============================================================================
 
-const FeedbackItem = memo(function FeedbackItem({ judge, plan }: { judge: JudgeResult, plan?: UpgradePlan }) {
-  const [isOpen, setIsOpen] = useState(judge.status !== 'pass') // Fail/Partial은 기본 펼침
+const FeedbackItem = memo(function FeedbackItem({ 
+  judge, 
+  plan,
+  onApplyPlan 
+}: { 
+  judge: JudgeResult, 
+  plan?: UpgradePlan,
+  onApplyPlan?: (plan: UpgradePlan) => Promise<void>
+}) {
+  const [isOpen, setIsOpen] = useState(judge.status !== 'pass')
+  const [isApplying, setIsApplying] = useState(false)
+
+  const handleApply = async () => {
+    if (!plan || !onApplyPlan || isApplying) return
+    
+    setIsApplying(true)
+    try {
+      await onApplyPlan(plan)
+    } finally {
+      setIsApplying(false)
+    }
+  }
 
   const statusColors = {
     pass: 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800',
@@ -172,8 +195,25 @@ const FeedbackItem = memo(function FeedbackItem({ judge, plan }: { judge: JudgeR
           {/* 수정 계획 (Upgrade Plan) */}
           {plan && (
             <div className="mt-4 pt-3 border-t border-dashed border-gray-200 dark:border-gray-700">
-              <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 mb-2 flex items-center gap-1">
-                🚀 Upgrade Plan
+              <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 mb-2 flex items-center justify-between">
+                <span className="flex items-center gap-1">🚀 Upgrade Plan</span>
+                {onApplyPlan && (
+                  <button
+                    onClick={handleApply}
+                    disabled={isApplying}
+                    className="text-xs bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-2 py-1 rounded transition-colors flex items-center gap-1"
+                  >
+                    {isApplying ? (
+                      <>
+                        <span className="animate-spin text-xs">⏳</span> applying...
+                      </>
+                    ) : (
+                      <>
+                        <span>⚡</span> 자동 수정
+                      </>
+                    )}
+                  </button>
+                )}
               </h4>
               
               <div className="space-y-2 text-sm">

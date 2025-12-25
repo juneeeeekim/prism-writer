@@ -40,6 +40,8 @@ interface ChangePlanRequest {
   templateId?: string
   /** 최대 패치 수 (기본 3) */
   maxPatches?: number
+  /** 특정 기준에 대한 패치만 생성 (선택) */
+  targetCriteriaId?: string
 }
 
 interface ChangePlanResponse {
@@ -85,7 +87,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ChangePla
     // 3. 요청 파싱
     // -------------------------------------------------------------------------
     const body: ChangePlanRequest = await request.json()
-    const { userText, documentId, templateId, maxPatches = 3 } = body
+    const { userText, documentId, templateId, maxPatches = 3, targetCriteriaId } = body
 
     if (!userText || userText.length < 10) {
       return NextResponse.json({
@@ -167,9 +169,20 @@ export async function POST(request: NextRequest): Promise<NextResponse<ChangePla
     }
 
     // -------------------------------------------------------------------------
-    // 6. Gap 분석 (Top 3)
+    // 6. Gap 분석 (Top 3 or Target)
     // -------------------------------------------------------------------------
-    const gapTop3 = await analyzeGapTop3(userText, criteriaPack)
+    let gapTop3 = await analyzeGapTop3(userText, criteriaPack)
+
+    // targetCriteriaId가 있으면 해당 기준만 필터링 (우선순위 최상위로)
+    if (targetCriteriaId) {
+      const targetGap = gapTop3.find(g => g.criteria_id === targetCriteriaId)
+      if (targetGap) {
+        gapTop3 = [targetGap]
+      } else {
+        // Gap 목록에 없으면 강제로 추가하거나 예외 처리 (여기서는 단순 경고)
+        console.warn(`[ChangePlan] Target criteria ${targetCriteriaId} not found in gaps`)
+      }
+    }
 
     // -------------------------------------------------------------------------
     // 7. 패치 생성 (병렬)
