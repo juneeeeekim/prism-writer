@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { vectorSearch } from '@/lib/rag/search'
+import { isFeatureEnabled } from '@/config/featureFlags'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
 // =============================================================================
@@ -60,6 +61,17 @@ export async function POST(
   request: NextRequest
 ): Promise<NextResponse<OutlineResponse>> {
   try {
+    // -------------------------------------------------------------------------
+    // 0. Feature Flag 확인 (Kill Switch)
+    // -------------------------------------------------------------------------
+    if (!isFeatureEnabled('ENABLE_PIPELINE_V5')) {
+      return NextResponse.json({
+        success: false,
+        message: 'Pipeline v5 기능이 비활성화되어 있습니다.',
+        error: 'FEATURE_DISABLED',
+      }, { status: 503 })
+    }
+
     // -------------------------------------------------------------------------
     // 1. API Key 확인
     // -------------------------------------------------------------------------

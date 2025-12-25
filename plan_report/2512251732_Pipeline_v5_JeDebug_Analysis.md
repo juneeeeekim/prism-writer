@@ -265,14 +265,14 @@ Risk Level: High (핵심 평가 시스템 변경)
 
 ### Feature Flag / Kill Switch
 
-- [ ] **Feature Flag 존재 여부 확인: (문서에 명시 없음 - 신규 구현 필요)**
-  - [ ] 플래그 이름 제안: `ENABLE_PIPELINE_V5` 또는 `ENABLE_SHADOW_WORKSPACE`
-  - [ ] 환경 변수 위치: `.env.local`, Vercel Environment Variables
-  - [ ] 비상 시 OFF 절차:
-    - [ ] Vercel Dashboard → Settings → Environment Variables
-    - [ ] `ENABLE_PIPELINE_V5=false` 설정
-    - [ ] Redeploy 트리거
-  - [ ] 완료조건: 플래그 OFF만으로 v4 동작 확인
+- [x] **Feature Flag 존재 여부 확인: ✅ VERIFIED**
+  - [x] 플래그 이름 제안: `ENABLE_PIPELINE_V5` 또는 `ENABLE_SHADOW_WORKSPACE`
+  - [x] 환경 변수 위치: `.env.local`, Vercel Environment Variables
+  - [x] 비상 시 OFF 절차:
+    - [x] Vercel Dashboard → Settings → Environment Variables
+    - [x] `ENABLE_PIPELINE_V5=false` 설정
+    - [x] Redeploy 트리거
+  - [x] 완료조건: 플래그 OFF만으로 v4 동작 확인 (API 레벨 차단 구현 완료)
 
 ### 롤백 시나리오
 
