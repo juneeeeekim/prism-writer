@@ -227,11 +227,11 @@ setSourcesUsed(0); // 추가: 이전 결과 초기화
 
 # 📦 배포 체크리스트
 
-- [ ] `git add` 변경 파일
-- [ ] `git commit -m "feat(outline): Add RAG usage feedback UI"`
-- [ ] `git push origin main`
-- [ ] Vercel 배포 완료 확인
-- [ ] 프로덕션 환경 테스트
+- [x] `git add` 변경 파일
+- [x] `git commit -m "feat(outline): Add RAG usage feedback UI"`
+- [x] `git push origin main`
+- [x] Vercel 배포 완료 확인 (Commit: 1767399)
+- [x] 프로덕션 환경 테스트 ✅
 
 ---
 

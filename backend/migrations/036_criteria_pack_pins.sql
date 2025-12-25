@@ -62,24 +62,28 @@ ALTER TABLE public.criteria_pack_pins ENABLE ROW LEVEL SECURITY;
 -- =============================================================================
 
 -- 사용자는 본인의 Pin만 조회 가능
+DROP POLICY IF EXISTS "Users can view own pins" ON public.criteria_pack_pins;
 CREATE POLICY "Users can view own pins"
     ON public.criteria_pack_pins
     FOR SELECT
     USING (auth.uid() = user_id);
 
 -- 사용자는 본인의 Pin만 생성 가능
+DROP POLICY IF EXISTS "Users can insert own pins" ON public.criteria_pack_pins;
 CREATE POLICY "Users can insert own pins"
     ON public.criteria_pack_pins
     FOR INSERT
     WITH CHECK (auth.uid() = user_id);
 
 -- 사용자는 본인의 Pin만 삭제 가능
+DROP POLICY IF EXISTS "Users can delete own pins" ON public.criteria_pack_pins;
 CREATE POLICY "Users can delete own pins"
     ON public.criteria_pack_pins
     FOR DELETE
     USING (auth.uid() = user_id);
 
 -- 사용자는 본인의 Pin만 수정 가능
+DROP POLICY IF EXISTS "Users can update own pins" ON public.criteria_pack_pins;
 CREATE POLICY "Users can update own pins"
     ON public.criteria_pack_pins
     FOR UPDATE
