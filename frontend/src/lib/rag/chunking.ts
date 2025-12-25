@@ -287,6 +287,14 @@ export function semanticChunk(
     return []
   }
 
+  // ---------------------------------------------------------------------------
+  // [Critical Fix] 임베딩 모델 토큰 제한 대응
+  // OpenAI text-embedding-3-small 모델의 최대 컨텍스트: 8192 토큰
+  // 안전 마진을 위해 6000 토큰(24000자)을 하드 리밋으로 설정
+  // ---------------------------------------------------------------------------
+  const MAX_CHUNK_TOKENS = 6000
+  const MAX_CHUNK_CHARS = MAX_CHUNK_TOKENS * CHARS_PER_TOKEN
+
   const chunkSizeChars = tokensToChars(chunkSize)
   const overlapChars = tokensToChars(overlap)
   const chunks: DocumentChunk[] = []
@@ -302,6 +310,57 @@ export function semanticChunk(
   let chunkIndex = 0
   let currentSectionTitle: string | undefined = undefined
 
+  // ---------------------------------------------------------------------------
+  // [Helper] 거대 텍스트 강제 분할 함수
+  // ---------------------------------------------------------------------------
+  const forceSplitText = (oversizedText: string): string[] => {
+    const result: string[] = []
+    for (let i = 0; i < oversizedText.length; i += MAX_CHUNK_CHARS - overlapChars) {
+      result.push(oversizedText.slice(i, i + MAX_CHUNK_CHARS))
+    }
+    return result
+  }
+
+  // ---------------------------------------------------------------------------
+  // [Helper] 현재 청크 저장 함수
+  // ---------------------------------------------------------------------------
+  const saveCurrentChunk = () => {
+    if (currentChunk.trim().length === 0) return
+    
+    // 청크가 하드 리밋을 초과하면 강제 분할
+    if (currentChunk.length > MAX_CHUNK_CHARS) {
+      const splitChunks = forceSplitText(currentChunk)
+      for (const splitContent of splitChunks) {
+        const chunkType = autoClassifyType ? classifyChunkType(splitContent) : undefined
+        chunks.push({
+          index: chunkIndex++,
+          content: splitContent.trim(),
+          metadata: {
+            sectionTitle: preserveHeaders ? currentSectionTitle : undefined,
+            tokenCount: estimateTokenCount(splitContent),
+            startPosition: currentPosition - currentChunk.length,
+            endPosition: currentPosition,
+            chunkType,
+          },
+        })
+      }
+    } else {
+      const chunkType = autoClassifyType ? classifyChunkType(currentChunk) : undefined
+      chunks.push({
+        index: chunkIndex++,
+        content: currentChunk.trim(),
+        metadata: {
+          sectionTitle: preserveHeaders ? currentSectionTitle : undefined,
+          tokenCount: estimateTokenCount(currentChunk),
+          startPosition: currentPosition - currentChunk.length,
+          endPosition: currentPosition,
+          chunkType,
+        },
+      })
+    }
+    currentChunk = ''
+  }
+
   for (const section of sections) {
     if (!section.trim()) continue
     
@@ -311,33 +370,50 @@ export function semanticChunk(
       currentSectionTitle = headerMatch[2]
     }
     
-    // 섹션 내 문단 분할
-    const paragraphs = section.split(/\n\n+/)
+    // 섹션 내 문단 분할 (줄바꿈 기준으로 더 세밀하게 분할)
+    // PDF 텍스트는 \n\n이 없을 수 있으므로 단일 \n도 고려
+    const paragraphs = section.split(/\n\n+/).flatMap(p => {
+      // 문단이 너무 크면 단일 줄바꿈으로 추가 분할
+      if (p.length > MAX_CHUNK_CHARS) {
+        return p.split(/\n/)
+      }
+      return [p]
+    })
     
     for (const paragraph of paragraphs) {
       if (!paragraph.trim()) continue
       
       const paragraphWithNewline = paragraph.trim() + '\n\n'
       
+      // 단일 문단이 하드 리밋 초과 시 강제 분할
+      if (paragraphWithNewline.length > MAX_CHUNK_CHARS) {
+        saveCurrentChunk() // 현재 청크 먼저 저장
+        const splitParagraphs = forceSplitText(paragraphWithNewline)
+        for (const splitPara of splitParagraphs) {
+          const chunkType = autoClassifyType ? classifyChunkType(splitPara) : undefined
+          chunks.push({
+            index: chunkIndex++,
+            content: splitPara.trim(),
+            metadata: {
+              sectionTitle: preserveHeaders ? currentSectionTitle : undefined,
+              tokenCount: estimateTokenCount(splitPara),
+              startPosition: currentPosition,
+              endPosition: currentPosition + splitPara.length,
+              chunkType,
+            },
+          })
+          currentPosition += splitPara.length
+        }
+        continue
+      }
+      
       // 현재 청크에 문단 추가 시 크기 초과 여부 확인
       if (currentChunk.length + paragraphWithNewline.length > chunkSizeChars && currentChunk.length > 0) {
-        // 현재 청크 저장
-        const chunkType = autoClassifyType ? classifyChunkType(currentChunk) : undefined
-        
-        chunks.push({
-          index: chunkIndex++,
-          content: currentChunk.trim(),
-          metadata: {
-            sectionTitle: preserveHeaders ? currentSectionTitle : undefined,
-            tokenCount: estimateTokenCount(currentChunk),
-            startPosition: currentPosition - currentChunk.length,
-            endPosition: currentPosition,
-            chunkType,
-          },
-        })
-        
+        saveCurrentChunk()
         // 오버랩 적용하여 다음 청크 시작
-        const overlapText = overlapChars > 0 ? currentChunk.slice(-overlapChars) : ''
+        const overlapText = overlapChars > 0 && chunks.length > 0 
+          ? chunks[chunks.length - 1].content.slice(-overlapChars) 
+          : ''
         currentChunk = overlapText + paragraphWithNewline
       } else {
         currentChunk += paragraphWithNewline
@@ -350,21 +426,7 @@ export function semanticChunk(
   // ---------------------------------------------------------------------------
   // 2. 마지막 청크 저장
   // ---------------------------------------------------------------------------
-  if (currentChunk.trim().length > 0) {
-    const chunkType = autoClassifyType ? classifyChunkType(currentChunk) : undefined
-    
-    chunks.push({
-      index: chunkIndex,
-      content: currentChunk.trim(),
-      metadata: {
-        sectionTitle: preserveHeaders ? currentSectionTitle : undefined,
-        tokenCount: estimateTokenCount(currentChunk),
-        startPosition: currentPosition - currentChunk.length,
-        endPosition: currentPosition,
-        chunkType,
-      },
-    })
-  }
+  saveCurrentChunk()
   
   return chunks
 }
