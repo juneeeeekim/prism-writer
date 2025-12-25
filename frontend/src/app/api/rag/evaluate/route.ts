@@ -170,14 +170,17 @@ export async function POST(
           .single()
           
         if (error || !data) {
-          // 템플릿이 아예 없으면 에러
-          return NextResponse.json({
-            success: false,
-            message: '사용 가능한 템플릿이 없습니다. 먼저 템플릿을 생성해주세요.',
-            error: 'NO_TEMPLATE_FOUND'
-          }, { status: 404 })
+          // -----------------------------------------------------------------------
+          // [FIX] 템플릿이 없으면 기본 루브릭을 TemplateSchema로 변환하여 사용
+          // 다운그레이드 없이 v3 평가 시스템 유지
+          // -----------------------------------------------------------------------
+          console.log('[v3 Evaluation] 사용자 템플릿 없음 - 기본 루브릭으로 대체')
+          templateSchema = DEFAULT_RUBRICS
+            .filter(r => r.enabled)
+            .map(r => RubricAdapter.toTemplate(r))
+        } else {
+          templateSchema = data.schema as TemplateSchema[]
         }
-        templateSchema = data.schema as TemplateSchema[]
       }
 
       // -----------------------------------------------------------------------
