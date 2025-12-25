@@ -39,9 +39,9 @@ export const FEATURE_FLAGS = {
   /**
    * 3패널 UI 활성화 (에디터 + 부합도 + 제안 카드)
    * 환경 변수: NEXT_PUBLIC_USE_V3_TEMPLATES
-   * 기본값: true (프로덕션 활성화됨)
+   * 기본값: false (2패널 레이아웃 유지)
    */
-  ENABLE_THREE_PANEL_UI: process.env.NEXT_PUBLIC_USE_V3_TEMPLATES !== 'false',
+  ENABLE_THREE_PANEL_UI: process.env.NEXT_PUBLIC_USE_V3_TEMPLATES === 'true',
 
   /**
    * Gemini LLM 사용 (OpenAI fallback 대신)
