@@ -35,7 +35,7 @@ function sanitizeJSON(text: string): string {
 
 /**
  * 사용자 글이 템플릿 기준을 충족하는지 판정합니다.
- * - 모델: gemini-1.5-flash-latest (빠른 속도)
+ * - 모델: gemini-3-flash-preview (빠른 속도)
  * 
  * @param userText - 사용자가 작성한 글
  * @param criteria - 평가 기준 (템플릿 스키마)
@@ -52,7 +52,7 @@ export async function runAlignJudge(
   }
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' })
+  const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' })
 
   // ---------------------------------------------------------------------------
   // P0 Fix: 참고자료 섹션 추가 (있는 경우에만)
