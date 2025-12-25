@@ -67,8 +67,8 @@ const COST_PER_1K_TOKENS: Record<string, number> = {
   'text-embedding-3-small': 0.00002,
   'text-embedding-3-large': 0.00013,
   // Gemini
-  'gemini-2.0-flash': 0.0001,
-  'gemini-3-pro-preview': 0.0005,
+  'gemini-3-flash-preview': 0.0005,
+  'gemini-3-pro-preview': 0.005,
   // Default
   'default': 0.0003,
 }
@@ -125,7 +125,7 @@ export function calculateCost(tokens: number, model: string = 'default'): number
 export async function trackLLMUsage(
   userId: string,
   tokensUsed: number,
-  model: string = 'gemini-2.0-flash'
+  model: string = 'gemini-3-flash-preview'
 ): Promise<void> {
   await trackUsage({
     userId,

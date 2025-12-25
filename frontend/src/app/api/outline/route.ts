@@ -51,7 +51,7 @@ interface OutlineResponse {
 
 const DEFAULT_TOP_K = 10
 const DEFAULT_MAX_DEPTH = 3
-const MODEL_NAME = 'gemini-2.0-flash'
+const MODEL_NAME = 'gemini-3-flash-preview'
 
 // =============================================================================
 // POST: 목차 생성

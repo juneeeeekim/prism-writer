@@ -99,7 +99,7 @@ export async function measureApiCall<T>(
  * LLM 호출 카운터 증가
  */
 export function trackLLMCall(
-  model: string = 'gemini-2.0-flash',
+  model: string = 'gemini-3-flash-preview',
   inputTokens: number = 0,
   outputTokens: number = 0
 ): void {
