@@ -121,6 +121,24 @@ function RubricCard({
   onToggle: () => void
 }) {
   const config = STATUS_CONFIG[evaluation.status]
+  // ---------------------------------------------------------------------------
+  // Pipeline v4: 성능 최적화 - 최대 표시 개수 제한
+  // ---------------------------------------------------------------------------
+  // 주석(시니어 개발자): 대량 예시로 인한 FCP 지연 방지
+  const MAX_DISPLAY_QUOTES = 5
+  const [showAllEvidenceQuotes, setShowAllEvidenceQuotes] = useState(false)
+  const [showAllUserQuotes, setShowAllUserQuotes] = useState(false)
+
+  // 표시할 인용문 계산
+  const displayedEvidenceQuotes = showAllEvidenceQuotes 
+    ? evaluation.evidence_quotes 
+    : evaluation.evidence_quotes.slice(0, MAX_DISPLAY_QUOTES)
+  const displayedUserQuotes = showAllUserQuotes 
+    ? (evaluation.user_text_quotes || [])
+    : (evaluation.user_text_quotes || []).slice(0, MAX_DISPLAY_QUOTES)
+
+  const hasMoreEvidenceQuotes = evaluation.evidence_quotes.length > MAX_DISPLAY_QUOTES
+  const hasMoreUserQuotes = (evaluation.user_text_quotes || []).length > MAX_DISPLAY_QUOTES
 
   return (
     <div
@@ -152,14 +170,14 @@ function RubricCard({
       {/* 상세 내용 (확장 시) */}
       {isExpanded && (
         <div className="p-3 pt-0 space-y-3 border-t border-gray-200 dark:border-gray-700">
-          {/* 근거 인용 */}
+          {/* 근거 인용 - Pipeline v4: 최대 5개만 표시 */}
           {evaluation.evidence_quotes.length > 0 && (
             <div>
               <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
                 📚 참고 근거
               </h4>
               <ul className="space-y-1">
-                {evaluation.evidence_quotes.map((quote, idx) => (
+                {displayedEvidenceQuotes.map((quote, idx) => (
                   <li
                     key={idx}
                     className="text-sm text-gray-700 dark:text-gray-300 pl-3 border-l-2 border-prism-primary/50"
@@ -168,17 +186,29 @@ function RubricCard({
                   </li>
                 ))}
               </ul>
+              {/* 더 보기 버튼 */}
+              {hasMoreEvidenceQuotes && (
+                <button
+                  onClick={() => setShowAllEvidenceQuotes(!showAllEvidenceQuotes)}
+                  className="mt-2 text-xs text-prism-primary hover:underline"
+                  aria-label={showAllEvidenceQuotes ? '접기' : `${evaluation.evidence_quotes.length - MAX_DISPLAY_QUOTES}개 더 보기`}
+                >
+                  {showAllEvidenceQuotes 
+                    ? '접기' 
+                    : `+ ${evaluation.evidence_quotes.length - MAX_DISPLAY_QUOTES}개 더 보기`}
+                </button>
+              )}
             </div>
           )}
 
-          {/* 사용자 글 인용 */}
+          {/* 사용자 글 인용 - Pipeline v4: 최대 5개만 표시 */}
           {evaluation.user_text_quotes && evaluation.user_text_quotes.length > 0 && (
             <div>
               <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
                 📝 해당 부분
               </h4>
               <ul className="space-y-1">
-                {evaluation.user_text_quotes.map((quote, idx) => (
+                {displayedUserQuotes.map((quote, idx) => (
                   <li
                     key={idx}
                     className="text-sm text-gray-600 dark:text-gray-400 pl-3 border-l-2 border-gray-300 dark:border-gray-600 italic"
@@ -187,6 +217,18 @@ function RubricCard({
                   </li>
                 ))}
               </ul>
+              {/* 더 보기 버튼 */}
+              {hasMoreUserQuotes && (
+                <button
+                  onClick={() => setShowAllUserQuotes(!showAllUserQuotes)}
+                  className="mt-2 text-xs text-prism-primary hover:underline"
+                  aria-label={showAllUserQuotes ? '접기' : `${(evaluation.user_text_quotes || []).length - MAX_DISPLAY_QUOTES}개 더 보기`}
+                >
+                  {showAllUserQuotes 
+                    ? '접기' 
+                    : `+ ${(evaluation.user_text_quotes || []).length - MAX_DISPLAY_QUOTES}개 더 보기`}
+                </button>
+              )}
             </div>
           )}
 

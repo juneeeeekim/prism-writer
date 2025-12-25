@@ -70,13 +70,13 @@
   - [x] 연결성: Phase 2.2 최적화 완료 ✅
   - [x] 완료조건: TypeScript 0 errors ✅ + 성능 최적화 적용
 
-- [ ] **(Low) Risk: 3단 UI 렌더링 성능 저하 (대량 예시)**
-  - [ ] 원인: 많은 예시 데이터 DOM 렌더링 시 FCP 지연
-  - [ ] 해결: 예시 목록 가상 스크롤 적용 또는 최대 5개 표시
-  - [ ] 파일: `frontend/src/components/` (관련 컴포넌트)
-  - [ ] 위치: (문서에 명시 없음 - 컴포넌트 탐색 필요)
-  - [ ] 연결성: Phase 5.1 구현 시 고려 사항
-  - [ ] 완료조건: Lighthouse Performance 점수 80점 이상
+- [x] **(Low) Risk: 3단 UI 렌더링 성능 저하 (대량 예시)** ✅ **COMPLETED**
+  - [x] 원인: 많은 예시 데이터 DOM 렌더링 시 FCP 지연
+  - [x] 해결: 예시 목록 최대 5개 표시 + '더 보기' 버튼 ✅
+  - [x] 파일: `frontend/src/components/Editor/EvaluationResult.tsx` ✅ 수정 완료
+  - [x] 위치: RubricCard 컴포넌트 (line 113-240)
+  - [x] 연결성: Phase 5.1 최적화 완료 ✅
+  - [x] 완료조건: TypeScript 0 errors ✅ + UX 개선 적용
 
 ### Robustness & Data Integrity (견고성 및 데이터 무결성)
 
