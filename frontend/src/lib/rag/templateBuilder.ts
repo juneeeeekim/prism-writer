@@ -149,6 +149,100 @@ export class TemplateBuilder {
       .single()
 
     if (error) throw error
-    return data as Template
+    
+    const template = data as Template
+
+    // ---------------------------------------------------------------------------
+    // Pipeline v4: 템플릿 저장 후 Validation Sample 자동 생성
+    // ---------------------------------------------------------------------------
+    // 주석(시니어 개발자): Regression Gate 활성화를 위해 최소 3개 샘플 보장
+    try {
+      await this.generateValidationSamples(template.id, schemas)
+    } catch (sampleError: any) {
+      // 샘플 생성 실패해도 템플릿은 반환 (경고만)
+      this.log(`⚠️ Warning: Failed to generate validation samples: ${sampleError.message}`)
+    }
+
+    return template
+  }
+
+  // =============================================================================
+  // Pipeline v4: Validation Sample 자동 생성
+  // =============================================================================
+
+  /**
+   * Pipeline v4: 템플릿 검증용 샘플 자동 생성
+   * 
+   * @description
+   * 주석(시니어 개발자): Regression Gate가 의미있게 작동하려면 validation sample 필요
+   * - 템플릿의 positive_examples에서 샘플 추출
+   * - 최소 3개 보장 (MIN_VALIDATION_SAMPLES)
+   * - 샘플 없는 템플릿에 경고 로깅
+   * 
+   * @param templateId - 템플릿 ID
+   * @param schemas - 템플릿 스키마 배열
+   */
+  private async generateValidationSamples(templateId: string, schemas: TemplateSchema[]): Promise<void> {
+    const MIN_VALIDATION_SAMPLES = 3
+    const supabase = createClient()
+
+    // 모든 스키마에서 positive_examples 수집
+    const allExamples: Array<{ input: string; category: string; score: number }> = []
+    
+    for (const schema of schemas) {
+      for (const example of schema.positive_examples) {
+        allExamples.push({
+          input: example,
+          category: schema.category,
+          score: schema.confidence_score ?? 0.8,  // 주석: undefined 시 기본값 0.8
+        })
+      }
+    }
+
+    // ---------------------------------------------------------------------------
+    // 주석(주니어 개발자): 샘플이 부족하면 경고 후 있는 만큼만 생성
+    // ---------------------------------------------------------------------------
+    if (allExamples.length === 0) {
+      this.log('⚠️ Warning: No examples available for validation samples')
+      return
+    }
+
+    if (allExamples.length < MIN_VALIDATION_SAMPLES) {
+      this.log(`⚠️ Warning: Only ${allExamples.length} examples available (minimum: ${MIN_VALIDATION_SAMPLES})`)
+    }
+
+    // 최대 MIN_VALIDATION_SAMPLES개 선택 (또는 가능한 만큼)
+    const samplesToCreate = allExamples.slice(0, Math.min(allExamples.length, MIN_VALIDATION_SAMPLES))
+
+    // validation_samples 테이블에 저장 (테이블 존재 시)
+    // 주석(시니어 개발자): 테이블이 없으면 조용히 스킵 (마이그레이션 전 호환성)
+    try {
+      const sampleRecords = samplesToCreate.map((sample, index) => ({
+        template_id: templateId,
+        tenant_id: this.tenantId,
+        input_text: sample.input,
+        expected_score: sample.score,
+        category: sample.category,
+        sample_index: index,
+      }))
+
+      const { error: insertError } = await supabase
+        .from('template_validation_samples')
+        .insert(sampleRecords)
+
+      if (insertError) {
+        // 테이블 미존재 등의 에러는 경고만
+        if (insertError.message.includes('does not exist') || insertError.code === '42P01') {
+          this.log('ℹ️ Info: template_validation_samples table not yet created - skipping sample generation')
+        } else {
+          throw insertError
+        }
+      } else {
+        this.log(`✅ Generated ${sampleRecords.length} validation samples for template ${templateId}`)
+      }
+    } catch (error: any) {
+      this.log(`⚠️ Warning: Could not save validation samples: ${error.message}`)
+    }
   }
 }
+

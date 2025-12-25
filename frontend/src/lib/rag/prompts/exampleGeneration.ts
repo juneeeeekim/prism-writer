@@ -11,8 +11,64 @@ export const EXAMPLE_GENERATION_SYSTEM_PROMPT = `
 4. 예시는 1~2문장 길이로 간결하게 작성하세요.
 `
 
+// =============================================================================
+// Pipeline v4: 민감 정보 노출 방지
+// =============================================================================
+
+/**
+ * Pipeline v4: 프롬프트에 포함되는 원문 청크 최대 길이
+ * 
+ * @description
+ * 주석(시니어 개발자): 민감 정보 노출 방지를 위해 1000자로 제한
+ * OpenAI로 전송되는 데이터 양을 최소화하여 보안 위험 감소
+ */
+const MAX_SOURCE_CHUNK_LENGTH = 1000
+
+/**
+ * 청크 텍스트를 최대 길이로 자르고 "..." 추가
+ * 
+ * @param chunk - 원본 청크
+ * @param maxLength - 최대 길이
+ * @returns 잘린 청크 (또는 원본)
+ */
+function truncateChunk(chunk: string, maxLength: number = MAX_SOURCE_CHUNK_LENGTH): string {
+  if (chunk.length <= maxLength) {
+    return chunk
+  }
+  // 주석(주니어 개발자): 단어 중간에서 자르지 않도록 마지막 공백 위치에서 자름
+  const truncated = chunk.substring(0, maxLength)
+  const lastSpace = truncated.lastIndexOf(' ')
+  if (lastSpace > maxLength * 0.8) {
+    return truncated.substring(0, lastSpace) + '...'
+  }
+  return truncated + '...'
+}
+
+/**
+ * 예시 생성 프롬프트 생성 (Pipeline v4: 길이 제한 적용)
+ * 
+ * @description
+ * 주석(시니어 개발자): 각 청크를 1000자로 제한하여 민감 정보 노출 최소화
+ * 
+ * @param ruleContent - 규칙 내용
+ * @param sourceStyleChunks - 스타일 참조용 원본 청크들
+ * @returns 프롬프트 문자열
+ */
 export function generateExampleGenerationPrompt(ruleContent: string, sourceStyleChunks: string[]): string {
-  const styleContext = sourceStyleChunks.join('\n\n---\n\n')
+  // ---------------------------------------------------------------------------
+  // Pipeline v4: 각 청크를 MAX_SOURCE_CHUNK_LENGTH로 제한
+  // ---------------------------------------------------------------------------
+  const truncatedChunks = sourceStyleChunks.map(chunk => truncateChunk(chunk))
+  const styleContext = truncatedChunks.join('\n\n---\n\n')
+  
+  // 로깅: 개발 환경에서 길이 제한 적용 여부 확인
+  if (process.env.NODE_ENV === 'development') {
+    const originalLength = sourceStyleChunks.reduce((sum, c) => sum + c.length, 0)
+    const truncatedLength = truncatedChunks.reduce((sum, c) => sum + c.length, 0)
+    if (originalLength !== truncatedLength) {
+      console.log(`[exampleGeneration] Chunks truncated: ${originalLength} -> ${truncatedLength} chars`)
+    }
+  }
   
   return `
 다음 "글쓰기 규칙"에 대한 예시를 생성해주세요.
@@ -33,3 +89,4 @@ JSON 객체 형태로 출력해주세요.
 }
 `
 }
+

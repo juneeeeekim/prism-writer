@@ -57,11 +57,13 @@ const DEFAULT_OVERLAP = 50
 const CHARS_PER_TOKEN = 4 // 대략적인 추정치 (한글 기준)
 
 // =============================================================================
-// Pipeline v3: 패턴 감지 상수
+// Pipeline v4: 패턴 감지 상수 (개선됨)
 // =============================================================================
+// 주석(시니어 개발자): 한글/영어 혼용 문서 및 엣지 케이스 대응 강화
 
-/** 규칙/원칙 패턴 (Korean & English) */
+/** 규칙/원칙 패턴 (Korean & English) - Pipeline v4 확장 */
 const RULE_PATTERNS = [
+  // 한글 규칙 패턴
   /해야\s*(합니다|한다|함)/,
   /하지\s*(마|말아야|않아야)/,
   /금지/,
@@ -70,29 +72,53 @@ const RULE_PATTERNS = [
   /필수/,
   /반드시/,
   /~(어|아)야\s*한다/,
+  /권장/,
+  /지양/,
+  /준수/,
+  /의무/,
+  // 영어 규칙 패턴
   /should\s+(always|never)/i,
   /must\s+(be|have|not)/i,
   /do\s+not/i,
   /avoid/i,
   /rule:/i,
   /principle:/i,
+  /guideline:/i,
+  /requirement:/i,
+  /mandatory/i,
+  /prohibited/i,
+  // Pipeline v4: 번호/불릿 리스트 규칙 패턴
+  /^\d+\.\s*.+(해야|하지|금지|필수)/m,
+  /^[-•]\s*.+(해야|하지|금지|필수)/m,
 ]
 
-/** 예시/사례 패턴 (Korean & English) */
+/** 예시/사례 패턴 (Korean & English) - Pipeline v4 확장 */
 const EXAMPLE_PATTERNS = [
+  // 한글 예시 패턴
   /예를\s*들어/,
   /예시/,
   /사례/,
+  /다음과\s*같/,
+  /예컨대/,
+  /가령/,
+  // 따옴표 패턴
   /"[^"]{10,}"/,  // 10자 이상의 따옴표 문장
   /'[^']{10,}'/,  // 10자 이상의 작은따옴표 문장
   /「[^」]+」/,    // 한국식 따옴표
+  // 영어 예시 패턴
   /before\s*[:/]/i,
   /after\s*[:/]/i,
   /good\s*example/i,
   /bad\s*example/i,
   /for\s*example/i,
   /e\.g\./i,
-  /다음과\s*같/,
+  /such\s+as/i,
+  /like\s+this:/i,
+  /instance:/i,
+  // Pipeline v4: 비교 패턴
+  /[OX]\s*[:\-]/,  // O: 좋은예 / X: 나쁜예
+  /[✓✗]\s*/,       // 체크마크 예시
+  /좋은\s*예|나쁜\s*예/,
 ]
 
 // =============================================================================
@@ -143,36 +169,67 @@ function extractSectionTitle(text: string, position: number): string | undefined
 }
 
 // =============================================================================
-// Pipeline v3: 청크 유형 분류 함수
+// Pipeline v4: 청크 유형 분류 함수 (개선됨)
 // =============================================================================
 
+// 분류 결과 로깅 설정
+const ENABLE_CLASSIFICATION_LOGGING = process.env.NODE_ENV === 'development'
+
 /**
- * 텍스트의 청크 유형 자동 분류 (Pipeline v3)
+ * 텍스트의 청크 유형 자동 분류 (Pipeline v4 개선)
  * 
  * @description
- * 텍스트 내용을 분석하여 'rule', 'example', 'general' 중 하나로 분류합니다.
- * 규칙 패턴이 발견되면 'rule', 예시 패턴이 발견되면 'example', 
- * 둘 다 없으면 'general'로 분류됩니다.
+ * 주석(시니어 개발자): Pipeline v4에서 개선된 분류 로직
+ * - 한글/영어 혼용 문서 패턴 강화
+ * - 엣지 케이스 처리 (너무 짧은 텍스트 등)
+ * - Fallback 보장 ('general' 기본값)
+ * - 분류 결과 로깅 (개발 환경)
  * 
  * @param text - 분류할 텍스트
+ * @param enableLogging - 로깅 활성화 여부 (기본: development 환경에서만)
  * @returns 청크 유형
  */
-export function classifyChunkType(text: string): ChunkType {
-  // 규칙 패턴 검사
-  const hasRulePattern = RULE_PATTERNS.some(pattern => pattern.test(text))
+export function classifyChunkType(
+  text: string, 
+  enableLogging: boolean = ENABLE_CLASSIFICATION_LOGGING
+): ChunkType {
+  // ---------------------------------------------------------------------------
+  // Pipeline v4: 엣지 케이스 처리
+  // ---------------------------------------------------------------------------
+  // 주석(주니어 개발자): 너무 짧은 텍스트는 general로 처리
+  if (!text || text.trim().length < 10) {
+    if (enableLogging) {
+      console.log('[classifyChunkType] Text too short, defaulting to general')
+    }
+    return 'general'  // Fallback 보장
+  }
   
-  // 예시 패턴 검사
+  // ---------------------------------------------------------------------------
+  // 패턴 매칭
+  // ---------------------------------------------------------------------------
+  const hasRulePattern = RULE_PATTERNS.some(pattern => pattern.test(text))
   const hasExamplePattern = EXAMPLE_PATTERNS.some(pattern => pattern.test(text))
+  
+  // ---------------------------------------------------------------------------
+  // 분류 결정 + 로깅
+  // ---------------------------------------------------------------------------
+  let result: ChunkType = 'general'  // Fallback 기본값
   
   // 우선순위: 규칙 > 예시 > 일반
   // (규칙 안에 예시가 포함될 수 있으므로 규칙 우선)
   if (hasRulePattern) {
-    return 'rule'
+    result = 'rule'
   } else if (hasExamplePattern) {
-    return 'example'
+    result = 'example'
   }
   
-  return 'general'
+  // Pipeline v4: 분류 결과 로깅 (수동 검토용)
+  if (enableLogging) {
+    const preview = text.substring(0, 50).replace(/\n/g, ' ')
+    console.log(`[classifyChunkType] "${preview}..." -> ${result} (rule:${hasRulePattern}, example:${hasExamplePattern})`)
+  }
+  
+  return result
 }
 
 /**
