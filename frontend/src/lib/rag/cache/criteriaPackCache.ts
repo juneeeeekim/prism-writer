@@ -256,6 +256,7 @@ class CriteriaPackCache {
     this.cache.clear()
     this.stats.hits = 0
     this.stats.misses = 0
+    console.warn('[CriteriaPackCache] Cache and stats cleared manually.')
   }
 
   /**
@@ -413,6 +414,13 @@ export function setCachedCriteriaPack(
 export function logCacheStats(): void {
   const stats = getCriteriaPackCache().getStats()
   console.log('[CriteriaPackCache] Stats:', stats)
+}
+
+/**
+ * 캐시 강제 초기화 (롤백/비상 대응용)
+ */
+export function clearCriteriaPackCache(): void {
+  getCriteriaPackCache().clear()
 }
 
 export { CriteriaPackCache }
