@@ -32,18 +32,16 @@ export const FEATURE_FLAGS = {
   /**
    * Pipeline v5 활성화 (Shadow Workspace + Patch 시스템)
    * 환경 변수: ENABLE_PIPELINE_V5
-   * 기본값: false (아직 개발 중)
+   * 기본값: true (프로덕션 활성화됨)
    */
-  ENABLE_PIPELINE_V5: process.env.ENABLE_PIPELINE_V5 === 'true',
+  ENABLE_PIPELINE_V5: process.env.ENABLE_PIPELINE_V5 !== 'false',
 
   /**
    * 3패널 UI 활성화 (에디터 + 부합도 + 제안 카드)
    * 환경 변수: NEXT_PUBLIC_USE_V3_TEMPLATES
-   * 기본값: false
-   * 
-   * 주석(UX 전문가): 기존 2패널 레이아웃과 호환성 유지
+   * 기본값: true (프로덕션 활성화됨)
    */
-  ENABLE_THREE_PANEL_UI: process.env.NEXT_PUBLIC_USE_V3_TEMPLATES === 'true',
+  ENABLE_THREE_PANEL_UI: process.env.NEXT_PUBLIC_USE_V3_TEMPLATES !== 'false',
 
   /**
    * Gemini LLM 사용 (OpenAI fallback 대신)
@@ -55,23 +53,23 @@ export const FEATURE_FLAGS = {
   /**
    * 듀얼 인덱스 검색 (Rule + Example 분리)
    * 환경 변수: ENABLE_DUAL_INDEX
-   * 기본값: false (Pipeline v5에서 활성화)
+   * 기본값: true (프로덕션 활성화됨)
    */
-  ENABLE_DUAL_INDEX: process.env.ENABLE_DUAL_INDEX === 'true',
+  ENABLE_DUAL_INDEX: process.env.ENABLE_DUAL_INDEX !== 'false',
 
   /**
    * Shadow Workspace 시뮬레이션
    * 환경 변수: ENABLE_SHADOW_WORKSPACE
-   * 기본값: false (Pipeline v5에서 활성화)
+   * 기본값: true (프로덕션 활성화됨)
    */
-  ENABLE_SHADOW_WORKSPACE: process.env.ENABLE_SHADOW_WORKSPACE === 'true',
+  ENABLE_SHADOW_WORKSPACE: process.env.ENABLE_SHADOW_WORKSPACE !== 'false',
 
   /**
    * 패치 제안 기능
    * 환경 변수: ENABLE_PATCH_SUGGESTIONS
-   * 기본값: false (Pipeline v5에서 활성화)
+   * 기본값: true (프로덕션 활성화됨)
    */
-  ENABLE_PATCH_SUGGESTIONS: process.env.ENABLE_PATCH_SUGGESTIONS === 'true',
+  ENABLE_PATCH_SUGGESTIONS: process.env.ENABLE_PATCH_SUGGESTIONS !== 'false',
 } as const
 
 // =============================================================================
