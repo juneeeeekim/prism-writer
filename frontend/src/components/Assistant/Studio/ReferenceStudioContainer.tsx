@@ -1,7 +1,7 @@
 
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DocumentListPanel from './DocumentListPanel'
 import ActiveContextPanel from './ActiveContextPanel'
 import { useDocumentStatus } from '@/hooks/useDocumentStatus'
@@ -13,8 +13,24 @@ import { useDocumentStatus } from '@/hooks/useDocumentStatus'
 // Mobile (<768px): Stack Navigation (List ↔ Detail)
 // =============================================================================
 
+// =============================================================================
+// [localStorage] 참고자료 선택 상태 저장 키
+// - Cross-Device 동기화 불가 (v1 제한사항)
+// - v2에서 DB 기반 user_preferences 테이블 검토 예정
+// =============================================================================
+const SELECTED_DOC_KEY = 'prism_ref_selected_doc'
+
 export default function ReferenceStudioContainer() {
-  const [selectedDocId, setSelectedDocId] = useState<string | null>(null)
+  // ===========================================================================
+  // [localStorage] 선택 상태 초기화 - localStorage에서 복원
+  // ===========================================================================
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(() => {
+    // SSR 환경에서는 localStorage 접근 불가
+    if (typeof window === 'undefined') return null
+    
+    const saved = localStorage.getItem(SELECTED_DOC_KEY)
+    return saved || null
+  })
   
   // Mobile Navigation State
   // 'list' = show document list, 'detail' = show active context
@@ -22,6 +38,17 @@ export default function ReferenceStudioContainer() {
   
   // Data Fetching
   const { documents, mutate: refreshDocuments } = useDocumentStatus()
+
+  // ===========================================================================
+  // [localStorage] 선택 상태 변경 시 저장
+  // ===========================================================================
+  useEffect(() => {
+    if (selectedDocId) {
+      localStorage.setItem(SELECTED_DOC_KEY, selectedDocId)
+    } else {
+      localStorage.removeItem(SELECTED_DOC_KEY)
+    }
+  }, [selectedDocId])
 
   // =============================================================================
   // Event Handlers
