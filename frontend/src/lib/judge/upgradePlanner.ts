@@ -51,8 +51,9 @@ export async function runUpgradePlanner(
   }
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  const primaryModelName = 'gemini-3-pro-preview'
-  const fallbackModelName = 'gemini-2.0-flash-exp' // Reliable fallback
+  // User Strategy: Use Gemini 3.0 Flash as Base (Default) per 'Gemini 3 Flash Reference'
+  const primaryModelName = 'gemini-3-flash-preview' 
+  const fallbackModelName = 'gemini-2.0-flash-exp' // Reliable fallback if 3.0 Flash fails
 
 
 
@@ -108,7 +109,7 @@ ${(() => {
       })
       rawText = result.response.text()
     } catch (primaryError) {
-      console.warn(`[UpgradePlanner] Primary model (${primaryModelName}) failed, trying fallback...`, primaryError)
+      console.warn(`[UpgradePlanner] Primary model (${primaryModelName}) failed, trying fallback (${fallbackModelName})...`, primaryError)
       
       // 2. Fallback Model 시도
       const model = genAI.getGenerativeModel({ model: fallbackModelName })
@@ -137,11 +138,19 @@ ${(() => {
     }
   } catch (error) {
     console.error('[UpgradePlanner] Error:', error)
+    
+    let friendlyError = String(error)
+    if (friendlyError.includes('429') || friendlyError.includes('Quota')) {
+      friendlyError = 'Google AI 모델 사용량이 초과되었습니다. (Quota Exceeded)'
+    } else if (friendlyError.includes('Safety')) {
+      friendlyError = 'AI 안전 정책에 의해 내용 생성이 차단되었습니다.'
+    }
+
     return {
       criteria_id: criteria.criteria_id || 'unknown',
       what: '수정 계획 생성 실패',
-      why: `오류 상세: ${error instanceof Error ? error.message : String(error)}`,
-      how: '잠시 후 다시 시도해주세요.',
+      why: friendlyError,
+      how: '잠시 후 다시 시도하거나, Google Cloud 콘솔에서 Quota를 확인해주세요.',
       example: '',
     }
   }

@@ -43,7 +43,7 @@ export async function runPatchGenerator({
   if (!apiKey) throw new Error('GOOGLE_API_KEY is missing')
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({ model: 'gemini-3-pro-preview' })
+  const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' })
 
   // 1. 타겟 문맥 추출 (간단히 전체 텍스트 사용하거나, Gap 분석에서 위치를 받아야 함)
   // 현재는 전체 텍스트를 LLM에게 주고 수정을 요청
