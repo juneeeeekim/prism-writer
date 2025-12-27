@@ -61,6 +61,7 @@ function adaptLegacyToV5(legacy: LegacyEvaluationResult): V5EvaluationResult {
 // =============================================================================
 interface SavedEvaluation {
   id: string
+  document_id?: string  // Phase 15: 문서 ID 연결
   result_data: V5EvaluationResult
   overall_score: number
   created_at: string
@@ -82,20 +83,33 @@ export default function EvaluationTab() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(true)
   
   // [FIX] useEditorState 훅으로 에디터 내용 직접 가져오기
-  const { content, setContent } = useEditorState()
+  // Phase 15: documentId 추가
+  const { content, setContent, documentId } = useEditorState()
 
   // ---------------------------------------------------------------------------
-  // Load Saved Evaluations on Mount
+  // Load Saved Evaluations on Mount or Document Change
   // ---------------------------------------------------------------------------
+  // Phase 15: documentId별로 평가 로드 + Race Condition 방지
   useEffect(() => {
+    let cancelled = false
+    
     const loadEvaluations = async () => {
       try {
-        const res = await fetch('/api/evaluations?limit=5')
+        // Phase 15: documentId가 있으면 해당 문서의 평가만 조회
+        const url = documentId 
+          ? `/api/evaluations?documentId=${documentId}&limit=10`
+          : '/api/evaluations?limit=5'
+        
+        const res = await fetch(url)
         if (!res.ok) {
           console.warn('[EvaluationTab] Failed to load evaluations')
           return
         }
         const data = await res.json()
+        
+        // Race Condition 방지: 취소된 요청은 무시
+        if (cancelled) return
+        
         if (data.success && data.evaluations?.length > 0) {
           setSavedEvaluations(data.evaluations)
           // 가장 최근 평가 결과를 자동 로드
@@ -104,25 +118,41 @@ export default function EvaluationTab() {
             setResult(latest.result_data)
             setIsSaved(true)
           }
+        } else {
+          // Phase 15: 평가 없으면 빈 상태로 초기화
+          setSavedEvaluations([])
+          setResult(null)
+          setIsSaved(false)
         }
       } catch (err) {
         console.error('[EvaluationTab] Error loading evaluations:', err)
       } finally {
-        setIsLoadingHistory(false)
+        if (!cancelled) {
+          setIsLoadingHistory(false)
+        }
       }
     }
+    
+    setIsLoadingHistory(true)
     loadEvaluations()
-  }, [])
+    
+    // Cleanup: 문서 전환 시 이전 요청 취소
+    return () => {
+      cancelled = true
+    }
+  }, [documentId])
 
   // ---------------------------------------------------------------------------
   // Save Evaluation to DB
   // ---------------------------------------------------------------------------
+  // Phase 15: documentId 포함하여 저장
   const saveEvaluation = async (resultData: V5EvaluationResult, documentText: string) => {
     try {
       const res = await fetch('/api/evaluations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          documentId,  // Phase 15: 문서 ID 연결
           documentText,
           resultData,
           overallScore: resultData.overall_score
@@ -130,10 +160,53 @@ export default function EvaluationTab() {
       })
       if (res.ok) {
         setIsSaved(true)
-        console.log('[EvaluationTab] Evaluation saved to DB')
+        console.log(`[EvaluationTab] Evaluation saved for document: ${documentId || 'none'}`)
+        
+        // Phase 15: 저장 후 히스토리 새로고침
+        const newEvalRes = await res.json()
+        if (newEvalRes.evaluation) {
+          setSavedEvaluations(prev => [newEvalRes.evaluation, ...prev])
+        }
       }
     } catch (err) {
       console.error('[EvaluationTab] Failed to save evaluation:', err)
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Delete Evaluation Handler (Phase 15)
+  // ---------------------------------------------------------------------------
+  const handleDeleteEvaluation = async (evaluationId: string) => {
+    const confirmed = window.confirm('이 평가를 삭제하시겠습니까?')
+    if (!confirmed) return
+    
+    try {
+      const res = await fetch(`/api/evaluations?id=${evaluationId}`, {
+        method: 'DELETE'
+      })
+      
+      if (res.ok) {
+        // 목록에서 제거
+        setSavedEvaluations(prev => prev.filter(e => e.id !== evaluationId))
+        console.log(`[EvaluationTab] Evaluation deleted: ${evaluationId}`)
+        
+        // 현재 표시 중인 평가가 삭제된 것이면 초기화
+        // (첫 번째 평가가 삭제된 경우)
+        if (savedEvaluations[0]?.id === evaluationId) {
+          const remaining = savedEvaluations.filter(e => e.id !== evaluationId)
+          if (remaining.length > 0 && remaining[0].result_data) {
+            setResult(remaining[0].result_data)
+          } else {
+            setResult(null)
+            setIsSaved(false)
+          }
+        }
+      } else {
+        alert('평가 삭제에 실패했습니다.')
+      }
+    } catch (err) {
+      console.error('[EvaluationTab] Failed to delete evaluation:', err)
+      alert('평가 삭제 중 오류가 발생했습니다.')
     }
   }
 
@@ -482,26 +555,48 @@ export default function EvaluationTab() {
 
       {/* -----------------------------------------------------------------------
           이전 평가 히스토리 - 저장된 평가가 있으면 항상 표시
+          Phase 15: 삭제 버튼 추가
           ----------------------------------------------------------------------- */}
       {!isLoadingHistory && savedEvaluations.length > 0 && (
         <div className="mx-4 mb-4 border-t border-gray-200 dark:border-gray-700 pt-3">
           <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">📁 이전 평가 기록</h4>
-          <div className="space-y-1 max-h-24 overflow-y-auto">
-            {savedEvaluations.slice(0, 3).map((evaluation) => (
-              <button
+          <div className="space-y-1 max-h-32 overflow-y-auto">
+            {savedEvaluations.slice(0, 5).map((evaluation) => (
+              <div
                 key={evaluation.id}
-                onClick={() => handleLoadEvaluation(evaluation)}
-                className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-100 dark:hover:bg-gray-800 flex justify-between items-center"
+                className="flex items-center gap-1 group"
               >
-                <span className="truncate">
-                  {new Date(evaluation.created_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                </span>
-                <span className="text-prism-primary font-medium">
-                  {evaluation.overall_score ? `${Math.round(evaluation.overall_score)}점` : '-'}
-                </span>
-              </button>
+                <button
+                  onClick={() => handleLoadEvaluation(evaluation)}
+                  className="flex-1 text-left px-2 py-1.5 text-xs rounded hover:bg-gray-100 dark:hover:bg-gray-800 flex justify-between items-center"
+                >
+                  <span className="truncate">
+                    {new Date(evaluation.created_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                  <span className="text-prism-primary font-medium">
+                    {evaluation.overall_score ? `${Math.round(evaluation.overall_score)}점` : '-'}
+                  </span>
+                </button>
+                {/* Phase 15: 삭제 버튼 */}
+                <button
+                  onClick={() => handleDeleteEvaluation(evaluation.id)}
+                  className="p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                  aria-label="평가 삭제"
+                  title="평가 삭제"
+                >
+                  🗑️
+                </button>
+              </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Phase 15: 평가 없음 상태 표시 */}
+      {!isLoadingHistory && savedEvaluations.length === 0 && !result && !isLoading && (
+        <div className="mx-4 mb-4 p-4 text-center text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+          <p>📝 이 문서의 평가 기록이 없습니다.</p>
+          <p className="mt-1 text-xs">위의 '평가하기' 버튼을 눌러 평가를 시작하세요.</p>
         </div>
       )}
     </div>
