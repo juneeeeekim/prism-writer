@@ -51,7 +51,10 @@ export async function runUpgradePlanner(
   }
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({ model: 'gemini-3-pro-preview' })
+  const primaryModelName = 'gemini-3-pro-preview'
+  const fallbackModelName = 'gemini-2.0-flash-exp' // Reliable fallback
+
+
 
   const prompt = `
 당신은 전문 글쓰기 코치(Upgrade Planner)입니다.
@@ -91,18 +94,35 @@ ${(() => {
 `
 
   try {
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { 
-        responseMimeType: 'application/json',
-        temperature: 0.1
-      },
-    })
-
-    const response = result.response
-    const rawText = response.text()
+    let rawText = ''
     
-    if (!rawText) throw new Error('No content generated')
+    // 1. Primary Model 시도
+    try {
+      const model = genAI.getGenerativeModel({ model: primaryModelName })
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { 
+          responseMimeType: 'application/json',
+          temperature: 0.1
+        },
+      })
+      rawText = result.response.text()
+    } catch (primaryError) {
+      console.warn(`[UpgradePlanner] Primary model (${primaryModelName}) failed, trying fallback...`, primaryError)
+      
+      // 2. Fallback Model 시도
+      const model = genAI.getGenerativeModel({ model: fallbackModelName })
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { 
+          responseMimeType: 'application/json',
+          temperature: 0.1
+        },
+      })
+      rawText = result.response.text()
+    }
+    
+    if (!rawText) throw new Error('No content generated from both models')
 
     // JSON 정제 및 파싱
     const sanitizedText = sanitizeJSON(rawText)
@@ -119,7 +139,7 @@ ${(() => {
     console.error('[UpgradePlanner] Error:', error)
     return {
       criteria_id: criteria.criteria_id || 'unknown',
-      what: '[DEBUG] 수정 계획 생성 실패',
+      what: '수정 계획 생성 실패',
       why: `오류 상세: ${error instanceof Error ? error.message : String(error)}`,
       how: '잠시 후 다시 시도해주세요.',
       example: '',
