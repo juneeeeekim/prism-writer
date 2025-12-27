@@ -2,13 +2,25 @@
 // PRISM Writer - Outline Tab
 // =============================================================================
 // 파일: frontend/src/components/Assistant/OutlineTab.tsx
-// 역할: 주제 입력 → 목차 생성 요청 → 결과 표시
+// 역할: 주제 입력 → 목차 생성 요청 → 결과 표시 → DB 저장/로드
+// Update: 2025-12-27 - Phase 7 Persistence
 // =============================================================================
 
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useEditorState, OutlineItem } from '@/hooks/useEditorState'
+
+// -----------------------------------------------------------------------------
+// Types
+// -----------------------------------------------------------------------------
+interface SavedOutline {
+  id: string
+  topic: string
+  outline_data: OutlineItem[]
+  sources_used: number
+  created_at: string
+}
 
 // -----------------------------------------------------------------------------
 // Component
@@ -19,8 +31,64 @@ export default function OutlineTab() {
   const [generatedOutline, setGeneratedOutline] = useState<OutlineItem[]>([])
   const [sourcesUsed, setSourcesUsed] = useState<number>(0)
   const [error, setError] = useState<string | null>(null)
+  const [isSaved, setIsSaved] = useState(false)
+  const [savedOutlines, setSavedOutlines] = useState<SavedOutline[]>([])
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true)
   
   const { insertOutline } = useEditorState()
+
+  // ---------------------------------------------------------------------------
+  // Load Saved Outlines on Mount
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    const loadOutlines = async () => {
+      try {
+        const res = await fetch('/api/outlines')
+        if (!res.ok) {
+          console.warn('[OutlineTab] Failed to load outlines')
+          return
+        }
+        const data = await res.json()
+        if (data.success && data.outlines?.length > 0) {
+          setSavedOutlines(data.outlines)
+          // 가장 최근 목차를 자동 로드
+          const latest = data.outlines[0]
+          setTopic(latest.topic)
+          setGeneratedOutline(latest.outline_data || [])
+          setSourcesUsed(latest.sources_used || 0)
+          setIsSaved(true)
+        }
+      } catch (err) {
+        console.error('[OutlineTab] Error loading outlines:', err)
+      } finally {
+        setIsLoadingHistory(false)
+      }
+    }
+    loadOutlines()
+  }, [])
+
+  // ---------------------------------------------------------------------------
+  // Save Outline to DB
+  // ---------------------------------------------------------------------------
+  const saveOutline = async (outlineData: OutlineItem[], topicText: string, sources: number) => {
+    try {
+      const res = await fetch('/api/outlines', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          topic: topicText,
+          outlineData,
+          sourcesUsed: sources
+        })
+      })
+      if (res.ok) {
+        setIsSaved(true)
+        console.log('[OutlineTab] Outline saved to DB')
+      }
+    } catch (err) {
+      console.error('[OutlineTab] Failed to save outline:', err)
+    }
+  }
 
   // ---------------------------------------------------------------------------
   // Generate Outline Handler
@@ -34,6 +102,7 @@ export default function OutlineTab() {
     setIsLoading(true)
     setError(null)
     setSourcesUsed(0)
+    setIsSaved(false)
     
     try {
       // -----------------------------------------------------------------------
@@ -61,8 +130,15 @@ export default function OutlineTab() {
         console.log(`[OutlineTab] 참고자료 ${data.sourcesUsed}개 활용`)
       }
 
-      setGeneratedOutline(data.outline || [])
-      setSourcesUsed(data.sourcesUsed || 0)
+      const outline = data.outline || []
+      const sources = data.sourcesUsed || 0
+      
+      setGeneratedOutline(outline)
+      setSourcesUsed(sources)
+
+      // [Phase 7] 생성 후 자동 저장
+      await saveOutline(outline, topic.trim(), sources)
+      
     } catch (err) {
       setError(err instanceof Error ? err.message : '목차 생성에 실패했습니다. 다시 시도해주세요.')
     } finally {
@@ -75,6 +151,16 @@ export default function OutlineTab() {
   // ---------------------------------------------------------------------------
   const handleInsert = () => {
     insertOutline(generatedOutline)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Load Saved Outline Handler
+  // ---------------------------------------------------------------------------
+  const handleLoadOutline = (outline: SavedOutline) => {
+    setTopic(outline.topic)
+    setGeneratedOutline(outline.outline_data || [])
+    setSourcesUsed(outline.sources_used || 0)
+    setIsSaved(true)
   }
 
   // ---------------------------------------------------------------------------
@@ -91,7 +177,7 @@ export default function OutlineTab() {
           id="topic-input"
           type="text"
           value={topic}
-          onChange={(e) => setTopic(e.target.value)}
+          onChange={(e) => { setTopic(e.target.value); setIsSaved(false); }}
           placeholder="예: AI 시대의 글쓰기 방법론..."
           className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
                      bg-white dark:bg-gray-700 text-gray-900 dark:text-white
@@ -135,6 +221,11 @@ export default function OutlineTab() {
                 📚 참고자료 {sourcesUsed}개 활용
               </span>
             )}
+            {isSaved && (
+              <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full">
+                ✅ 저장됨
+              </span>
+            )}
           </h3>
           
           <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2">
@@ -174,6 +265,24 @@ export default function OutlineTab() {
           >
             ✅ 에디터에 삽입
           </button>
+        </div>
+      )}
+
+      {/* 이전 목차 히스토리 */}
+      {!isLoadingHistory && savedOutlines.length > 1 && (
+        <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+          <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">📁 이전 목차</h4>
+          <div className="space-y-1 max-h-32 overflow-y-auto">
+            {savedOutlines.slice(1, 5).map((outline) => (
+              <button
+                key={outline.id}
+                onClick={() => handleLoadOutline(outline)}
+                className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-gray-100 dark:hover:bg-gray-800 truncate"
+              >
+                {outline.topic}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
