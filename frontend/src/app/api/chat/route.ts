@@ -68,27 +68,97 @@ export async function POST(req: NextRequest) {
     }
 
     // -------------------------------------------------------------------------
-    // 2. RAG 검색 (Hybrid Search: Vector + Keyword)
+    // 2. RAG 검색 (Hybrid Search + Query Expansion)
+    // -------------------------------------------------------------------------
+    // [RAG 환각 방지 업그레이드] 2025-12-27
+    // Feature Flag: ENABLE_QUERY_EXPANSION으로 쿼리 확장 ON/OFF
+    // Promise.all로 병렬 처리하여 응답 시간 최적화
     // -------------------------------------------------------------------------
     let context = ''
+    let hasRetrievedDocs = false
+    
     try {
-      // Pipeline v5 Upgrade: vectorSearch → hybridSearch 변경
-      // 사용자의 구체적이지 않은 질문에도 키워드 매칭으로 문맥을 찾을 수 있도록 개선
-      const searchResults = await hybridSearch(query, {
-        userId: userId || 'demo-user',
-        topK: 5,            // 문맥 확보를 위해 3 -> 5개로 증가
-        minScore: 0.35,     // 채팅의 자유도 고려하여 임계값 완화 (0.5 -> 0.35)
-        vectorWeight: 0.6,  // 의미 기반 검색 비중
-        keywordWeight: 0.4  // 키워드 매칭 비중 (기본값보다 높임)
-      })
-
-      if (searchResults.length > 0) {
-        context = searchResults
-          .map((result) => `[참고 문서: ${result.metadata?.title || 'Untitled'}]\n${result.content}`)
-          .join('\n\n')
+      const enableQueryExpansion = process.env.ENABLE_QUERY_EXPANSION === 'true'
+      
+      if (enableQueryExpansion) {
+        // =======================================================================
+        // [Query Expansion Mode] 쿼리 확장 + 병렬 검색
+        // =======================================================================
+        const { expandQuery } = await import('@/lib/rag/queryExpansion')
+        const { calculateDynamicThreshold } = await import('@/lib/rag/dynamicThreshold')
+        
+        // Step 1: 쿼리 확장 (최대 5개)
+        const expandedQueries = expandQuery(query)
+        console.log(`[Chat API] Query Expansion: ${expandedQueries.length} queries`)
+        console.log(`[Chat API] Expanded: ${expandedQueries.join(' | ')}`)
+        
+        // Step 2: 동적 임계값 계산
+        const dynamicThreshold = calculateDynamicThreshold(query)
+        console.log(`[Chat API] Dynamic Threshold: ${dynamicThreshold}`)
+        
+        // Step 3: 병렬 검색 (Promise.all)
+        const searchPromises = expandedQueries.map(q => 
+          hybridSearch(q, {
+            userId: userId || 'demo-user',
+            topK: 3,              // 쿼리당 3개 (총 최대 15개)
+            minScore: dynamicThreshold,
+            vectorWeight: 0.6,
+            keywordWeight: 0.4
+          }).catch(err => {
+            console.warn(`[Chat API] Search failed for "${q}":`, err)
+            return [] // 개별 검색 실패해도 계속 진행
+          })
+        )
+        
+        const searchResultsArray = await Promise.all(searchPromises)
+        const allResults = searchResultsArray.flat()
+        
+        // Step 4: 중복 제거 (chunkId 기준) + 점수순 정렬
+        const seen = new Set<string>()
+        const uniqueResults = allResults
+          .sort((a, b) => b.score - a.score)
+          .filter(result => {
+            if (seen.has(result.chunkId)) return false
+            seen.add(result.chunkId)
+            return true
+          })
+          .slice(0, 5) // 최종 5개만 사용
+        
+        console.log(`[Chat API] Query Expansion Results: ${allResults.length} → ${uniqueResults.length} (deduplicated)`)
+        
+        if (uniqueResults.length > 0) {
+          hasRetrievedDocs = true
+          context = uniqueResults
+            .map((result) => `[참고 문서: ${result.metadata?.title || 'Untitled'}]\n${result.content}`)
+            .join('\n\n')
+        } else {
+          console.log('[Chat API] No relevant documents found via expanded search.')
+        }
+        
       } else {
-        console.log('[Chat API] No relevant documents found via hybrid search.')
+        // =======================================================================
+        // [Legacy Mode] 기존 단일 쿼리 검색 (Feature Flag OFF)
+        // =======================================================================
+        console.log('[Chat API] Query Expansion: DISABLED (using legacy search)')
+        
+        const searchResults = await hybridSearch(query, {
+          userId: userId || 'demo-user',
+          topK: 5,
+          minScore: 0.35,
+          vectorWeight: 0.6,
+          keywordWeight: 0.4
+        })
+
+        if (searchResults.length > 0) {
+          hasRetrievedDocs = true
+          context = searchResults
+            .map((result) => `[참고 문서: ${result.metadata?.title || 'Untitled'}]\n${result.content}`)
+            .join('\n\n')
+        } else {
+          console.log('[Chat API] No relevant documents found via hybrid search.')
+        }
       }
+      
     } catch (error) {
       console.warn('RAG search failed:', error)
       // 검색 실패해도 대화는 계속 진행
@@ -97,7 +167,42 @@ export async function POST(req: NextRequest) {
     // -------------------------------------------------------------------------
     // 3. 시스템 프롬프트 구성
     // -------------------------------------------------------------------------
-    const systemPrompt = `
+    // [RAG 환각 방지 업그레이드] 2025-12-27
+    // Feature Flag: ENABLE_IMPROVED_PROMPT로 신/구 프롬프트 전환 가능
+    // 롤백 시: ENABLE_IMPROVED_PROMPT=false 환경 변수 설정
+    // -------------------------------------------------------------------------
+    
+    // 개선된 프롬프트 (환각 방지 강화)
+    const improvedSystemPrompt = `
+# 역할
+당신은 PRISM Writer의 AI 글쓰기 어시스턴트입니다.
+
+# 핵심 원칙 (반드시 준수)
+⚠️ 중요: 아래 참고 자료가 제공된 경우, 당신의 사전 지식보다 참고 자료를 우선해야 합니다.
+- 참고 자료의 용어, 구조, 방법론을 그대로 사용하세요
+- 일반적인 글쓰기 상식을 먼저 말하지 마세요
+- 참고 자료에 없는 내용을 추가할 때는 명확히 구분하세요
+
+# 참고 자료
+${context ? context : '(참고 자료 없음 - 일반 지식으로 답변 가능)'}
+
+# 사고 과정 (답변 전 내부적으로 수행)
+1. 분석: 참고 자료의 핵심 키워드와 구조를 파악합니다
+2. 연결: 사용자 질문이 참고 자료와 어떻게 연결되는지 찾습니다
+3. 적용: 참고 자료의 프레임워크를 사용자 질문에 적용합니다
+4. 답변: 참고 자료 기반으로 답변을 구성합니다
+
+# 금지 사항
+❌ "참고 자료에 관련 내용이 없습니다"라고 즉시 판단하지 마세요
+❌ 일반적인 글쓰기 가이드(개요 짜기, 퇴고하기 등)를 먼저 언급하지 마세요
+❌ 참고 자료를 무시하고 사전 지식만으로 답변하지 마세요
+
+# 출력 형식
+한국어로 답변하되, 참고 자료의 핵심 개념을 인용하며 답변하세요.
+`
+
+    // 기존 프롬프트 (롤백용 백업)
+    const legacySystemPrompt = `
 당신은 PRISM Writer의 AI 글쓰기 어시스턴트입니다.
 사용자의 질문에 대해 친절하고 전문적인 답변을 제공하세요.
 
@@ -110,6 +215,16 @@ ${context ? context : '관련된 참고 자료가 없습니다.'}
 3. 글쓰기, 문법, 아이디어 생성 등에 도움을 주세요.
 4. 한국어로 답변하세요.
 `
+
+    // Feature Flag로 프롬프트 선택
+    const enableImprovedPrompt = process.env.ENABLE_IMPROVED_PROMPT !== 'false'
+    const systemPrompt = enableImprovedPrompt ? improvedSystemPrompt : legacySystemPrompt
+    
+    if (enableImprovedPrompt) {
+      console.log('[Chat API] Using IMPROVED prompt (anti-hallucination)')
+    } else {
+      console.log('[Chat API] Using LEGACY prompt (fallback)')
+    }
 
     // -------------------------------------------------------------------------
     // 4. 대화 히스토리를 포함한 프롬프트 구성

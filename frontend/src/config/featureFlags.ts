@@ -70,6 +70,52 @@ export const FEATURE_FLAGS = {
    * 기본값: true (프로덕션 활성화됨)
    */
   ENABLE_PATCH_SUGGESTIONS: process.env.ENABLE_PATCH_SUGGESTIONS !== 'false',
+
+  /**
+   * 어시스턴트 세션 시스템 활성화 (Outline/Evaluation 탭)
+   * 환경 변수: ENABLE_ASSISTANT_SESSIONS
+   * 기본값: false (점진적 롤아웃)
+   */
+  ENABLE_ASSISTANT_SESSIONS: process.env.ENABLE_ASSISTANT_SESSIONS === 'true',
+
+  // ==========================================================================
+  // RAG 환각 답변 개선 Feature Flags (2025-12-27 추가)
+  // ==========================================================================
+
+  /**
+   * 개선된 시스템 프롬프트 활성화
+   * 환경 변수: ENABLE_IMPROVED_PROMPT
+   * 기본값: true (환각 방지를 위해 기본 활성화)
+   * 
+   * @description
+   * - 참고 자료 우선 지시 강화
+   * - 회피형 환각 방지 규칙 추가
+   * - Chain of Thought 사고 과정 유도
+   */
+  ENABLE_IMPROVED_PROMPT: process.env.ENABLE_IMPROVED_PROMPT !== 'false',
+
+  /**
+   * Query Expansion 활성화 (검색 쿼리 확장)
+   * 환경 변수: ENABLE_QUERY_EXPANSION
+   * 기본값: false (성능 테스트 후 활성화)
+   * 
+   * @description
+   * - 사용자 쿼리를 동의어로 확장하여 검색 커버리지 향상
+   * - 도메인 특화 용어 매핑 적용
+   */
+  ENABLE_QUERY_EXPANSION: process.env.ENABLE_QUERY_EXPANSION === 'true',
+
+  /**
+   * 환각 탐지 기능 활성화
+   * 환경 변수: ENABLE_HALLUCINATION_DETECTION
+   * 기본값: false (수동 검증 기간 후 활성화)
+   * 
+   * @description
+   * - LLM 응답에서 회피형 환각 패턴 탐지
+   * - 자동 탐지 결과는 로그만 기록 (DB 저장 안 함)
+   * - 롤백: OFF 시 탐지 로직 완전 비활성화
+   */
+  ENABLE_HALLUCINATION_DETECTION: process.env.ENABLE_HALLUCINATION_DETECTION === 'true',
 } as const
 
 // =============================================================================
