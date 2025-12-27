@@ -46,7 +46,7 @@ export default function AuthHeader({
   onExport,
 }: AuthHeaderProps) {
   // v2.0: 추가 필드 (role, dailyRequestLimit, monthlyTokenLimit)
-  const { user, loading, signOut, signingOut, role, dailyRequestLimit, monthlyTokenLimit } = useAuth()
+  const { user, loading, signOut, signingOut, role, isAdmin, dailyRequestLimit, monthlyTokenLimit } = useAuth()
 
   return (
     <header
@@ -64,7 +64,7 @@ export default function AuthHeader({
                 PRISM Writer
               </h1>
             </Link>
-            {/* RAG 검색 네비게이션 버튼 */}
+            {/* 네비게이션 버튼 영역 */}
             <nav className="hidden sm:flex items-center gap-2 ml-4 border-l border-gray-200 dark:border-gray-700 pl-4">
               <Link
                 href="/rag"
@@ -73,6 +73,17 @@ export default function AuthHeader({
               >
                 🔍 RAG 검색
               </Link>
+              
+              {/* 관리자 전용 대시보드 링크 (Phase 4 Add) */}
+              {isAdmin && (
+                <Link
+                  href="/admin/feedback"
+                  className="px-3 py-1.5 text-sm text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded transition-colors flex items-center gap-1 font-medium"
+                  aria-label="관리자 대시보드"
+                >
+                  🛡️ 관리자
+                </Link>
+              )}
             </nav>
           </>
         )}
