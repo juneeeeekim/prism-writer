@@ -33,7 +33,12 @@ function sanitizeJSON(text: string): string {
  */
 export async function runUpgradePlanner(
   judgeResult: JudgeResult,
-  criteria: TemplateSchema
+  criteria: TemplateSchema,
+  // -------------------------------------------------------------------------
+  // Phase 8-F: 사용자 참고자료 컨텍스트 (RAG 검색 결과)
+  // 기본값 ''으로 하위 호환성 유지
+  // -------------------------------------------------------------------------
+  evidenceContext: string = ''
 ): Promise<UpgradePlan> {
   // Pass인 경우 계획 수립 불필요
   if (judgeResult.status === 'pass') {
@@ -61,8 +66,13 @@ export async function runUpgradePlanner(
 이유: ${judgeResult.reasoning}
 문제 문장: ${judgeResult.citation || '(전체적인 문제)'}
 
-[참고: 긍정 예시 (따라야 할 스타일)]
-${criteria.positive_examples.join('\n')}
+[참고 자료 (사용자가 업로드한 참고 문서)]
+${(() => {
+  // Phase 8-F: 참고자료 2000자 제한 및 fallback 로직
+  const truncatedEvidence = evidenceContext?.substring(0, 2000) || ''
+  const positiveEx = criteria.positive_examples?.join('\n') || ''
+  return truncatedEvidence || positiveEx || '(참고 자료 없음)'
+})()}
 
 [수정 계획 작성 가이드]
 1. What: 무엇을 수정해야 하는지 명확히 지적

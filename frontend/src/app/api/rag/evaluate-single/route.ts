@@ -174,11 +174,12 @@ export async function POST(
 
     // -------------------------------------------------------------------------
     // 6. Upgrade Planner 실행 (pass가 아닌 경우)
+    // Phase 8-F: evidenceContext를 전달하여 참고자료 기반 수정 계획 생성
     // -------------------------------------------------------------------------
     let upgradePlan: UpgradePlan | undefined = undefined
 
     if (judgment.status !== 'pass') {
-      upgradePlan = await runUpgradePlanner(judgment, targetCriteria)
+      upgradePlan = await runUpgradePlanner(judgment, targetCriteria, evidenceContext)
     }
 
     // -------------------------------------------------------------------------
