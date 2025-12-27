@@ -10,6 +10,7 @@ interface FeedbackPanelProps {
   isLoading?: boolean
   onEvaluate?: () => void
   onApplyPlan?: (plan: UpgradePlan) => Promise<void>
+  onRetryPlan?: (criteriaId: string) => Promise<UpgradePlan | null>
 }
 
 export default function FeedbackPanel({
@@ -17,6 +18,7 @@ export default function FeedbackPanel({
   isLoading = false,
   onEvaluate,
   onApplyPlan,
+  onRetryPlan,
 }: FeedbackPanelProps) {
   if (isLoading) {
     return (
@@ -91,6 +93,7 @@ export default function FeedbackPanel({
               judge={judge} 
               plan={plan} 
               onApplyPlan={onApplyPlan}
+              onRetryPlan={onRetryPlan}
             />
           )
         })}
@@ -119,15 +122,19 @@ export default function FeedbackPanel({
 
 const FeedbackItem = memo(function FeedbackItem({ 
   judge, 
-  plan,
-  onApplyPlan 
+  plan: initialPlan,
+  onApplyPlan,
+  onRetryPlan
 }: { 
   judge: JudgeResult, 
   plan?: UpgradePlan,
-  onApplyPlan?: (plan: UpgradePlan) => Promise<void>
+  onApplyPlan?: (plan: UpgradePlan) => Promise<void>,
+  onRetryPlan?: (criteriaId: string) => Promise<UpgradePlan | null>
 }) {
   const [isOpen, setIsOpen] = useState(judge.status !== 'pass')
   const [isApplying, setIsApplying] = useState(false)
+  const [isRetrying, setIsRetrying] = useState(false)
+  const [plan, setPlan] = useState(initialPlan)
 
   const handleApply = async () => {
     if (!plan || !onApplyPlan || isApplying) return
@@ -139,6 +146,23 @@ const FeedbackItem = memo(function FeedbackItem({
       setIsApplying(false)
     }
   }
+
+  const handleRetry = async () => {
+    if (!onRetryPlan || isRetrying) return
+    
+    setIsRetrying(true)
+    try {
+      const newPlan = await onRetryPlan(judge.criteria_id)
+      if (newPlan) {
+        setPlan(newPlan)
+      }
+    } finally {
+      setIsRetrying(false)
+    }
+  }
+
+  // 오류 상태 감지 (plan.what에 "실패" 또는 "오류" 포함)
+  const isPlanError = plan?.what?.includes('실패') || plan?.what?.includes('오류')
 
   const statusColors = {
     pass: 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800',
@@ -197,23 +221,44 @@ const FeedbackItem = memo(function FeedbackItem({
             <div className="mt-4 pt-3 border-t border-dashed border-gray-200 dark:border-gray-700">
               <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 mb-2 flex items-center justify-between">
                 <span className="flex items-center gap-1">🚀 Upgrade Plan</span>
-                {onApplyPlan && (
-                  <button
-                    onClick={handleApply}
-                    disabled={isApplying}
-                    className="text-xs bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-2 py-1 rounded transition-colors flex items-center gap-1"
-                  >
-                    {isApplying ? (
-                      <>
-                        <span className="animate-spin text-xs">⏳</span> applying...
-                      </>
-                    ) : (
-                      <>
-                        <span>⚡</span> 자동 수정
-                      </>
-                    )}
-                  </button>
-                )}
+                <div className="flex items-center gap-2">
+                  {/* 재시도 버튼 - 오류 시에만 표시 */}
+                  {isPlanError && onRetryPlan && (
+                    <button
+                      onClick={handleRetry}
+                      disabled={isRetrying}
+                      className="text-xs bg-amber-100 hover:bg-amber-200 text-amber-700 px-2 py-1 rounded transition-colors flex items-center gap-1"
+                    >
+                      {isRetrying ? (
+                        <>
+                          <span className="animate-spin text-xs">⏳</span> 재시도 중...
+                        </>
+                      ) : (
+                        <>
+                          <span>🔄</span> 재시도
+                        </>
+                      )}
+                    </button>
+                  )}
+                  {/* 자동 수정 버튼 - 오류가 아닐 때만 표시 */}
+                  {onApplyPlan && !isPlanError && (
+                    <button
+                      onClick={handleApply}
+                      disabled={isApplying}
+                      className="text-xs bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-2 py-1 rounded transition-colors flex items-center gap-1"
+                    >
+                      {isApplying ? (
+                        <>
+                          <span className="animate-spin text-xs">⏳</span> applying...
+                        </>
+                      ) : (
+                        <>
+                          <span>⚡</span> 자동 수정
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
               </h4>
               
               <div className="space-y-2 text-sm">

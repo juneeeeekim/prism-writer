@@ -266,6 +266,55 @@ export default function EvaluationTab() {
   }
 
   // ---------------------------------------------------------------------------
+  // [NEW] Upgrade Plan 재생성 핸들러
+  // ---------------------------------------------------------------------------
+  const handleRetryPlan = useCallback(async (criteriaId: string) => {
+    const textToEvaluate = content
+    
+    if (!textToEvaluate) return null
+    
+    try {
+      console.log(`[EvaluationTab] Retrying upgrade plan for criteria: ${criteriaId}`)
+      
+      const response = await fetch('/api/rag/change-plan', {
+        method: 'POST',
+        headers: getApiHeaders(),
+        body: JSON.stringify({
+          userText: textToEvaluate,
+          documentId: result?.document_id || 'unknown',
+          targetCriteriaId: criteriaId,
+          maxPatches: 1
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        console.error('[EvaluationTab] Retry failed:', data)
+        return null
+      }
+
+      // 성공적으로 생성된 UpgradePlan 반환
+      if (data.changePlan?.upgradePlan) {
+        return data.changePlan.upgradePlan
+      }
+      
+      // 대체: 기본 구조로 반환
+      return {
+        criteria_id: criteriaId,
+        what: '수정 계획이 생성되었습니다.',
+        why: '재시도 요청에 의해 생성됨',
+        how: data.changePlan?.patches?.[0]?.after || '잠시 후 다시 시도해주세요.',
+        example: ''
+      }
+      
+    } catch (err) {
+      console.error('[EvaluationTab] Retry Error:', err)
+      return null
+    }
+  }, [content, result])
+
+  // ---------------------------------------------------------------------------
   // 렌더링
   // ---------------------------------------------------------------------------
   const showInitialState = !result && !isLoading
@@ -323,6 +372,7 @@ export default function EvaluationTab() {
             isLoading={isLoading}
             onEvaluate={handleEvaluate}
             onApplyPlan={handleApplyPlan}
+            onRetryPlan={handleRetryPlan}
           />
         </div>
       )}
