@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     // -------------------------------------------------------------------------
     const { data: documents, error: listError, count } = await supabase
       .from('user_documents')
-      .select('id, title, content, updated_at', { count: 'exact' })
+      .select('id, title, content, category, updated_at', { count: 'exact' })
       .eq('user_id', user.id)
       .order('updated_at', { ascending: false })
       .range(offset, offset + limit - 1)
@@ -58,6 +58,7 @@ export async function GET(req: NextRequest) {
       id: doc.id,
       title: doc.title,
       preview: doc.content.substring(0, 100) + (doc.content.length > 100 ? '...' : ''),
+      category: doc.category ?? '미분류',  // JeDebug: null 안전 처리
       updated_at: doc.updated_at
     }))
 

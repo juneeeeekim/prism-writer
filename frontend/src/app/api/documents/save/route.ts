@@ -31,7 +31,10 @@ export async function POST(req: NextRequest) {
     // 2. 요청 본문 파싱
     // -------------------------------------------------------------------------
     const body: SaveDocumentRequest = await req.json()
-    const { id, title, content } = body
+    const { id, title, content, category } = body
+    
+    // JeDebug: 카테고리 정규화 (빈 문자열/공백 처리)
+    const normalizedCategory = (category?.trim()) || '미분류'
 
     if (!title && !content) {
       return NextResponse.json(
@@ -47,10 +50,10 @@ export async function POST(req: NextRequest) {
       // UPDATE 기존 문서
       const { data, error } = await supabase
         .from('user_documents')
-        .update({ title, content })
+        .update({ title, content, category: normalizedCategory })
         .eq('id', id)
         .eq('user_id', user.id) // RLS 방어 + 명시적 확인
-        .select('id, title, updated_at')
+        .select('id, title, category, updated_at')
         .single()
 
       if (error) {
@@ -69,9 +72,10 @@ export async function POST(req: NextRequest) {
         .insert({
           user_id: user.id,
           title: title || '제목 없음',
-          content: content || ''
+          content: content || '',
+          category: normalizedCategory
         })
-        .select('id, title, updated_at')
+        .select('id, title, category, updated_at')
         .single()
 
       if (error) {

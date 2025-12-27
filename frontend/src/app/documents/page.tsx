@@ -1,20 +1,22 @@
 // =============================================================================
-// Phase 11: Documents List Page
+// Phase 11: Documents List Page (Phase 12: Category Accordion)
 // =============================================================================
 // 파일: frontend/src/app/documents/page.tsx
-// 역할: 저장된 문서 목록 페이지
+// 역할: 저장된 문서 목록 페이지 (카테고리별 그룹핑)
 // 생성일: 2025-12-28
+// 수정일: 2025-12-28 (Phase 12 - 카테고리 아코디언)
 // =============================================================================
 
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { useDocuments } from '@/hooks/useDocuments'
 import { useAuth } from '@/hooks/useAuth'
 import { useEditorState } from '@/hooks/useEditorState'
 import { AuthHeader } from '@/components/auth'
-import DocumentCard from '@/components/documents/DocumentCard'
+import CategoryAccordion from '@/components/documents/CategoryAccordion'  // Phase 12
+import type { UserDocumentPreview } from '@/types/document'
 
 // =============================================================================
 // Page Component
@@ -32,6 +34,26 @@ export default function DocumentsPage() {
       fetchList()
     }
   }, [user, authLoading, fetchList])
+
+  // ---------------------------------------------------------------------------
+  // Phase 12: 카테고리별 그룹핑
+  // ---------------------------------------------------------------------------
+  const groupedDocuments = useMemo(() => {
+    const groups: Record<string, UserDocumentPreview[]> = {}
+    
+    documents.forEach((doc) => {
+      const cat = doc.category ?? '미분류'  // JeDebug: null 안전 처리
+      if (!groups[cat]) groups[cat] = []
+      groups[cat].push(doc)
+    })
+    
+    // 카테고리 정렬 (미분류는 항상 마지막)
+    return Object.entries(groups).sort((a, b) => {
+      if (a[0] === '미분류') return 1
+      if (b[0] === '미분류') return -1
+      return a[0].localeCompare(b[0])
+    })
+  }, [documents])
 
   // ---------------------------------------------------------------------------
   // 삭제 핸들러
@@ -67,7 +89,7 @@ export default function DocumentsPage() {
             </h1>
             <p className="text-gray-500 dark:text-gray-400 mt-1">
               {documents.length > 0 
-                ? `총 ${documents.length}개의 문서`
+                ? `총 ${documents.length}개의 문서 · ${groupedDocuments.length}개의 카테고리`
                 : '저장된 문서가 없습니다'}
             </p>
           </div>
@@ -162,14 +184,16 @@ export default function DocumentsPage() {
           </div>
         )}
 
-        {/* Documents Grid */}
+        {/* Phase 12: Documents Accordion (카테고리별 그룹) */}
         {!loading && !authLoading && user && documents.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {documents.map((doc) => (
-              <DocumentCard
-                key={doc.id}
-                {...doc}
+          <div className="space-y-2">
+            {groupedDocuments.map(([category, docs]) => (
+              <CategoryAccordion
+                key={category}
+                category={category}
+                documents={docs}
                 onDelete={handleDelete}
+                defaultOpen={true}
               />
             ))}
           </div>
@@ -178,3 +202,4 @@ export default function DocumentsPage() {
     </div>
   )
 }
+

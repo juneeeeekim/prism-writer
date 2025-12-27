@@ -1,9 +1,10 @@
 // =============================================================================
-// Phase 11: Document Types
+// Phase 11: Document Types (Phase 12: Category 추가)
 // =============================================================================
 // 파일: frontend/src/types/document.ts
 // 역할: 문서 관련 타입 정의
 // 생성일: 2025-12-28
+// 수정일: 2025-12-28 (Phase 12 - category 필드 추가)
 // =============================================================================
 
 /**
@@ -13,6 +14,7 @@ export interface UserDocument {
   id: string
   title: string
   content: string
+  category: string  // Phase 12 추가
   created_at: string
   updated_at: string
 }
@@ -24,6 +26,7 @@ export interface UserDocumentPreview {
   id: string
   title: string
   preview: string
+  category: string  // Phase 12 추가
   updated_at: string
 }
 
@@ -34,6 +37,7 @@ export interface SaveDocumentRequest {
   id?: string
   title: string
   content: string
+  category?: string  // Phase 12 추가 (옵셔널, 미입력 시 '미분류')
 }
 
 /**
@@ -42,6 +46,7 @@ export interface SaveDocumentRequest {
 export interface SaveDocumentResponse {
   id: string
   title: string
+  category: string  // Phase 12 추가
   updated_at: string
 }
 
@@ -54,3 +59,4 @@ export interface DocumentListResponse {
   page: number
   limit: number
 }
+

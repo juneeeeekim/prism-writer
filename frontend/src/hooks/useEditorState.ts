@@ -35,6 +35,9 @@ interface EditorState {
   // Phase 11: 서버 문서 ID
   documentId: string | null
   
+  // Phase 12: 카테고리
+  category: string
+  
   // v3: 평가 및 템플릿 상태
   evaluationResult: EvaluationResult | null
   template: TemplateSchema[] | null
@@ -52,7 +55,9 @@ interface EditorState {
   reset: () => void
   // Phase 11: 서버 문서 관련 액션
   setDocumentId: (id: string | null) => void
-  loadFromServer: (doc: { id: string; title: string; content: string }) => void
+  loadFromServer: (doc: { id: string; title: string; content: string; category?: string }) => void
+  // Phase 12: 카테고리 액션
+  setCategory: (category: string) => void
 }
 
 // -----------------------------------------------------------------------------
@@ -69,6 +74,7 @@ export const useEditorState = create<EditorState>()(
       isDirty: false,
       lastSavedAt: null,
       documentId: null,
+      category: '',  // Phase 12 추가
       evaluationResult: null,
       template: null,
 
@@ -128,6 +134,7 @@ export const useEditorState = create<EditorState>()(
         isDirty: false,
         lastSavedAt: null,
         documentId: null,
+        category: '',  // Phase 12 추가
       }),
 
       // ---------------------------------------------------------------------------
@@ -139,9 +146,13 @@ export const useEditorState = create<EditorState>()(
         documentId: doc.id,
         title: doc.title,
         content: doc.content,
+        category: doc.category ?? '미분류',  // Phase 12 추가
         isDirty: false,
         lastSavedAt: new Date(),
       }),
+      
+      // Phase 12: 카테고리 액션
+      setCategory: (category) => set({ category, isDirty: true }),
     }),
     {
       name: 'prism-editor-storage', // localStorage key

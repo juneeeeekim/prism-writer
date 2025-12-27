@@ -39,8 +39,10 @@ export default function EditorPage() {
   const { 
     content, 
     title,
+    category,  // Phase 12
     documentId,
     setDocumentId,
+    setCategory,  // Phase 12
     markAsSaved,
     loadFromServer,
     evaluationResult, 
@@ -50,10 +52,15 @@ export default function EditorPage() {
   } = useEditorState()
   
   // Phase 11: 문서 저장 관련 훅
-  const { saveDocument, loadDocument } = useDocuments()
+  const { saveDocument, loadDocument, categories, fetchList } = useDocuments()  // Phase 12: categories 추가
   const { user } = useAuth()
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  
+  // Phase 12: 에디터 마운트 시 카테고리 목록 로드
+  useEffect(() => {
+    fetchList()
+  }, [])
   
   // ---------------------------------------------------------------------------
   // Phase 11: URL에서 문서 ID로 문서 로드
@@ -67,7 +74,8 @@ export default function EditorPage() {
           loadFromServer({
             id: doc.id,
             title: doc.title,
-            content: doc.content
+            content: doc.content,
+            category: doc.category  // Phase 12
           })
         } catch (error) {
           console.error('[EditorPage] Load document error:', error)
@@ -120,7 +128,8 @@ export default function EditorPage() {
       const result = await saveDocument({
         id: documentId || undefined,
         title: title || '제목 없음',
-        content: content || ''
+        content: content || '',
+        category: category || '미분류'  // Phase 12
       })
       
       // 새 문서면 ID 세팅
