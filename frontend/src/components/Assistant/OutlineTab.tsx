@@ -268,12 +268,12 @@ export default function OutlineTab() {
         </div>
       )}
 
-      {/* 이전 목차 히스토리 */}
-      {!isLoadingHistory && savedOutlines.length > 1 && (
+      {/* 이전 목차 히스토리 - 저장된 목차가 1개 이상이면 항상 표시 */}
+      {!isLoadingHistory && savedOutlines.length >= 1 && (
         <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
           <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">📁 이전 목차</h4>
           <div className="space-y-1 max-h-32 overflow-y-auto">
-            {savedOutlines.slice(1, 5).map((outline) => (
+            {savedOutlines.slice(0, 5).map((outline) => (
               <button
                 key={outline.id}
                 onClick={() => handleLoadOutline(outline)}

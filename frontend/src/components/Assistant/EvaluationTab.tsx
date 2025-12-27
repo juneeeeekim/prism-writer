@@ -338,9 +338,9 @@ export default function EvaluationTab() {
       )}
 
       {/* -----------------------------------------------------------------------
-          이전 평가 히스토리
+          이전 평가 히스토리 - 저장된 평가가 있으면 항상 표시
           ----------------------------------------------------------------------- */}
-      {showInitialState && !isLoadingHistory && savedEvaluations.length > 0 && (
+      {!isLoadingHistory && savedEvaluations.length > 0 && (
         <div className="mx-4 mb-4 border-t border-gray-200 dark:border-gray-700 pt-3">
           <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">📁 이전 평가 기록</h4>
           <div className="space-y-1 max-h-24 overflow-y-auto">
