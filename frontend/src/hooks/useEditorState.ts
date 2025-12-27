@@ -159,8 +159,10 @@ export const useEditorState = create<EditorState>()(
       partialize: (state) => ({ 
         content: state.content, 
         title: state.title,
-        outline: state.outline 
-      }), // Persist only content, title, and outline
+        outline: state.outline,
+        documentId: state.documentId,
+        category: state.category 
+      }), // Persist content, title, outline, documentId, and category
     }
   )
 )
