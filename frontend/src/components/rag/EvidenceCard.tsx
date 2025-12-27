@@ -7,7 +7,7 @@
 
 'use client'
 
-import type { JudgeEvidence } from '@/types/rag'
+import type { JudgeEvidence, EvidenceQuality, EvidenceQualityGrade } from '@/types/rag'
 import type { CitationVerifyResult } from '@/lib/rag/citationGate'
 
 // =============================================================================
@@ -16,7 +16,10 @@ import type { CitationVerifyResult } from '@/lib/rag/citationGate'
 
 interface EvidenceCardProps {
   /** 근거 정보 (검증 결과 포함) */
-  evidence: JudgeEvidence & { verified: CitationVerifyResult }
+  evidence: JudgeEvidence & { 
+    verified: CitationVerifyResult
+    quality?: EvidenceQuality 
+  }
   /** 카드 인덱스 */
   index?: number
   /** 컴팩트 모드 */
@@ -41,6 +44,10 @@ const styles = {
     score: 'ml-auto text-xs px-2 py-0.5 rounded',
     scoreValid: 'bg-green-100 text-green-700',
     scoreInvalid: 'bg-amber-100 text-amber-700',
+    qualityIndex: 'text-xs px-2 py-0.5 rounded font-mono',
+    qualityHigh: 'bg-indigo-100 text-indigo-700',
+    qualityMedium: 'bg-blue-100 text-blue-700',
+    qualityLow: 'bg-gray-100 text-gray-700',
   },
   quote: {
     base: 'text-sm text-gray-700 italic border-l-2 pl-3 my-2',
@@ -113,6 +120,15 @@ export function EvidenceCard({ evidence, index, compact = false }: EvidenceCardP
         <span className={styles.header.label}>
           {isValid ? '검증된 인용' : '검증 경고'}
         </span>
+        {evidence.quality && (
+          <span className={`${styles.header.qualityIndex} ${
+            evidence.quality.grade === 'high' ? styles.header.qualityHigh :
+            evidence.quality.grade === 'medium' ? styles.header.qualityMedium :
+            styles.header.qualityLow
+          }`}>
+            {evidence.quality.grade.toUpperCase()}
+          </span>
+        )}
         <span className={scoreClass}>
           매칭 {Math.round(evidence.verified.matchScore * 100)}%
         </span>

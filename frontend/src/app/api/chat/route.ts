@@ -11,15 +11,25 @@ import { hybridSearch, type SearchResult } from '@/lib/rag/search'
 import { generateTextStream } from '@/lib/llm/gateway'
 import { getDefaultModel } from '@/config/llm.config'
 import { createClient } from '@/lib/supabase/server'
+import { verifyCitation } from '@/lib/rag/citationGate'
 
 export const runtime = 'nodejs'
 
 // -----------------------------------------------------------------------------
 // Helper: 재시도 로직이 포함된 메시지 저장 함수
 // -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// Helper: 재시도 로직이 포함된 메시지 저장 함수
+// -----------------------------------------------------------------------------
 async function saveMessageWithRetry(
   supabase: any,
-  data: { session_id: string; role: string; content: string; model_id?: string },
+  data: { 
+    session_id: string; 
+    role: string; 
+    content: string; 
+    model_id?: string;
+    metadata?: Record<string, any> 
+  },
   maxRetries: number = 3
 ): Promise<boolean> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -38,6 +48,8 @@ async function saveMessageWithRetry(
   console.error('All message save attempts failed')
   return false
 }
+
+
 
 export async function POST(req: NextRequest) {
   try {
@@ -76,6 +88,7 @@ export async function POST(req: NextRequest) {
     // -------------------------------------------------------------------------
     let context = ''
     let hasRetrievedDocs = false
+    let uniqueResults: SearchResult[] = []
     
     try {
       const enableQueryExpansion = process.env.ENABLE_QUERY_EXPANSION === 'true'
@@ -115,7 +128,7 @@ export async function POST(req: NextRequest) {
         
         // Step 4: 중복 제거 (chunkId 기준) + 점수순 정렬
         const seen = new Set<string>()
-        const uniqueResults = allResults
+        uniqueResults = allResults
           .sort((a, b) => b.score - a.score)
           .filter(result => {
             if (seen.has(result.chunkId)) return false
@@ -151,6 +164,7 @@ export async function POST(req: NextRequest) {
 
         if (searchResults.length > 0) {
           hasRetrievedDocs = true
+          uniqueResults = searchResults
           context = searchResults
             .map((result) => `[참고 문서: ${result.metadata?.title || 'Untitled'}]\n${result.content}`)
             .join('\n\n')
@@ -260,11 +274,26 @@ ${context ? context : '관련된 참고 자료가 없습니다.'}
           // 6. AI 응답 저장 (세션 ID가 있는 경우) - 재시도 로직 포함
           // -----------------------------------------------------------------------
           if (userId && sessionId && fullResponse) {
+            
+            // [Citation Gate] 2025-12-27 Integration
+            let citationMetadata = {}
+            if (hasRetrievedDocs && uniqueResults && uniqueResults.length > 0) {
+              const sourceChunksForVerify = uniqueResults.map(r => ({ id: r.chunkId, content: r.content }))
+              // 전체 응답을 하나의 인용으로 간주하여 검증 (임시: 0.6 이상 매칭 시 성공)
+              const verificationResult = verifyCitation(fullResponse, sourceChunksForVerify)
+              
+              citationMetadata = {
+                citation_verification: verificationResult,
+                source_count: uniqueResults.length
+              }
+            }
+
             await saveMessageWithRetry(supabase, {
               session_id: sessionId,
               role: 'assistant',
               content: fullResponse,
-              model_id: modelId
+              model_id: modelId,
+              metadata: citationMetadata
             })
             
             // 세션 업데이트 시간 갱신

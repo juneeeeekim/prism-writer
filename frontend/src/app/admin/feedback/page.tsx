@@ -298,12 +298,58 @@ function FilterButton({
 /** 피드백 카드 */
 function FeedbackCard({ feedback }: { feedback: FeedbackItem }) {
   const [expanded, setExpanded] = useState(false)
+  // ---------------------------------------------------------------------------
+  // [Phase 4] RAFT 저장 관련 상태
+  // ---------------------------------------------------------------------------
+  const [showRAFTModal, setShowRAFTModal] = useState(false)
+  const [isRAFTSaving, setIsRAFTSaving] = useState(false)
+  const [raftSaved, setRaftSaved] = useState(false)
+  const [raftError, setRaftError] = useState<string | null>(null)
+
+  // ---------------------------------------------------------------------------
+  // [Phase 4] RAFT 저장 핸들러
+  // ---------------------------------------------------------------------------
+  const handleSaveToRAFT = async () => {
+    setIsRAFTSaving(true)
+    setRaftError(null)
+
+    try {
+      const response = await fetch('/api/raft/dataset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userQuery: feedback.user_query,
+          context: feedback.model_response, // AI 응답을 context로 사용
+          goldAnswer: feedback.user_comment || '(사용자 코멘트 없음)',
+          source: 'user_feedback',
+          originalFeedbackId: feedback.id,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'RAFT 저장 실패')
+      }
+
+      setRaftSaved(true)
+      setShowRAFTModal(false)
+      console.log('[FeedbackCard] RAFT 저장 성공:', feedback.id)
+
+    } catch (error: any) {
+      console.error('[FeedbackCard] RAFT 저장 오류:', error)
+      setRaftError(error.message || 'RAFT 저장 중 오류 발생')
+    } finally {
+      setIsRAFTSaving(false)
+    }
+  }
 
   return (
     <div className="bg-white rounded-lg shadow p-4">
-      {/* 헤더 */}
+      {/* -----------------------------------------------------------------------
+          헤더 - 배지 영역 [Risk 3 해결: flex 정렬 유지]
+      ----------------------------------------------------------------------- */}
       <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className={`
             px-2 py-1 rounded text-xs font-medium
             ${feedback.is_positive 
@@ -316,6 +362,12 @@ function FeedbackCard({ feedback }: { feedback: FeedbackItem }) {
           {feedback.feedback_type === 'hallucination' && (
             <span className="px-2 py-1 rounded text-xs font-medium bg-orange-100 text-orange-700">
               🚨 환각 신고
+            </span>
+          )}
+          {/* [Phase 4] RAFT 저장됨 배지 */}
+          {raftSaved && (
+            <span className="px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-700">
+              📦 RAFT
             </span>
           )}
         </div>
@@ -345,13 +397,42 @@ function FeedbackCard({ feedback }: { feedback: FeedbackItem }) {
         </div>
       )}
 
-      {/* 확장 버튼 */}
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="text-xs text-blue-500 hover:text-blue-700"
-      >
-        {expanded ? '▲ 접기' : '▼ AI 응답 보기'}
-      </button>
+      {/* -----------------------------------------------------------------------
+          버튼 영역 [Risk 3 해결: flex gap으로 정렬 유지]
+      ----------------------------------------------------------------------- */}
+      <div className="flex items-center gap-3 flex-wrap">
+        {/* 확장 버튼 */}
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="text-xs text-blue-500 hover:text-blue-700"
+          aria-label={expanded ? 'AI 응답 접기' : 'AI 응답 보기'}
+        >
+          {expanded ? '▲ 접기' : '▼ AI 응답 보기'}
+        </button>
+
+        {/* [Phase 4] RAFT 저장 버튼 */}
+        {!raftSaved && (
+          <button
+            onClick={() => setShowRAFTModal(true)}
+            disabled={isRAFTSaving}
+            className={`
+              text-xs px-2 py-1 rounded transition-colors
+              ${isRAFTSaving 
+                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+              }
+            `}
+            aria-label="RAFT 데이터셋에 저장"
+          >
+            📥 RAFT 저장
+          </button>
+        )}
+
+        {/* RAFT 에러 메시지 */}
+        {raftError && (
+          <span className="text-xs text-red-500">{raftError}</span>
+        )}
+      </div>
 
       {/* 확장된 AI 응답 */}
       {expanded && (
@@ -360,6 +441,58 @@ function FeedbackCard({ feedback }: { feedback: FeedbackItem }) {
           <p className="text-sm text-gray-800 bg-gray-50 p-2 rounded max-h-48 overflow-y-auto">
             {feedback.model_response}
           </p>
+        </div>
+      )}
+
+      {/* -----------------------------------------------------------------------
+          [Phase 4] RAFT 저장 확인 모달 [Risk 4 해결: z-50으로 레이어 충돌 방지]
+      ----------------------------------------------------------------------- */}
+      {showRAFTModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setShowRAFTModal(false)}
+          onKeyDown={(e) => e.key === 'Escape' && setShowRAFTModal(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="raft-modal-title"
+        >
+          <div 
+            className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="raft-modal-title" className="text-lg font-bold text-gray-800 mb-4">
+              📦 RAFT 데이터셋에 저장
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              이 피드백을 RAFT 파인튜닝용 데이터셋에 저장하시겠습니까?
+            </p>
+            <p className="text-xs text-gray-400 mb-4">
+              • 사용자 질문과 AI 응답이 학습 데이터로 활용됩니다.<br/>
+              • 저장 후 취소할 수 없습니다.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowRAFTModal(false)}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+                disabled={isRAFTSaving}
+              >
+                취소
+              </button>
+              <button
+                onClick={handleSaveToRAFT}
+                disabled={isRAFTSaving}
+                className={`
+                  px-4 py-2 text-sm text-white rounded transition-colors
+                  ${isRAFTSaving 
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-purple-500 hover:bg-purple-600'
+                  }
+                `}
+              >
+                {isRAFTSaving ? '저장 중...' : '저장'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

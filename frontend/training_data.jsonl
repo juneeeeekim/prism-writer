@@ -1,0 +1,3 @@
+{"messages":[{"role":"user","parts":[{"text":"Context:\nPrismLM is a AI writing assistant tool.\n\nQuestion:\nWhat is PrismLM?"}]},{"role":"model","parts":[{"text":"PrismLM is an AI tool for writing assistance."}]}]}
+{"messages":[{"role":"user","parts":[{"text":"Context:\nGo to admin panel and click export.\n\nQuestion:\nHow to export data?"}]},{"role":"model","parts":[{"text":"Click export in the admin panel."}]}]}
+{"messages":[{"role":"user","parts":[{"text":"Context:\nGemini 1.5 Flash supports JSONL format for tuning.\n\nQuestion:\nGEMINI Finetuning guide"}]},{"role":"model","parts":[{"text":"Use JSONL format for Gemini 1.5 Flash."}]}]}

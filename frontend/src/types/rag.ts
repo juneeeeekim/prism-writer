@@ -315,3 +315,66 @@ export interface EvidencePack {
   /** 검색 메타데이터 */
   metadata: EvidenceMetadata
 }
+
+// =============================================================================
+// Patch Staging 관련 타입 (P1 Phase 2)
+// =============================================================================
+
+/**
+ * 패치 단계 Enum
+ * 
+ * @description
+ * - core: 핵심 수정 (사실 관계, 주요 논리)
+ * - expression: 표현/톤 수정 (문체, 어조)
+ * - detail: 디테일 수정 (맞춤법, 서식)
+ */
+export type PatchStage = 'core' | 'expression' | 'detail'
+
+/**
+ * 단계별 패치 인터페이스
+ */
+export interface StagedPatch {
+  id: string
+  stage: PatchStage
+  description: string
+  originalText: string
+  patchedText: string
+  status: 'pending' | 'accepted' | 'rejected'
+  reasoning?: string
+}
+
+/**
+ * 패치 그룹 인터페이스
+ */
+export interface PatchGroup {
+  stage: PatchStage
+  patches: StagedPatch[]
+  isExpanded: boolean
+}
+
+// =============================================================================
+// Evidence Quality 관련 타입 (P1 Phase 3)
+// =============================================================================
+
+/**
+ * 근거 품질 등급 Enum
+ */
+export enum EvidenceQualityGrade {
+  HIGH = 'high',     // 신뢰도 높음
+  MEDIUM = 'medium', // 보통
+  LOW = 'low'        // 낮음 (검증 필요)
+}
+
+/**
+ * 근거 품질 인터페이스
+ */
+export interface EvidenceQuality {
+  grade: EvidenceQualityGrade
+  score: number      // 0~100
+  factors: {
+    relevance: number    // 관련성
+    recency?: number     // 최신성
+    authority?: number   // 권위/출처 신뢰도
+  }
+}
+

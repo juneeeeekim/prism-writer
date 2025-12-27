@@ -12,6 +12,12 @@ interface Message {
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
+  metadata?: {
+    citation_verification?: {
+      valid: boolean
+      matchScore: number
+    }
+  }
 }
 
 interface ChatTabProps {
@@ -68,7 +74,8 @@ export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
           id: m.id,
           role: m.role,
           content: m.content,
-          timestamp: new Date(m.created_at)
+          timestamp: new Date(m.created_at),
+          metadata: m.metadata // 메타데이터 매핑
         }))
         setMessages(loadedMessages)
       } catch (error) {
@@ -77,9 +84,30 @@ export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
         setIsLoading(false)
       }
     }
-
+    
+    // loadMessages 함수를 handleSend에서도 사용할 수 있도록 외부로 분리 필요하지만,
+    // 현재는 useEffect 내부라 접근 불가. 
+    // 리팩토링 대신 sessionId 변경 시만 호출되도록 둠.
+    // 임시 해결: handleSend 완료 후 forceUpdate 또는 fetch 로직 복사.
+    
     loadMessages()
   }, [sessionId])
+  
+  // loadMessages 로직 재사용을 위한 헬퍼 (useEffect 밖으로 이동 불가 시 복제)
+  const refreshMessages = async (sid: string) => {
+    try {
+      const res = await fetch(`/api/chat/sessions/${sid}`)
+      if (!res.ok) return
+      const data = await res.json()
+      setMessages(data.messages.map((m: any) => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        timestamp: new Date(m.created_at),
+        metadata: m.metadata
+      })))
+    } catch (e) { console.error(e) }
+  }
 
   // ---------------------------------------------------------------------------
   // Send Message Handler
@@ -98,12 +126,13 @@ export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
     setInput('')
     setIsLoading(true)
 
+    // -----------------------------------------------------------------------
+    // Feature Flag OFF (sessionId === undefined): 세션 생성 안 함
+    // Feature Flag ON + 세션 없음 (sessionId === null): 새 세션 생성
+    // -----------------------------------------------------------------------
+    let currentSessionId = sessionId
+    
     try {
-      // -----------------------------------------------------------------------
-      // Feature Flag OFF (sessionId === undefined): 세션 생성 안 함
-      // Feature Flag ON + 세션 없음 (sessionId === null): 새 세션 생성
-      // -----------------------------------------------------------------------
-      let currentSessionId = sessionId
       if (sessionId === null) {
         // Feature Flag ON이지만 세션이 없으면 새로 생성
         try {
@@ -193,6 +222,11 @@ export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
       ])
     } finally {
       setIsLoading(false)
+      // 스트림 완료 후 메타데이터(검증 결과) 동기화를 위해 메시지 목록 갱신
+      if (currentSessionId) {
+        // 약간의 지연 후 갱신 (DB 저장 시간 고려)
+        setTimeout(() => refreshMessages(currentSessionId!), 500)
+      }
     }
   }
 
@@ -254,8 +288,22 @@ export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
               <span className="text-xs opacity-70 mt-1 block">
                 {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
+              </div>
+              
+              {/* Citation Verification Badge */}
+              {message.role === 'assistant' && message.metadata?.citation_verification && (
+                <div className={`mt-1 text-xs px-2 py-1 rounded w-fit ${
+                  message.metadata.citation_verification.valid 
+                    ? 'bg-green-100 text-green-700' 
+                    : 'bg-amber-100 text-amber-700'
+                }`}>
+                  {message.metadata.citation_verification.valid ? '✅ 근거 검증됨' : '⚠️ 근거 부족 가능성'} 
+                  {message.metadata.citation_verification.matchScore > 0 && 
+                    ` (${Math.round(message.metadata.citation_verification.matchScore * 100)}% 일치)`
+                  }
+                </div>
+              )}
             </div>
-          </div>
         ))}
         <div ref={messagesEndRef} />
       </div>

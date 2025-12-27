@@ -116,6 +116,33 @@ export const FEATURE_FLAGS = {
    * - 롤백: OFF 시 탐지 로직 완전 비활성화
    */
   ENABLE_HALLUCINATION_DETECTION: process.env.ENABLE_HALLUCINATION_DETECTION === 'true',
+
+  /**
+   * RAFT 파인튜닝 기능 활성화
+   * 환경 변수: ENABLE_RAFT_FEATURES
+   * 기본값: false (명시적 활성화 필요)
+   * 
+   * @description
+   * - RAFT 데이터셋 관리 API 활성화
+   * - 합성 데이터 생성 기능 활성화
+   * - 관리자 RAFT 대시보드 활성화
+   * - 롤백: OFF 시 모든 RAFT 기능 비활성화
+   */
+  ENABLE_RAFT_FEATURES: process.env.ENABLE_RAFT_FEATURES === 'true',
+
+  /**
+   * 단계형 패치 활성화 (1차 핵심 → 2차 표현 → 3차 디테일)
+   * 환경 변수: FF_PATCH_STAGING
+   * 기본값: false (점진적 롤아웃)
+   */
+  FF_PATCH_STAGING: process.env.FF_PATCH_STAGING === 'true',
+
+  /**
+   * 근거 강도 표시 (display_only)
+   * 환경 변수: FF_EVIDENCE_QUALITY
+   * 기본값: false
+   */
+  FF_EVIDENCE_QUALITY: process.env.FF_EVIDENCE_QUALITY === 'true',
 } as const
 
 // =============================================================================

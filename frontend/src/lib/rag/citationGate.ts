@@ -190,7 +190,7 @@ export function verifyCitation(
     if (combinedScore > bestMatch.matchScore) {
       bestMatch = {
         valid: combinedScore >= SIMILARITY_THRESHOLD,
-        matchedChunkId: chunk.id,
+        matchedChunkId: combinedScore >= SIMILARITY_THRESHOLD ? chunk.id : undefined,
         matchScore: Math.round(combinedScore * 100) / 100,
       }
     }

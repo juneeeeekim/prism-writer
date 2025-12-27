@@ -10,6 +10,7 @@ import { embedText } from './embedding'
 import { validateACL } from './aclGate'
 import { type ChunkType } from './chunking'
 import { PIPELINE_V4_FLAGS } from './featureFlags'
+import { type EvidenceQuality, EvidenceQualityGrade } from '@/types/rag' // P1-C types
 
 // =============================================================================
 // 타입 정의
@@ -27,6 +28,8 @@ export interface SearchResult {
   score: number
   /** 메타데이터 */
   metadata: Record<string, any>
+  /** 근거 품질 (P1-C) */
+  quality?: EvidenceQuality
 }
 
 export type Chunk = SearchResult
@@ -68,6 +71,71 @@ const DEFAULT_VECTOR_WEIGHT = 0.7
 
 /** 기본 키워드 가중치 */
 const DEFAULT_KEYWORD_WEIGHT = 0.3
+
+// =============================================================================
+// Helper: 근거 품질 계산 (P1-C)
+// =============================================================================
+export function calculateEvidenceQuality(
+  score: number, 
+  method: 'vector' | 'keyword',
+  chunkDate?: string // ISO string
+): EvidenceQuality {
+  // 1. 점수 스케일링 (0~1 -> 0~100)
+  const normalizedScore = Math.round(score * 100)
+  
+  // 2. 등급 산정 로직
+  let grade = EvidenceQualityGrade.LOW
+  
+  if (method === 'vector') {
+    if (score >= 0.78) grade = EvidenceQualityGrade.HIGH
+    else if (score >= 0.72) grade = EvidenceQualityGrade.MEDIUM
+  } else {
+    // Keyword search (score = 1 - rank/topK)
+    if (score >= 0.8) grade = EvidenceQualityGrade.HIGH
+    else if (score >= 0.5) grade = EvidenceQualityGrade.MEDIUM
+  }
+
+  // 3. 최신성 점수 계산 (1년 이내 100점, 1년 경과 시 20점)
+  let recencyScore = undefined
+  if (chunkDate) {
+    const now = new Date()
+    const docDate = new Date(chunkDate)
+    const diffTime = Math.abs(now.getTime() - docDate.getTime())
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    
+    if (diffDays <= 365) {
+      recencyScore = 100
+    } else {
+      recencyScore = 20 // 1년 이상 된 문서는 최신성 낮음
+    }
+  }
+
+  return {
+    grade,
+    score: normalizedScore,
+    factors: {
+      relevance: score,
+      recency: recencyScore
+    }
+  }
+}
+
+/**
+ * 근거 품질 일괄 계산 (Batch Processing)
+ * 
+ * @description
+ * N+1 문제를 방지하기 위한 배치 처리 인터페이스입니다.
+ * 현재 로직은 메모리 연산(O(1))이므로 map을 사용하지만,
+ * 향후 DB 조회(예: 저자 권위)가 추가될 경우 이 함수 내부에서
+ * 배치 쿼리(Promise.all 또는 WHERE IN)를 구현해야 합니다.
+ * 
+ * @param items - 점수와 검색 방식이 포함된 항목 배열
+ */
+export function calculateEvidenceQualityBatch(
+  items: Array<{ score: number; method: 'vector' | 'keyword' }>
+): EvidenceQuality[] {
+  return items.map(item => calculateEvidenceQuality(item.score, item.method))
+}
 
 // =============================================================================
 // 벡터 검색
@@ -201,6 +269,7 @@ export async function vectorSearch(
     content: item.content,
     score: item.similarity,
     metadata: { ...item.metadata, chunkType: item.chunk_type },  // chunk_type을 metadata에 포함
+    quality: calculateEvidenceQuality(item.similarity, 'vector') // P1-C Quality
   }))
 
   // 문서 ID 필터 (DB 레벨에서 안 했으므로 여기서 처리)
@@ -302,6 +371,7 @@ export async function fullTextSearch(
     content: item.content,
     score: 1 - index / topK, // 순위 기반 점수 (1 ~ 0)
     metadata: { ...item.metadata, chunkType: item.chunk_type },  // chunk_type을 metadata에 포함
+    quality: calculateEvidenceQuality(1 - index / topK, 'keyword') // P1-C Quality
   }))
 
   // 최소 점수 필터

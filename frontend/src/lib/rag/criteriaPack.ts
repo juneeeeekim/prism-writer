@@ -332,9 +332,14 @@ async function fetchPinnedItems(
       return Array.from(getLocalPins(userId, templateId))
     }
 
-    return data.map(item => item.item_id)
-  } catch (error) {
-    console.error('[CriteriaPack] Fetch pins error:', error)
+    return (data || []).map(item => item.item_id)
+  } catch (error: any) {
+    // 42P01: undefined_table (마이그레이션 미적용 시)
+    if (error?.code === '42P01' || error?.message?.includes('relation "criteria_pack_pins" does not exist')) {
+      console.warn('[CriteriaPack] 테이블이 존재하지 않습니다. 마이그레이션(029_criteria_pack.sql)을 실행해주세요. (Graceful Fallback: 로컬 캐시 사용)')
+    } else {
+      console.error('[CriteriaPack] Fetch pins error:', error)
+    }
     return Array.from(getLocalPins(userId, templateId))
   }
 }
