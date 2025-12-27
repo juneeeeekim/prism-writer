@@ -323,7 +323,8 @@ async function generatePatchesParallel(
   // ---------------------------------------------------------------------------
   // Phase 9: evidenceContext 전달 (선택)
   // ---------------------------------------------------------------------------
-  evidenceContext?: string
+  evidenceContext?: string,
+  qualityLevel?: string // 'standard' | 'high_quality'
 ): Promise<Patch[]> {
   try {
     // Top N개의 Gap에 대해 병렬로 패치 생성
@@ -332,12 +333,13 @@ async function generatePatchesParallel(
     // patchGenerator 호출
     const patches = await Promise.all(
       targetGaps.map(gap => 
-        runPatchGenerator({ 
+        runPatchGenerator(
           userText, 
           gap, 
           criteriaPack,
-          evidenceContext 
-        }).catch(err => {
+          evidenceContext || null, // Ensure string | null
+          (qualityLevel as any) || 'standard' // Cast or use default. Better to fix type definition.
+        ).catch(err => {
           console.error(`[ChangePlan] Patch generation failed for ${gap.criteria_name}:`, err)
           return null
         })

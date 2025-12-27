@@ -213,7 +213,7 @@ export async function POST(
         if (result.status === 'pass') return null
         
         const criteria = templateSchema[index]
-        return runUpgradePlanner(result, criteria)
+        return runUpgradePlanner(criteria, result)
       })
       const plans = (await Promise.all(planPromises)).filter(p => p !== null) as UpgradePlan[]
 

@@ -12,7 +12,8 @@ interface FeedbackPanelProps {
   onApplyPlan?: (plan: UpgradePlan) => Promise<void>
   onRetryPlan?: (criteriaId: string) => Promise<UpgradePlan | null>
   // Phase 8-B: 개별 항목 재평가 콜백
-  onReevaluate?: (criteriaId: string) => Promise<{
+  // Phase 8-B: 개별 항목 재평가 콜백
+  onReevaluate?: (criteriaId: string, options?: { quality?: 'standard' | 'high_quality' }) => Promise<{
     judgment: JudgeResult
     upgradePlan?: UpgradePlan
   } | null>
@@ -138,8 +139,7 @@ const FeedbackItem = memo(function FeedbackItem({
   plan?: UpgradePlan,
   onApplyPlan?: (plan: UpgradePlan) => Promise<void>,
   onRetryPlan?: (criteriaId: string) => Promise<UpgradePlan | null>,
-  // Phase 8-B: 개별 항목 재평가
-  onReevaluate?: (criteriaId: string) => Promise<{
+  onReevaluate?: (criteriaId: string, options?: { quality?: 'standard' | 'high_quality' }) => Promise<{
     judgment: JudgeResult
     upgradePlan?: UpgradePlan
   } | null>
@@ -183,21 +183,23 @@ const FeedbackItem = memo(function FeedbackItem({
   // -------------------------------------------------------------------------
   // Phase 8-B: 개별 항목 재평가 핸들러 (30초 쿨다운 포함)
   // -------------------------------------------------------------------------
-  const handleReevaluate = async () => {
+  const handleReevaluate = async (quality: 'standard' | 'high_quality' = 'standard') => {
     if (!onReevaluate || isReevaluating) return
     
-    // 30초 쿨다운 체크
-    const now = Date.now()
-    if (now - lastReevaluateTime < 30000) {
-      alert('30초 후에 다시 시도해주세요.')
-      return
+    // 30초 쿨다운 체크 (standard quality에만 적용)
+    if (quality === 'standard') {
+      const now = Date.now()
+      if (now - lastReevaluateTime < 30000) {
+        alert('30초 후에 다시 시도해주세요.')
+        return
+      }
+      setLastReevaluateTime(now)
     }
     
-    setLastReevaluateTime(now)
     setIsReevaluating(true)
     
     try {
-      const result = await onReevaluate(localJudgment.criteria_id)
+      const result = await onReevaluate(localJudgment.criteria_id, { quality })
       if (result) {
         setLocalJudgment(result.judgment)
         if (result.upgradePlan) {
@@ -257,22 +259,24 @@ const FeedbackItem = memo(function FeedbackItem({
             </span>
             {/* Phase 8-B: 재평가 버튼 */}
             {onReevaluate && (
-              <button
-                onClick={handleReevaluate}
-                disabled={isReevaluating}
-                className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded transition-colors flex items-center gap-1"
-                aria-label="이 항목 재평가"
-              >
-                {isReevaluating ? (
-                  <>
-                    <span className="animate-spin text-xs">⏳</span> 재평가 중...
-                  </>
-                ) : (
-                  <>
-                    <span>🔁</span> 재평가
-                  </>
-                )}
-              </button>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => handleReevaluate('standard')}
+                  disabled={isReevaluating}
+                  className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded transition-colors flex items-center gap-1"
+                  aria-label="이 항목 재평가"
+                >
+                  {isReevaluating ? (
+                    <>
+                      <span className="animate-spin text-xs">⏳</span> 재평가 중...
+                    </>
+                  ) : (
+                    <>
+                      <span>🔁</span> 재평가
+                    </>
+                  )}
+                </button>
+              </div>
             )}
           </div>
 
@@ -291,14 +295,41 @@ const FeedbackItem = memo(function FeedbackItem({
           {/* 수정 계획 (Upgrade Plan) */}
           {plan && (
             <div className="mt-4 pt-3 border-t border-dashed border-gray-200 dark:border-gray-700">
-              <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 mb-2 flex items-center justify-between">
-                <span className="flex items-center gap-1">🚀 Upgrade Plan</span>
-                <div className="flex items-center gap-2">
-                  {/* Phase 8-E: 오류 시 재평가 버튼 표시 (재시도 버튼 통합) */}
+                <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 mb-2 flex items-center justify-between">
+                  <span className="flex items-center gap-1">
+                    🚀 Upgrade Plan
+                    {/* Badge for High Quality model */}
+                    {plan._meta?.quality === 'high_quality' && (
+                      <span className="ml-2 text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded border border-purple-200">
+                        Pro Analysis
+                      </span>
+                    )}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {/* P10-04: Deep Analysis Button */}
+                    {!isPlanError && onReevaluate && (
+                      <button
+                        onClick={() => handleReevaluate('high_quality')}
+                        disabled={isReevaluating}
+                        className="text-[10px] bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 px-2 py-1 rounded transition-colors flex items-center gap-1"
+                        title="GPT-4/Gemini Pro 수준의 심층 분석"
+                      >
+                         {isReevaluating ? (
+                           <>
+                             <span className="animate-spin text-[10px]">⏳</span> 분석 중...
+                           </>
+                         ) : (
+                           <>
+                             🧠 Deep Analysis
+                           </>
+                         )}
+                      </button>
+                    )}
+
                   {/* 재평가를 통해 LLM 기반 Upgrade Plan 생성 */}
                   {isPlanError && onReevaluate && (
                     <button
-                      onClick={handleReevaluate}
+                      onClick={() => handleReevaluate('standard')}
                       disabled={isReevaluating}
                       className="text-xs bg-amber-100 hover:bg-amber-200 text-amber-700 px-2 py-1 rounded transition-colors flex items-center gap-1"
                     >
@@ -333,6 +364,14 @@ const FeedbackItem = memo(function FeedbackItem({
                   )}
                 </div>
               </h4>
+
+              {/* Fallback Notification */}
+              {plan._meta?.isFallback && (
+                <div className="mb-3 px-2 py-1.5 bg-amber-50 border border-amber-200 rounded text-xs text-amber-700 flex items-center gap-1.5 animate-pulse">
+                  <span>⚠️</span>
+                  <span>Pro 모델 사용량이 많아 <strong>Flash 모델</strong>로 자동 전환되었습니다.</span>
+                </div>
+              )}
               
               <div className="space-y-2 text-sm">
                 <div>

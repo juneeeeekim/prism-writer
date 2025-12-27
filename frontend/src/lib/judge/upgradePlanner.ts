@@ -2,6 +2,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { type TemplateSchema } from '../rag/templateTypes'
 import { type JudgeResult, type UpgradePlan } from './types'
+import { ModelSelector, type ModelQuality } from '../llm/modelSelector'
 
 // =============================================================================
 // Helper: JSON Sanitization
@@ -32,13 +33,10 @@ function sanitizeJSON(text: string): string {
  * - 모델: gemini-3-pro-preview (정교한 추론)
  */
 export async function runUpgradePlanner(
-  judgeResult: JudgeResult,
   criteria: TemplateSchema,
-  // -------------------------------------------------------------------------
-  // Phase 8-F: 사용자 참고자료 컨텍스트 (RAG 검색 결과)
-  // 기본값 ''으로 하위 호환성 유지
-  // -------------------------------------------------------------------------
-  evidenceContext: string = ''
+  judgeResult: JudgeResult,
+  evidenceContext: string | null = null,
+  qualityLevel: ModelQuality = 'standard' // Default to standard (Flash)
 ): Promise<UpgradePlan> {
   // Pass인 경우 계획 수립 불필요
   if (judgeResult.status === 'pass') {
@@ -51,9 +49,10 @@ export async function runUpgradePlanner(
   }
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  // User Strategy: Use Gemini 3.0 Flash as Base (Default) per 'Gemini 3 Flash Reference'
-  const primaryModelName = 'gemini-3-flash-preview' 
-  const fallbackModelName = 'gemini-2.0-flash-exp' // Reliable fallback if 3.0 Flash fails
+  // Phase 10: Use ModelSelector for centralized model management
+  const modelConfig = ModelSelector.selectModel('plan', qualityLevel)
+  const primaryModelName = modelConfig.primary
+  const fallbackModelName = modelConfig.fallback
 
 
 
@@ -96,6 +95,7 @@ ${(() => {
 
   try {
     let rawText = ''
+    let usedModel = primaryModelName
     
     // 1. Primary Model 시도
     try {
@@ -112,6 +112,7 @@ ${(() => {
       console.warn(`[UpgradePlanner] Primary model (${primaryModelName}) failed, trying fallback (${fallbackModelName})...`, primaryError)
       
       // 2. Fallback Model 시도
+      usedModel = fallbackModelName // Record that we used fallback
       const model = genAI.getGenerativeModel({ model: fallbackModelName })
       const result = await model.generateContent({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -135,6 +136,13 @@ ${(() => {
       why: parsed.why,
       how: parsed.how,
       example: parsed.example,
+      // Meta info for UI logic (e.g. showing Pro badge)
+      // Meta info for UI logic (e.g. showing Pro badge)
+      _meta: {
+        model: usedModel,
+        quality: qualityLevel,
+        isFallback: usedModel === fallbackModelName
+      }
     }
   } catch (error) {
     console.error('[UpgradePlanner] Error:', error)

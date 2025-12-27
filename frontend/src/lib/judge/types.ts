@@ -34,6 +34,12 @@ export interface UpgradePlan {
   how: string
   /** 수정 예시 (Before/After 또는 모범 예시) */
   example: string
+  /** 메타데이터 (모델 정보 등) */
+  _meta?: {
+    model: string
+    quality: string
+    isFallback?: boolean
+  }
 }
 
 /**

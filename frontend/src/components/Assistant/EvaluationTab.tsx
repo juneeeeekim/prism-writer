@@ -318,7 +318,7 @@ export default function EvaluationTab() {
   // [Phase 8-C/D] 개별 항목 재평가 핸들러
   // Phase 8-D: result 상태 업데이트 + DB 저장 추가
   // ---------------------------------------------------------------------------
-  const handleReevaluate = useCallback(async (criteriaId: string) => {
+  const handleReevaluate = useCallback(async (criteriaId: string, options?: { quality?: 'standard' | 'high_quality' }) => {
     const textToEvaluate = content
     
     if (!textToEvaluate) return null
@@ -337,7 +337,9 @@ export default function EvaluationTab() {
         headers: getApiHeaders(),
         body: JSON.stringify({
           userText: textToEvaluate,
+          documentId: result?.document_id || 'unknown', // Use result?.document_id as currentDoc is not defined
           criteriaId,
+          qualityLevel: options?.quality || 'standard', // P10-02: Pass quality param
           topK: 5
         }),
       })
