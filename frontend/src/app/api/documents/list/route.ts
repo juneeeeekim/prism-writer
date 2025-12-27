@@ -40,9 +40,10 @@ export async function GET(req: NextRequest) {
     // -------------------------------------------------------------------------
     const { data: documents, error: listError, count } = await supabase
       .from('user_documents')
-      .select('id, title, content, category, updated_at', { count: 'exact' })
+      .select('id, title, content, category, sort_order, updated_at', { count: 'exact' }) // Phase 13: sort_order 추가
       .eq('user_id', user.id)
-      .order('updated_at', { ascending: false })
+      .order('sort_order', { ascending: true }) // Phase 13: 정렬 우선순위 1
+      .order('updated_at', { ascending: false }) // Phase 13: 정렬 우선순위 2
       .range(offset, offset + limit - 1)
 
     if (listError) {
@@ -59,6 +60,7 @@ export async function GET(req: NextRequest) {
       title: doc.title,
       preview: doc.content.substring(0, 100) + (doc.content.length > 100 ? '...' : ''),
       category: doc.category ?? '미분류',  // JeDebug: null 안전 처리
+      sort_order: doc.sort_order ?? 0,    // Phase 13: sort_order 추가
       updated_at: doc.updated_at
     }))
 

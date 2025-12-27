@@ -1,10 +1,10 @@
 // =============================================================================
-// Phase 11: Document Types (Phase 12: Category 추가)
+// Phase 11: Document Types (Phase 12: Category, Phase 13: Sort Order)
 // =============================================================================
 // 파일: frontend/src/types/document.ts
 // 역할: 문서 관련 타입 정의
 // 생성일: 2025-12-28
-// 수정일: 2025-12-28 (Phase 12 - category 필드 추가)
+// 수정일: 2025-12-28 (Phase 13 - sort_order 필드 추가)
 // =============================================================================
 
 /**
@@ -15,6 +15,7 @@ export interface UserDocument {
   title: string
   content: string
   category: string  // Phase 12 추가
+  sort_order: number // Phase 13 추가
   created_at: string
   updated_at: string
 }
@@ -27,6 +28,7 @@ export interface UserDocumentPreview {
   title: string
   preview: string
   category: string  // Phase 12 추가
+  sort_order: number // Phase 13 추가
   updated_at: string
 }
 
@@ -37,7 +39,17 @@ export interface SaveDocumentRequest {
   id?: string
   title: string
   content: string
-  category?: string  // Phase 12 추가 (옵셔널, 미입력 시 '미분류')
+  category?: string  // Phase 12 추가
+}
+
+/**
+ * 문서 순서 변경 요청 (Phase 13)
+ */
+export interface ReorderRequest {
+  documents: {
+    id: string
+    sort_order: number
+  }[]
 }
 
 /**
@@ -47,6 +59,7 @@ export interface SaveDocumentResponse {
   id: string
   title: string
   category: string  // Phase 12 추가
+  sort_order: number // Phase 13 추가
   updated_at: string
 }
 

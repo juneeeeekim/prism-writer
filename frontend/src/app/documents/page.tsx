@@ -22,7 +22,7 @@ import type { UserDocumentPreview } from '@/types/document'
 // Page Component
 // =============================================================================
 export default function DocumentsPage() {
-  const { documents, loading, error, fetchList, deleteDocument } = useDocuments()
+  const { documents, loading, error, fetchList, deleteDocument, reorderDocuments } = useDocuments() // Phase 13: reorderDocuments 추가
   const { user, loading: authLoading } = useAuth()
   const { reset: resetEditor } = useEditorState()
 
@@ -193,6 +193,7 @@ export default function DocumentsPage() {
                 category={category}
                 documents={docs}
                 onDelete={handleDelete}
+                onReorder={reorderDocuments} // Phase 13: 순서 변경 핸들러
                 defaultOpen={true}
               />
             ))}

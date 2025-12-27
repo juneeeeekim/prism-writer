@@ -28,6 +28,7 @@ interface UseDocumentsReturn {
   saveDocument: (doc: { id?: string; title: string; content: string; category?: string }) => Promise<SaveDocumentResponse>
   deleteDocument: (id: string) => Promise<{ success: boolean }>
   loadDocument: (id: string) => Promise<UserDocument>
+  reorderDocuments: (items: { id: string; sort_order: number }[]) => Promise<void>
   clearError: () => void
 }
 
@@ -144,6 +145,45 @@ export function useDocuments(): UseDocumentsReturn {
   }, [])
 
   // ---------------------------------------------------------------------------
+  // 문서 순서 변경 (Phase 13)
+  // ---------------------------------------------------------------------------
+  const reorderDocuments = useCallback(async (items: { id: string; sort_order: number }[]) => {
+    // 1. Optimistic Update (UI 즉시 반영)
+    setDocuments(prev => {
+      const newDocs = [...prev]
+      items.forEach(item => {
+        const doc = newDocs.find(d => d.id === item.id)
+        if (doc) doc.sort_order = item.sort_order
+      })
+      // sort_order 기준 재정렬
+      return newDocs.sort((a, b) => {
+        if (a.sort_order === b.sort_order) {
+          // 정렬값 같으면 최신순
+          return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+        }
+        return a.sort_order - b.sort_order
+      })
+    })
+
+    // 2. API 호출
+    try {
+      const res = await fetch('/api/documents/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documents: items })
+      })
+      
+      if (!res.ok) {
+        throw new Error('순서 변경에 실패했습니다.')
+      }
+    } catch (e) {
+      console.error('[useDocuments] Reorder error:', e)
+      fetchList() // 실패 시 롤백 (목록 새로고침)
+      throw e
+    }
+  }, [fetchList])
+
+  // ---------------------------------------------------------------------------
   // 에러 초기화
   // ---------------------------------------------------------------------------
   const clearError = useCallback(() => {
@@ -159,6 +199,7 @@ export function useDocuments(): UseDocumentsReturn {
     saveDocument,
     deleteDocument,
     loadDocument,
+    reorderDocuments,
     clearError
   }
 }
