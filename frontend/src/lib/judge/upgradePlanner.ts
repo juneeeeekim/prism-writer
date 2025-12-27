@@ -119,7 +119,7 @@ ${(() => {
     console.error('[UpgradePlanner] Error:', error)
     return {
       criteria_id: criteria.criteria_id || 'unknown',
-      what: '수정 계획 생성 실패',
+      what: '[DEBUG] 수정 계획 생성 실패',
       why: `오류 상세: ${error instanceof Error ? error.message : String(error)}`,
       how: '잠시 후 다시 시도해주세요.',
       example: '',
