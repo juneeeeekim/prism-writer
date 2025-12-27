@@ -12,6 +12,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import DualPaneContainer from '@/components/DualPane/DualPaneContainer'
 import MarkdownEditor from '@/components/Editor/MarkdownEditor'
 import AssistantPanel from '@/components/Assistant/AssistantPanel'
@@ -20,6 +21,8 @@ import ThreePaneLayout from '@/components/Editor/ThreePaneLayout'
 import ReferencePanel from '@/components/Editor/ReferencePanel'
 import FeedbackPanel from '@/components/Editor/FeedbackPanel'
 import { useEditorState } from '@/hooks/useEditorState'
+import { useDocuments } from '@/hooks/useDocuments'
+import { useAuth } from '@/hooks/useAuth'
 import { createClient } from '@/lib/supabase/client'
 // ---------------------------------------------------------------------------
 // Pipeline v5: 중앙 집중 Feature Flag 사용
@@ -30,14 +33,54 @@ import { isFeatureEnabled, getUILayoutType, logFeatureFlags } from '@/config/fea
 // Editor Page Component
 // -----------------------------------------------------------------------------
 export default function EditorPage() {
+  const searchParams = useSearchParams()
+  const documentIdFromUrl = searchParams.get('id')
+  
   const { 
     content, 
+    title,
+    documentId,
+    setDocumentId,
+    markAsSaved,
+    loadFromServer,
     evaluationResult, 
     setEvaluationResult, 
     template, 
     setTemplate 
   } = useEditorState()
   
+  // Phase 11: 문서 저장 관련 훅
+  const { saveDocument, loadDocument } = useDocuments()
+  const { user } = useAuth()
+  const [isSaving, setIsSaving] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  
+  // ---------------------------------------------------------------------------
+  // Phase 11: URL에서 문서 ID로 문서 로드
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    const loadFromUrl = async () => {
+      if (documentIdFromUrl && documentIdFromUrl !== documentId) {
+        setIsLoading(true)
+        try {
+          const doc = await loadDocument(documentIdFromUrl)
+          loadFromServer({
+            id: doc.id,
+            title: doc.title,
+            content: doc.content
+          })
+        } catch (error) {
+          console.error('[EditorPage] Load document error:', error)
+          alert('문서를 불러오는데 실패했습니다.')
+        } finally {
+          setIsLoading(false)
+        }
+      }
+    }
+    
+    loadFromUrl()
+  }, [documentIdFromUrl])
+   
   // ---------------------------------------------------------------------------
   // Feature Flag 기반 UI 레이아웃 결정
   // ---------------------------------------------------------------------------
@@ -59,8 +102,40 @@ export default function EditorPage() {
   // =============================================================================
   // Handler Functions
   // =============================================================================
-  const handleSave = () => {
-    console.log('저장 기능 (추후 구현)')
+  
+  // Phase 11: 실제 저장 기능 구현
+  const handleSave = async () => {
+    if (!user) {
+      alert('로그인이 필요합니다.')
+      return
+    }
+    
+    if (!content && !title) {
+      alert('저장할 내용이 없습니다.')
+      return
+    }
+    
+    setIsSaving(true)
+    try {
+      const result = await saveDocument({
+        id: documentId || undefined,
+        title: title || '제목 없음',
+        content: content || ''
+      })
+      
+      // 새 문서면 ID 세팅
+      if (!documentId && result.id) {
+        setDocumentId(result.id)
+      }
+      
+      markAsSaved()
+      alert('저장되었습니다!')
+    } catch (error) {
+      console.error('[EditorPage] Save error:', error)
+      alert('저장에 실패했습니다. 다시 시도해주세요.')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleExport = () => {

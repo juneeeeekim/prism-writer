@@ -74,6 +74,15 @@ export default function AuthHeader({
                 🔍 RAG 검색
               </Link>
               
+              {/* Phase 11: 내 문서 링크 */}
+              <Link
+                href="/documents"
+                className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors flex items-center gap-1"
+                aria-label="내 문서"
+              >
+                📄 내 문서
+              </Link>
+              
               {/* 관리자 전용 대시보드 링크 (Phase 4 Add) */}
               {/* v2.1: 실제 Admin 권한(DB) 또는 로컬 Admin 모드(localStorage)가 켜져있으면 노출 */}
               {(isAdmin || (typeof window !== 'undefined' && localStorage.getItem('prism_admin_mode') === 'true')) && (

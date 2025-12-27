@@ -32,6 +32,9 @@ interface EditorState {
   isDirty: boolean
   lastSavedAt: Date | null
   
+  // Phase 11: 서버 문서 ID
+  documentId: string | null
+  
   // v3: 평가 및 템플릿 상태
   evaluationResult: EvaluationResult | null
   template: TemplateSchema[] | null
@@ -47,6 +50,9 @@ interface EditorState {
   insertText: (text: string) => void
   markAsSaved: () => void
   reset: () => void
+  // Phase 11: 서버 문서 관련 액션
+  setDocumentId: (id: string | null) => void
+  loadFromServer: (doc: { id: string; title: string; content: string }) => void
 }
 
 // -----------------------------------------------------------------------------
@@ -62,6 +68,7 @@ export const useEditorState = create<EditorState>()(
       currentParagraphIndex: 0,
       isDirty: false,
       lastSavedAt: null,
+      documentId: null,
       evaluationResult: null,
       template: null,
 
@@ -120,6 +127,20 @@ export const useEditorState = create<EditorState>()(
         currentParagraphIndex: 0,
         isDirty: false,
         lastSavedAt: null,
+        documentId: null,
+      }),
+
+      // ---------------------------------------------------------------------------
+      // Phase 11: 서버 문서 관련 액션
+      // ---------------------------------------------------------------------------
+      setDocumentId: (documentId) => set({ documentId }),
+      
+      loadFromServer: (doc) => set({
+        documentId: doc.id,
+        title: doc.title,
+        content: doc.content,
+        isDirty: false,
+        lastSavedAt: new Date(),
       }),
     }),
     {

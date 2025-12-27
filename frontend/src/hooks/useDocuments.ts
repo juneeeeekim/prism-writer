@@ -1,0 +1,150 @@
+// =============================================================================
+// Phase 11: useDocuments Hook
+// =============================================================================
+// 파일: frontend/src/hooks/useDocuments.ts
+// 역할: 문서 CRUD 작업용 훅
+// 생성일: 2025-12-28
+// =============================================================================
+
+'use client'
+
+import { useState, useCallback } from 'react'
+import type { 
+  UserDocument, 
+  UserDocumentPreview, 
+  SaveDocumentResponse,
+  DocumentListResponse 
+} from '@/types/document'
+
+// =============================================================================
+// Types
+// =============================================================================
+interface UseDocumentsReturn {
+  documents: UserDocumentPreview[]
+  loading: boolean
+  error: string | null
+  fetchList: () => Promise<void>
+  saveDocument: (doc: { id?: string; title: string; content: string }) => Promise<SaveDocumentResponse>
+  deleteDocument: (id: string) => Promise<{ success: boolean }>
+  loadDocument: (id: string) => Promise<UserDocument>
+  clearError: () => void
+}
+
+// =============================================================================
+// Hook Implementation
+// =============================================================================
+export function useDocuments(): UseDocumentsReturn {
+  const [documents, setDocuments] = useState<UserDocumentPreview[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // ---------------------------------------------------------------------------
+  // 문서 목록 조회
+  // ---------------------------------------------------------------------------
+  const fetchList = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    
+    try {
+      const res = await fetch('/api/documents/list')
+      
+      if (!res.ok) {
+        if (res.status === 401) {
+          throw new Error('로그인이 필요합니다.')
+        }
+        throw new Error('문서 목록을 불러오는데 실패했습니다.')
+      }
+      
+      const data: DocumentListResponse = await res.json()
+      setDocuments(data.documents)
+    } catch (e) {
+      const message = e instanceof Error ? e.message : '알 수 없는 오류가 발생했습니다.'
+      setError(message)
+      console.error('[useDocuments] fetchList error:', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  // ---------------------------------------------------------------------------
+  // 문서 저장 (생성 또는 수정)
+  // ---------------------------------------------------------------------------
+  const saveDocument = useCallback(async (doc: { 
+    id?: string
+    title: string
+    content: string 
+  }): Promise<SaveDocumentResponse> => {
+    const res = await fetch('/api/documents/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(doc)
+    })
+    
+    if (!res.ok) {
+      if (res.status === 401) {
+        throw new Error('로그인이 필요합니다.')
+      }
+      throw new Error('문서 저장에 실패했습니다.')
+    }
+    
+    return res.json()
+  }, [])
+
+  // ---------------------------------------------------------------------------
+  // 문서 삭제
+  // ---------------------------------------------------------------------------
+  const deleteDocument = useCallback(async (id: string): Promise<{ success: boolean }> => {
+    const res = await fetch(`/api/documents/${id}`, { 
+      method: 'DELETE' 
+    })
+    
+    if (!res.ok) {
+      if (res.status === 401) {
+        throw new Error('로그인이 필요합니다.')
+      }
+      if (res.status === 404) {
+        throw new Error('문서를 찾을 수 없습니다.')
+      }
+      throw new Error('문서 삭제에 실패했습니다.')
+    }
+    
+    return res.json()
+  }, [])
+
+  // ---------------------------------------------------------------------------
+  // 문서 상세 조회
+  // ---------------------------------------------------------------------------
+  const loadDocument = useCallback(async (id: string): Promise<UserDocument> => {
+    const res = await fetch(`/api/documents/${id}`)
+    
+    if (!res.ok) {
+      if (res.status === 401) {
+        throw new Error('로그인이 필요합니다.')
+      }
+      if (res.status === 404) {
+        throw new Error('문서를 찾을 수 없습니다.')
+      }
+      throw new Error('문서를 불러오는데 실패했습니다.')
+    }
+    
+    return res.json()
+  }, [])
+
+  // ---------------------------------------------------------------------------
+  // 에러 초기화
+  // ---------------------------------------------------------------------------
+  const clearError = useCallback(() => {
+    setError(null)
+  }, [])
+
+  return {
+    documents,
+    loading,
+    error,
+    fetchList,
+    saveDocument,
+    deleteDocument,
+    loadDocument,
+    clearError
+  }
+}
