@@ -75,7 +75,8 @@ export default function AuthHeader({
               </Link>
               
               {/* 관리자 전용 대시보드 링크 (Phase 4 Add) */}
-              {isAdmin && (
+              {/* v2.1: 실제 Admin 권한(DB) 또는 로컬 Admin 모드(localStorage)가 켜져있으면 노출 */}
+              {(isAdmin || (typeof window !== 'undefined' && localStorage.getItem('prism_admin_mode') === 'true')) && (
                 <Link
                   href="/admin/feedback"
                   className="px-3 py-1.5 text-sm text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded transition-colors flex items-center gap-1 font-medium"
