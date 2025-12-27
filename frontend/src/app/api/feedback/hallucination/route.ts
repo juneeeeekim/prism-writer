@@ -13,6 +13,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { MemoryService } from '@/lib/rag/memory'
 
 export const runtime = 'nodejs'
 
@@ -111,11 +112,12 @@ export async function POST(req: NextRequest) {
     }
 
     // -------------------------------------------------------------------------
-    // 5. 사용자 명시적 피드백만 DB에 저장
+    // 5. 사용자 명시적 피드백 저장 & (Optimized) 선호 지식 메모리 저장
     // -------------------------------------------------------------------------
     console.log('[Hallucination Feedback] User explicit feedback - saving to DB')
     
-    const { error } = await supabase
+    // 1) Feedback Insert Promise
+    const feedbackPromise = supabase
       .from('hallucination_feedback')
       .insert({
         user_id: user.id,
@@ -134,16 +136,39 @@ export async function POST(req: NextRequest) {
         user_comment: body.userComment || null,
         
         // 자동 탐지 결과 (참고용으로 저장)
-        auto_detected_hallucination: false, // 명시적 피드백은 auto_detected가 false
+        auto_detected_hallucination: false, 
         detection_confidence: null,
         matched_pattern: null,
       })
 
-    if (error) {
-      console.error('[Hallucination Feedback] DB insert error:', error)
+    // 2) Memory Save Promise (Condition: Positive Feedback)
+    // [JeDebug Fix] Parallel execution using Promise.all for performance
+    // Fail-open strategy: Memory save failure should NOT block feedback response
+    const shouldSaveToMemory = body.isPositive && body.userQuery && body.modelResponse
+    
+    const memoryPromise = shouldSaveToMemory
+      ? MemoryService.savePreference(user.id, body.userQuery, body.modelResponse)
+          .catch(err => {
+            console.error('[Feedback API] Memory save failed (non-blocking):', err)
+            return null // Return null to proceed
+          })
+      : Promise.resolve(null)
+
+    // 3) Await All
+    // feedbackResult: { data, error, ... } from Supabase
+    // memoryResult: null or void
+    const [feedbackResult, _memoryResult] = await Promise.all([
+      feedbackPromise,
+      memoryPromise
+    ])
+    
+    const { error: feedbackError } = feedbackResult
+
+    if (feedbackError) {
+      console.error('[Hallucination Feedback] DB insert error:', feedbackError)
       
       // 테이블이 없는 경우 (마이그레이션 안 됨)
-      if (error.code === '42P01') {
+      if (feedbackError.code === '42P01') {
         return NextResponse.json({
           success: false,
           error: 'Feedback table not found. Migration required.',
