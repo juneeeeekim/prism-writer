@@ -315,12 +315,19 @@ export default function EvaluationTab() {
   }, [content, result])
 
   // ---------------------------------------------------------------------------
-  // [Phase 8-C] 개별 항목 재평가 핸들러
+  // [Phase 8-C/D] 개별 항목 재평가 핸들러
+  // Phase 8-D: result 상태 업데이트 + DB 저장 추가
   // ---------------------------------------------------------------------------
   const handleReevaluate = useCallback(async (criteriaId: string) => {
     const textToEvaluate = content
     
     if (!textToEvaluate) return null
+    
+    // Phase 8-D: result null 체크 (최초 평가 전 재평가 방지)
+    if (!result) {
+      console.warn('[EvaluationTab] 재평가 불가: 기존 평가 결과 없음')
+      return null
+    }
     
     try {
       console.log(`[EvaluationTab] 개별 재평가 시작: ${criteriaId}`)
@@ -344,6 +351,48 @@ export default function EvaluationTab() {
 
       console.log(`[EvaluationTab] 재평가 성공: ${data.judgment?.status}`)
       
+      // -----------------------------------------------------------------------
+      // Phase 8-D: result 상태 업데이트 (React setState 비동기 문제 해결)
+      // 새 객체를 변수에 저장 후 setResult와 saveEvaluation에 동일 객체 전달
+      // -----------------------------------------------------------------------
+      
+      // 1. judgments 배열에서 해당 criteriaId 항목 교체
+      const newJudgments = result.judgments.map(j => 
+        j.criteria_id === criteriaId ? data.judgment : j
+      )
+      
+      // 2. upgrade_plans 배열 업데이트 (PASS면 제거, 아니면 추가/교체)
+      let newUpgradePlans = result.upgrade_plans.filter(p => p.criteria_id !== criteriaId)
+      if (data.upgradePlan && data.judgment?.status !== 'pass') {
+        newUpgradePlans = [...newUpgradePlans, data.upgradePlan]
+      }
+      
+      // 3. overall_score 재계산 (백엔드와 동일 수식)
+      const passCount = newJudgments.filter(j => j.status === 'pass').length
+      const partialCount = newJudgments.filter(j => j.status === 'partial').length
+      const totalCount = newJudgments.length
+      const newScore = Math.round(((passCount * 1.0 + partialCount * 0.5) / totalCount) * 100)
+      
+      // 4. 새 result 객체 생성 (불변성 유지)
+      const updatedResult: V5EvaluationResult = {
+        ...result,
+        judgments: newJudgments,
+        upgrade_plans: newUpgradePlans,
+        overall_score: newScore
+      }
+      
+      // 5. React 상태 업데이트
+      setResult(updatedResult)
+      
+      // 6. DB 저장 (새 객체 전달 - setState 비동기 문제 해결)
+      try {
+        await saveEvaluation(updatedResult, textToEvaluate)
+        console.log('[EvaluationTab] 재평가 결과 DB 저장 완료')
+      } catch (saveErr) {
+        console.error('[EvaluationTab] DB 저장 실패 (로컬 상태는 유지):', saveErr)
+      }
+      
+      // 7. FeedbackItem의 localJudgment 업데이트용 반환
       return { 
         judgment: data.judgment, 
         upgradePlan: data.upgradePlan 
@@ -353,7 +402,7 @@ export default function EvaluationTab() {
       console.error('[EvaluationTab] Reevaluate Error:', err)
       return null
     }
-  }, [content])
+  }, [content, result, saveEvaluation])
 
   // ---------------------------------------------------------------------------
   // 렌더링
