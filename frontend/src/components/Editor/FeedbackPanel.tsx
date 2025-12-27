@@ -294,20 +294,21 @@ const FeedbackItem = memo(function FeedbackItem({
               <h4 className="text-xs font-bold text-indigo-600 dark:text-indigo-400 mb-2 flex items-center justify-between">
                 <span className="flex items-center gap-1">🚀 Upgrade Plan</span>
                 <div className="flex items-center gap-2">
-                  {/* 재시도 버튼 - 오류 시에만 표시 */}
-                  {isPlanError && onRetryPlan && (
+                  {/* Phase 8-E: 오류 시 재평가 버튼 표시 (재시도 버튼 통합) */}
+                  {/* 재평가를 통해 LLM 기반 Upgrade Plan 생성 */}
+                  {isPlanError && onReevaluate && (
                     <button
-                      onClick={handleRetry}
-                      disabled={isRetrying}
+                      onClick={handleReevaluate}
+                      disabled={isReevaluating}
                       className="text-xs bg-amber-100 hover:bg-amber-200 text-amber-700 px-2 py-1 rounded transition-colors flex items-center gap-1"
                     >
-                      {isRetrying ? (
+                      {isReevaluating ? (
                         <>
-                          <span className="animate-spin text-xs">⏳</span> 재시도 중...
+                          <span className="animate-spin text-xs">⏳</span> 재평가 중...
                         </>
                       ) : (
                         <>
-                          <span>🔄</span> 재시도
+                          <span>🔁</span> 재평가
                         </>
                       )}
                     </button>
