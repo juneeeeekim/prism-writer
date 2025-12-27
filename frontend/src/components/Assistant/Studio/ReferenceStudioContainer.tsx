@@ -18,9 +18,77 @@ import { useDocumentStatus } from '@/hooks/useDocumentStatus'
 // - Cross-Device 동기화 불가 (v1 제한사항)
 // - v2에서 DB 기반 user_preferences 테이블 검토 예정
 // =============================================================================
+// =============================================================================
+// [localStorage] 참고자료 선택 상태 저장 키
+// - Cross-Device 동기화 불가 (v1 제한사항)
+// - v2에서 DB 기반 user_preferences 테이블 검토 예정
+// =============================================================================
 const SELECTED_DOC_KEY = 'prism_ref_selected_doc'
+const PANEL_WIDTH_KEY = 'prism_ref_panel_width'
+
+import { useRef, useCallback } from 'react'
 
 export default function ReferenceStudioContainer() {
+  // ===========================================================================
+  // [Resizing Logic] Panel Width Management
+  // ===========================================================================
+  const containerRef = useRef<HTMLDivElement>(null)
+  
+  // Initial width: Load from localStorage or default to 320px
+  const [leftWidth, setLeftWidth] = useState<number>(() => {
+    if (typeof window === 'undefined') return 320
+    const saved = localStorage.getItem(PANEL_WIDTH_KEY)
+    return saved ? parseInt(saved, 10) : 320
+  })
+
+  const [isDragging, setIsDragging] = useState(false)
+
+  const startResizing = useCallback(() => {
+    setIsDragging(true)
+    // Add global cursor style to body to prevent cursor flickering
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+  }, [])
+
+  const stopResizing = useCallback(() => {
+    setIsDragging(false)
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+  }, [])
+
+  const resize = useCallback(
+    (mouseMoveEvent: MouseEvent) => {
+      if (isDragging && containerRef.current) {
+        const containerRect = containerRef.current.getBoundingClientRect()
+        // Calculate new width relative to container left
+        // min-width: 250px, max-width: containerWidth - 300px
+        const newWidth = mouseMoveEvent.clientX - containerRect.left
+        const maxLimit = containerRect.width - 300 // Keep at least 300px for right panel
+        
+        if (newWidth >= 250 && newWidth <= maxLimit) {
+          setLeftWidth(newWidth)
+        }
+      }
+    },
+    [isDragging]
+  )
+
+  // Attach global listeners when dragging
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', resize)
+      window.addEventListener('mouseup', stopResizing)
+    }
+    return () => {
+      window.removeEventListener('mousemove', resize)
+      window.removeEventListener('mouseup', stopResizing)
+    }
+  }, [isDragging, resize, stopResizing])
+
+  // Save width to localStorage on change (debounced slightly by effect nature)
+  useEffect(() => {
+    localStorage.setItem(PANEL_WIDTH_KEY, leftWidth.toString())
+  }, [leftWidth])
   // ===========================================================================
   // [localStorage] 선택 상태 초기화 - localStorage에서 복원
   // ===========================================================================
@@ -96,7 +164,11 @@ export default function ReferenceStudioContainer() {
   // =============================================================================
 
   return (
-    <div className="flex h-[calc(100vh-12rem)] min-h-[500px] border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden shadow-sm bg-white dark:bg-gray-800">
+    <div 
+      ref={containerRef}
+      className="flex h-[calc(100vh-12rem)] min-h-[500px] border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden shadow-sm bg-white dark:bg-gray-800"
+      style={{ '--left-panel-width': `${leftWidth}px` } as React.CSSProperties}
+    >
       
       {/* ========================================================================
           Desktop: 2-Pane Layout (Always visible on md+)
@@ -105,7 +177,7 @@ export default function ReferenceStudioContainer() {
       
       {/* Left Panel: Document List */}
       <div className={`
-        w-full md:w-1/3 md:min-w-[300px] h-full
+        w-full md:w-[var(--left-panel-width)] md:flex-none h-full
         ${mobileView === 'detail' ? 'hidden md:block' : 'block'}
       `}>
         <DocumentListPanel 
@@ -118,9 +190,17 @@ export default function ReferenceStudioContainer() {
         />
       </div>
 
+      {/* Resize Handle (Desktop Only) */}
+      <div
+        className="hidden md:block w-1 h-full cursor-col-resize hover:bg-indigo-300 active:bg-indigo-500 transition-colors z-20 flex-none bg-gray-50 dark:bg-gray-900 border-l border-r border-transparent hover:border-gray-300"
+        onMouseDown={startResizing}
+        role="separator"
+        aria-label="Resize panels"
+      />
+
       {/* Right Panel: Active Context */}
       <div className={`
-        w-full md:flex-1 h-full bg-white dark:bg-gray-800
+        w-full md:flex-1 h-full bg-white dark:bg-gray-800 min-w-0
         ${mobileView === 'list' ? 'hidden md:block' : 'block'}
       `}>
         <ActiveContextPanel 
