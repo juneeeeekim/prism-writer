@@ -11,6 +11,11 @@ interface FeedbackPanelProps {
   onEvaluate?: () => void
   onApplyPlan?: (plan: UpgradePlan) => Promise<void>
   onRetryPlan?: (criteriaId: string) => Promise<UpgradePlan | null>
+  // Phase 8-B: 개별 항목 재평가 콜백
+  onReevaluate?: (criteriaId: string) => Promise<{
+    judgment: JudgeResult
+    upgradePlan?: UpgradePlan
+  } | null>
 }
 
 export default function FeedbackPanel({
@@ -19,6 +24,7 @@ export default function FeedbackPanel({
   onEvaluate,
   onApplyPlan,
   onRetryPlan,
+  onReevaluate,
 }: FeedbackPanelProps) {
   if (isLoading) {
     return (
@@ -94,6 +100,7 @@ export default function FeedbackPanel({
               plan={plan} 
               onApplyPlan={onApplyPlan}
               onRetryPlan={onRetryPlan}
+              onReevaluate={onReevaluate}
             />
           )
         })}
@@ -124,16 +131,28 @@ const FeedbackItem = memo(function FeedbackItem({
   judge, 
   plan: initialPlan,
   onApplyPlan,
-  onRetryPlan
+  onRetryPlan,
+  onReevaluate
 }: { 
   judge: JudgeResult, 
   plan?: UpgradePlan,
   onApplyPlan?: (plan: UpgradePlan) => Promise<void>,
-  onRetryPlan?: (criteriaId: string) => Promise<UpgradePlan | null>
+  onRetryPlan?: (criteriaId: string) => Promise<UpgradePlan | null>,
+  // Phase 8-B: 개별 항목 재평가
+  onReevaluate?: (criteriaId: string) => Promise<{
+    judgment: JudgeResult
+    upgradePlan?: UpgradePlan
+  } | null>
 }) {
+  // -------------------------------------------------------------------------
+  // Phase 8-B: 로컬 상태 관리 (부분 업데이트 지원)
+  // -------------------------------------------------------------------------
+  const [localJudgment, setLocalJudgment] = useState(judge)
   const [isOpen, setIsOpen] = useState(judge.status !== 'pass')
   const [isApplying, setIsApplying] = useState(false)
   const [isRetrying, setIsRetrying] = useState(false)
+  const [isReevaluating, setIsReevaluating] = useState(false)
+  const [lastReevaluateTime, setLastReevaluateTime] = useState<number>(0)
   const [plan, setPlan] = useState(initialPlan)
 
   const handleApply = async () => {
@@ -161,6 +180,40 @@ const FeedbackItem = memo(function FeedbackItem({
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Phase 8-B: 개별 항목 재평가 핸들러 (30초 쿨다운 포함)
+  // -------------------------------------------------------------------------
+  const handleReevaluate = async () => {
+    if (!onReevaluate || isReevaluating) return
+    
+    // 30초 쿨다운 체크
+    const now = Date.now()
+    if (now - lastReevaluateTime < 30000) {
+      alert('30초 후에 다시 시도해주세요.')
+      return
+    }
+    
+    setLastReevaluateTime(now)
+    setIsReevaluating(true)
+    
+    try {
+      const result = await onReevaluate(localJudgment.criteria_id)
+      if (result) {
+        setLocalJudgment(result.judgment)
+        if (result.upgradePlan) {
+          setPlan(result.upgradePlan)
+        } else if (result.judgment.status === 'pass') {
+          // PASS인 경우 upgradePlan 없음
+          setPlan(undefined)
+        }
+      } else {
+        alert('재평가에 실패했습니다. 잠시 후 다시 시도해주세요.')
+      }
+    } finally {
+      setIsReevaluating(false)
+    }
+  }
+
   // 오류 상태 감지 (plan.what에 "실패" 또는 "오류" 포함)
   const isPlanError = plan?.what?.includes('실패') || plan?.what?.includes('오류')
 
@@ -184,9 +237,9 @@ const FeedbackItem = memo(function FeedbackItem({
         className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <span className="text-lg">{statusIcons[judge.status]}</span>
+          <span className="text-lg">{statusIcons[localJudgment.status]}</span>
           <span className="font-medium text-gray-900 dark:text-white text-sm line-clamp-1">
-            {judge.reasoning}
+            {localJudgment.reasoning}
           </span>
         </div>
         <span className="text-gray-400 text-xs ml-2">
@@ -198,21 +251,40 @@ const FeedbackItem = memo(function FeedbackItem({
       {isOpen && (
         <div className="px-4 pb-4 pt-0 border-t border-gray-100 dark:border-gray-700/50">
           {/* 상태 뱃지 */}
-          <div className="mt-3 mb-2">
-            <span className={clsx("text-xs px-2 py-1 rounded-full border", statusColors[judge.status])}>
-              {judge.status.toUpperCase()}
+          <div className="mt-3 mb-2 flex items-center gap-2">
+            <span className={clsx("text-xs px-2 py-1 rounded-full border transition-colors duration-300", statusColors[localJudgment.status])}>
+              {localJudgment.status.toUpperCase()}
             </span>
+            {/* Phase 8-B: 재평가 버튼 */}
+            {onReevaluate && (
+              <button
+                onClick={handleReevaluate}
+                disabled={isReevaluating}
+                className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded transition-colors flex items-center gap-1"
+                aria-label="이 항목 재평가"
+              >
+                {isReevaluating ? (
+                  <>
+                    <span className="animate-spin text-xs">⏳</span> 재평가 중...
+                  </>
+                ) : (
+                  <>
+                    <span>🔁</span> 재평가
+                  </>
+                )}
+              </button>
+            )}
           </div>
 
           {/* 판정 근거 */}
           <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
-            {judge.reasoning}
+            {localJudgment.reasoning}
           </p>
 
           {/* 인용구 (문제 문장) */}
-          {judge.citation && (
+          {localJudgment.citation && (
             <div className="mb-3 p-2 bg-gray-50 dark:bg-gray-900 rounded border-l-2 border-gray-300 dark:border-gray-600 text-xs text-gray-500 italic">
-              "{judge.citation}"
+              "{localJudgment.citation}"
             </div>
           )}
 

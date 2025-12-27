@@ -315,6 +315,47 @@ export default function EvaluationTab() {
   }, [content, result])
 
   // ---------------------------------------------------------------------------
+  // [Phase 8-C] 개별 항목 재평가 핸들러
+  // ---------------------------------------------------------------------------
+  const handleReevaluate = useCallback(async (criteriaId: string) => {
+    const textToEvaluate = content
+    
+    if (!textToEvaluate) return null
+    
+    try {
+      console.log(`[EvaluationTab] 개별 재평가 시작: ${criteriaId}`)
+      
+      const response = await fetch('/api/rag/evaluate-single', {
+        method: 'POST',
+        headers: getApiHeaders(),
+        body: JSON.stringify({
+          userText: textToEvaluate,
+          criteriaId,
+          topK: 5
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        console.error('[EvaluationTab] 재평가 실패:', data)
+        return null
+      }
+
+      console.log(`[EvaluationTab] 재평가 성공: ${data.judgment?.status}`)
+      
+      return { 
+        judgment: data.judgment, 
+        upgradePlan: data.upgradePlan 
+      }
+      
+    } catch (err) {
+      console.error('[EvaluationTab] Reevaluate Error:', err)
+      return null
+    }
+  }, [content])
+
+  // ---------------------------------------------------------------------------
   // 렌더링
   // ---------------------------------------------------------------------------
   const showInitialState = !result && !isLoading
@@ -373,6 +414,7 @@ export default function EvaluationTab() {
             onEvaluate={handleEvaluate}
             onApplyPlan={handleApplyPlan}
             onRetryPlan={handleRetryPlan}
+            onReevaluate={handleReevaluate}
           />
         </div>
       )}
