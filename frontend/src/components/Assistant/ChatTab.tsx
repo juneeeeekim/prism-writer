@@ -23,12 +23,14 @@ interface Message {
 interface ChatTabProps {
   sessionId?: string | null  // undefined = Feature Flag OFF (legacy mode)
   onSessionChange: (sessionId: string) => void
+  /** Phase 14.5: Category for scoped RAG and Memory (null = all) */
+  category?: string | null
 }
 
 // -----------------------------------------------------------------------------
 // Component
 // -----------------------------------------------------------------------------
-export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
+export default function ChatTab({ sessionId, onSessionChange, category }: ChatTabProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -168,7 +170,8 @@ export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
         body: JSON.stringify({ 
           messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })),
           model: selectedModel || undefined,
-          sessionId: currentSessionId // 세션 ID 전달
+          sessionId: currentSessionId,
+          category: category || null  // Phase 14.5: Category-Scoped
         }),
       })
 

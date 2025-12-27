@@ -17,6 +17,7 @@ import EvaluationTab from './EvaluationTab'
 import ChatSessionList from './ChatSessionList'
 import ChatHistoryOnboarding from './ChatHistoryOnboarding'
 import { FEATURES } from '@/lib/features'
+import { useEditorState } from '@/hooks/useEditorState'  // Phase 14.5: Category-Scoped
 
 // -----------------------------------------------------------------------------
 // Types
@@ -52,6 +53,9 @@ export default function AssistantPanel() {
   useEffect(() => {
     setShowSessionList(FEATURES.CHAT_SESSION_LIST)
   }, [])
+
+  // Phase 14.5: Get category from Editor for category-scoped RAG/Memory
+  const editorCategory = useEditorState((state) => state.category)
 
 
 
@@ -128,9 +132,11 @@ export default function AssistantPanel() {
           )}
           <div className="flex-1 min-w-0 h-full">
             {/* Feature Flag OFF 시 세션 관리 비활성화 (기존 동작 유지) */}
+            {/* Phase 14.5: Pass category for scoped personalization */}
             <ChatTab 
               sessionId={showSessionList ? selectedSessionId : undefined} 
-              onSessionChange={setSelectedSessionId} 
+              onSessionChange={setSelectedSessionId}
+              category={editorCategory || null}
             />
           </div>
         </div>

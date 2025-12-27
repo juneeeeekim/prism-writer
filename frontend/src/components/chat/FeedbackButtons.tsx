@@ -34,6 +34,8 @@ interface FeedbackButtonsProps {
   retrievedDocs?: Array<{ title: string; chunkId: string }>
   /** 피드백 제출 후 콜백 (선택) */
   onFeedbackSubmit?: (isPositive: boolean) => void
+  /** Phase 14.5: 카테고리 (선택) */
+  category?: string
 }
 
 // =============================================================================
@@ -48,6 +50,7 @@ export default function FeedbackButtons({
   modelId,
   retrievedDocs,
   onFeedbackSubmit,
+  category,  // Phase 14.5
 }: FeedbackButtonsProps) {
   // ---------------------------------------------------------------------------
   // State
@@ -86,6 +89,7 @@ export default function FeedbackButtons({
           isPositive,
           feedbackType: isPositive ? 'quality' : 'hallucination',
           userComment: comment || null,
+          category: category || null,  // Phase 14.5
         }),
       })
 
@@ -139,6 +143,7 @@ export default function FeedbackButtons({
           isPositive: false,
           feedbackType: 'hallucination',
           userComment: comment,
+          category: category || null,  // Phase 14.5
         }),
       })
 
