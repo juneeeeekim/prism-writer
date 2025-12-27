@@ -53,9 +53,11 @@ export async function POST(req: NextRequest) {
     // -------------------------------------------------------------------------
     // 요청 본문 파싱
     // -------------------------------------------------------------------------
-    const { messages, model: requestedModel, sessionId } = await req.json()
+    // [Phase 14.5] Category-Scoped Personalization
+    const { messages, model: requestedModel, sessionId, category } = await req.json()
     const lastMessage = messages[messages.length - 1]
     const query = lastMessage.content
+    const categoryFilter = category || null  // null = all categories
 
     // -------------------------------------------------------------------------
     // 1. 사용자 ID 확인
@@ -80,8 +82,9 @@ export async function POST(req: NextRequest) {
     // 1.8. User Preferences Search (P14-04 Feedback-to-Memory)
     // -------------------------------------------------------------------------
     // [JeDebug Optimized] Start memory search early in parallel with RAG
+    // [Phase 14.5] Apply category filter
     const memoryPromise = userId 
-      ? MemoryService.searchPreferences(userId, query, 3, 0.72) // threshold slightly lower for recall
+      ? MemoryService.searchPreferences(userId, query, 3, 0.72, categoryFilter)
           .catch(err => {
             console.warn('[Chat API] Memory search failed:', err)
             return []
@@ -110,14 +113,15 @@ export async function POST(req: NextRequest) {
         // Step 2: 동적 임계값
         const dynamicThreshold = calculateDynamicThreshold(query)
         
-        // Step 3: 병렬 검색
+        // Step 3: 병렬 검색 (Phase 14.5: with category filter)
         const searchPromises = expandedQueries.map(q => 
           hybridSearch(q, {
             userId: userId || 'demo-user',
             topK: 3,
             minScore: dynamicThreshold,
             vectorWeight: 0.6,
-            keywordWeight: 0.4
+            keywordWeight: 0.4,
+            category: categoryFilter  // Phase 14.5
           }).catch(err => {
             console.warn(`[Chat API] Search failed for "${q}":`, err)
             return []
@@ -145,16 +149,16 @@ export async function POST(req: NextRequest) {
             .join('\n\n')
         }
         
-      } else {
-        // [Legacy Mode]
-        console.log('[Chat API] Query Expansion: DISABLED')
+        // [Legacy Mode] (Phase 14.5: with category filter)
+        console.log(`[Chat API] Query Expansion: DISABLED, category: ${categoryFilter || 'all'}`)
         
         const searchResults = await hybridSearch(query, {
           userId: userId || 'demo-user',
           topK: 5,
           minScore: 0.35,
           vectorWeight: 0.6,
-          keywordWeight: 0.4
+          keywordWeight: 0.4,
+          category: categoryFilter  // Phase 14.5
         })
 
         if (searchResults.length > 0) {

@@ -4,6 +4,7 @@
 // 파일: frontend/src/lib/rag/memory.ts
 // 역할: 사용자 선호/피드백 메모리 저장 및 검색 (pgvector 기반)
 // 설명: Feedback-to-Memory 루프의 핵심 모듈. 사용자의 피드백을 기억하고 RAG에 반영.
+// Updated: 2025-12-28 - Phase 14.5 Category-Scoped Personalization
 // =============================================================================
 
 import { createClient } from '@/lib/supabase/server'
@@ -17,6 +18,7 @@ export interface UserPreference {
   id: string
   question: string
   preferred_answer: string
+  category?: string
   similarity: number
   created_at?: string
 }
@@ -32,12 +34,14 @@ export class MemoryService {
    * @param userId - 사용자 ID
    * @param question - 사용자 질문
    * @param preferredAnswer - 사용자가 좋아한 답변
+   * @param category - 카테고리 (Phase 14.5: Category-Scoped)
    * @param embedding - (선택) 미리 생성된 임베딩, 없으면 내부에서 생성
    */
   static async savePreference(
     userId: string,
     question: string,
     preferredAnswer: string,
+    category: string = '미분류',
     embedding?: number[]
   ): Promise<void> {
     const supabase = createClient()
@@ -52,6 +56,7 @@ export class MemoryService {
         user_id: userId,
         question,
         preferred_answer: preferredAnswer,
+        category,
         embedding: vector
       })
       
@@ -60,7 +65,7 @@ export class MemoryService {
       throw new Error(`Failed to save user preference: ${error.message}`)
     }
     
-    console.log(`[MemoryService] Preference saved for user ${userId}`)
+    console.log(`[MemoryService] Preference saved for user ${userId} in category "${category}"`)
   }
 
   /**
@@ -70,24 +75,27 @@ export class MemoryService {
    * @param query - 검색 쿼리 (텍스트)
    * @param limit - 반환할 결과 개수 (기본: 3)
    * @param threshold - 유사도 임계값 (기본: 0.75)
+   * @param category - 카테고리 필터 (null = 전체, Phase 14.5)
    */
   static async searchPreferences(
     userId: string, 
     query: string, 
     limit: number = 3,
-    threshold: number = 0.75
+    threshold: number = 0.75,
+    category: string | null = null
   ): Promise<UserPreference[]> {
     const supabase = createClient()
     
     // 쿼리 임베딩
     const queryEmbedding = await embedText(query)
     
-    // RPC 호출 (match_user_preferences)
+    // RPC 호출 (match_user_preferences v2 - with category support)
     const { data, error } = await supabase.rpc('match_user_preferences', {
       query_embedding: queryEmbedding,
       match_threshold: threshold,
       match_count: limit,
-      user_id_param: userId
+      user_id_param: userId,
+      category_param: category  // null = 전체 카테고리 검색
     })
     
     if (error) {
@@ -96,10 +104,14 @@ export class MemoryService {
       return []
     }
     
+    const categoryInfo = category ? `category "${category}"` : 'all categories'
+    console.log(`[MemoryService] Found ${data?.length || 0} preferences in ${categoryInfo}`)
+    
     return (data || []).map((item: any) => ({
       id: item.id,
       question: item.question,
       preferred_answer: item.preferred_answer,
+      category: item.category,
       similarity: item.similarity
     }))
   }
@@ -111,7 +123,8 @@ export class MemoryService {
     userId: string,
     queryEmbedding: number[],
     limit: number = 3,
-    threshold: number = 0.75
+    threshold: number = 0.75,
+    category: string | null = null
   ): Promise<UserPreference[]> {
     const supabase = createClient()
     
@@ -119,7 +132,8 @@ export class MemoryService {
       query_embedding: queryEmbedding,
       match_threshold: threshold,
       match_count: limit,
-      user_id_param: userId
+      user_id_param: userId,
+      category_param: category
     })
     
     if (error) {
@@ -131,6 +145,7 @@ export class MemoryService {
       id: item.id,
       question: item.question,
       preferred_answer: item.preferred_answer,
+      category: item.category,
       similarity: item.similarity
     }))
   }

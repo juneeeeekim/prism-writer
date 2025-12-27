@@ -58,6 +58,8 @@ interface FeedbackRequest {
   detectionConfidence?: number
   /** 매칭된 패턴 */
   matchedPattern?: string
+  /** 카테고리 (Phase 14.5: Category-Scoped) */
+  category?: string
 }
 
 // =============================================================================
@@ -144,10 +146,12 @@ export async function POST(req: NextRequest) {
     // 2) Memory Save Promise (Condition: Positive Feedback)
     // [JeDebug Fix] Parallel execution using Promise.all for performance
     // Fail-open strategy: Memory save failure should NOT block feedback response
+    // [Phase 14.5] Category-Scoped Personalization
     const shouldSaveToMemory = body.isPositive && body.userQuery && body.modelResponse
+    const categoryForMemory = body.category || '미분류'
     
     const memoryPromise = shouldSaveToMemory
-      ? MemoryService.savePreference(user.id, body.userQuery, body.modelResponse)
+      ? MemoryService.savePreference(user.id, body.userQuery, body.modelResponse, categoryForMemory)
           .catch(err => {
             console.error('[Feedback API] Memory save failed (non-blocking):', err)
             return null // Return null to proceed

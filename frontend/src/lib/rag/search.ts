@@ -46,6 +46,8 @@ export interface SearchOptions {
   minScore?: number
   /** 청크 유형 필터 (Pipeline v3 추가) */
   chunkType?: ChunkType
+  /** 카테고리 필터 (Phase 14.5: null = 전체) */
+  category?: string | null
 }
 
 /** 하이브리드 검색 옵션 */
@@ -160,7 +162,7 @@ export async function vectorSearch(
   query: string,
   options: SearchOptions
 ): Promise<SearchResult[]> {
-  const { userId, topK = DEFAULT_TOP_K, documentId, minScore = 0, chunkType } = options
+  const { userId, topK = DEFAULT_TOP_K, documentId, minScore = 0, chunkType, category } = options
 
   // [FIX] Supabase 클라이언트를 먼저 생성하여 ACL 검증에 전달
   const supabase = createClient()
@@ -189,10 +191,13 @@ export async function vectorSearch(
   // 주석(시니어 개발자): ENABLE_PIPELINE_V4=false 시 v3 로직으로 즉시 롤백
   if (!PIPELINE_V4_FLAGS.useChunkTypeFilter) {
     console.log('[vectorSearch] Pipeline v4 disabled - using v3 search')
-    const { data: v3Data, error: v3Error } = await supabase.rpc('search_similar_chunks', {
+    // Phase 14.5: Use match_document_chunks with category support
+    const { data: v3Data, error: v3Error } = await supabase.rpc('match_document_chunks', {
       query_embedding: queryEmbedding,
-      user_id_param: userId,
+      match_threshold: minScore,
       match_count: topK,
+      user_id_param: userId,
+      category_param: category || null  // null = all categories
     })
     
     if (v3Error) {
