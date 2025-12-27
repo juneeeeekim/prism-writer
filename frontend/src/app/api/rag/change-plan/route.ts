@@ -26,6 +26,7 @@ import type {
   AlignmentDelta,
   SimulationResult 
 } from '@/lib/rag/types/patch'
+import { runPatchGenerator } from '@/lib/judge/patchGenerator'
 
 // =============================================================================
 // 타입 정의
@@ -191,7 +192,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<ChangePla
       userText, 
       gapTop3, 
       criteriaPack,
-      maxPatches
+      maxPatches,
+      // Phase 9: 예시 데이터를 참고자료로 활용 (검색된 예시가 있다면)
+      criteriaPack.examples?.map(e => e.content).join('\n') || ''
     )
 
     // -------------------------------------------------------------------------
@@ -316,24 +319,37 @@ async function generatePatchesParallel(
   userText: string,
   gaps: GapItem[],
   criteriaPack: CriteriaPack,
-  maxPatches: number
+  maxPatches: number,
+  // ---------------------------------------------------------------------------
+  // Phase 9: evidenceContext 전달 (선택)
+  // ---------------------------------------------------------------------------
+  evidenceContext?: string
 ): Promise<Patch[]> {
-  // TODO: 실제 LLM 기반 패치 생성 (Phase 3)
-  // 현재는 Mock 데이터 반환
-  const patches: Patch[] = gaps.slice(0, maxPatches).map((gap, index) => ({
-    id: `patch-${index + 1}`,
-    type: 'Replace' as const,
-    targetRange: { start: 0, end: 10 },
-    before: userText.substring(0, 10),
-    after: `[Improved: ${gap.criteria_name}]`,
-    reason: `${gap.criteria_name} 개선을 위한 수정`,
-    citationId: criteriaPack.rules[0]?.id || 'unknown',
-    expectedDelta: [],
-    status: 'pending' as const,
-    createdAt: new Date().toISOString(),
-  }))
+  try {
+    // Top N개의 Gap에 대해 병렬로 패치 생성
+    const targetGaps = gaps.slice(0, maxPatches)
+    
+    // patchGenerator 호출
+    const patches = await Promise.all(
+      targetGaps.map(gap => 
+        runPatchGenerator({ 
+          userText, 
+          gap, 
+          criteriaPack,
+          evidenceContext 
+        }).catch(err => {
+          console.error(`[ChangePlan] Patch generation failed for ${gap.criteria_name}:`, err)
+          return null
+        })
+      )
+    )
 
-  return patches
+    // 실패한 패치(null) 제거
+    return patches.filter((p): p is Patch => p !== null)
+  } catch (error) {
+    console.error('[ChangePlan] generatePatchesParallel error:', error)
+    return []
+  }
 }
 
 /**
