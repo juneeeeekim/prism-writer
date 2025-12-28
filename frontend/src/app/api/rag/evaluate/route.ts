@@ -40,6 +40,13 @@ interface EvaluateRequest {
   // v3 params
   useV3?: boolean
   templateId?: string
+  
+  // ==========================================================================
+  // [P1-01] 카테고리 격리 파라미터 추가
+  // 목적: 평가 시 현재 글의 카테고리와 동일한 참고자료만 사용
+  // ==========================================================================
+  /** 카테고리 필터 (null이면 전체 검색) */
+  category?: string | null
 }
 
 /** 평가 응답 */
@@ -187,12 +194,14 @@ export async function POST(
       // -----------------------------------------------------------------------
       // P0 Fix: 업로드된 참고자료 검색 (vectorSearch 연동)
       // 템플릿 기준 + 참고자료 근거를 결합하여 평가
+      // [P1-02] 카테고리 격리: 현재 글의 카테고리와 동일한 참고자료만 검색
       // -----------------------------------------------------------------------
       const searchQuery = body.searchQuery || userText.substring(0, 200)
       const evidenceResults = await vectorSearch(searchQuery, {
         userId: session.user.id,
         topK: topK || DEFAULT_TOP_K,
         minScore: 0.6,
+        category: body.category || null,  // [P1-02] 카테고리 격리 적용
       })
 
       // 참고자료 컨텍스트 생성
@@ -200,7 +209,8 @@ export async function POST(
         ? evidenceResults.map((r, i) => `[참고자료 ${i + 1}] ${r.content}`).join('\n\n')
         : ''
 
-      console.log(`[v3 Evaluation] 참고자료 ${evidenceResults.length}개 활용`)
+      // [P1-02] 카테고리 로깅 추가
+      console.log(`[v3 Evaluation] 카테고리: ${body.category || '전체'}, 참고자료 ${evidenceResults.length}개 활용`)
 
       // 2. 병렬 평가 실행 (Align Judge) - 참고자료 컨텍스트 포함
       const judgePromises = templateSchema.map(criteria => 

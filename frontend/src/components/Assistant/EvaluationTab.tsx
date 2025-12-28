@@ -10,11 +10,13 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import FeedbackPanel from '@/components/Editor/FeedbackPanel'
-import type { EvaluationResult as V5EvaluationResult } from '@/lib/judge/types'
+import HolisticFeedbackPanel from '@/components/Editor/HolisticFeedbackPanel'
+import type { EvaluationResult as V5EvaluationResult, HolisticEvaluationResult } from '@/lib/judge/types'
 import { getApiHeaders } from '@/lib/api/utils'
 import { useEditorState } from '@/hooks/useEditorState'
 import type { UpgradePlan } from '@/lib/judge/types'
 import type { ChangePlan, Patch } from '@/lib/rag/types/patch'
+import { clsx } from 'clsx'
 
 
 // =============================================================================
@@ -82,9 +84,17 @@ export default function EvaluationTab() {
   const [savedEvaluations, setSavedEvaluations] = useState<SavedEvaluation[]>([])
   const [isLoadingHistory, setIsLoadingHistory] = useState(true)
   
+  // ===========================================================================
+  // [P2-06] 종합 평가 상태 추가
+  // ===========================================================================
+  const [holisticResult, setHolisticResult] = useState<HolisticEvaluationResult | null>(null)
+  const [isHolisticLoading, setIsHolisticLoading] = useState(false)
+  const [activeEvalTab, setActiveEvalTab] = useState<'holistic' | 'detailed'>('holistic')
+  
   // [FIX] useEditorState 훅으로 에디터 내용 직접 가져오기
   // Phase 15: documentId 추가
-  const { content, setContent, documentId } = useEditorState()
+  // [P1-03] 카테고리 격리: category 추가
+  const { content, setContent, documentId, category } = useEditorState()
 
   // ---------------------------------------------------------------------------
   // Load Saved Evaluations on Mount or Document Change
@@ -210,6 +220,49 @@ export default function EvaluationTab() {
     }
   }
 
+  // ===========================================================================
+  // [P2-06] 종합 평가 실행 핸들러
+  // ===========================================================================
+  const handleHolisticEvaluate = useCallback(async () => {
+    const textToEvaluate = content
+
+    if (!textToEvaluate || textToEvaluate.trim().length < 50) {
+      setError('평가할 글이 너무 짧습니다. 최소 50자 이상 입력해주세요.')
+      return
+    }
+
+    setIsHolisticLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/rag/evaluate-holistic', {
+        method: 'POST',
+        headers: getApiHeaders(),
+        body: JSON.stringify({
+          userText: textToEvaluate,
+          category: category || '미분류',
+          topK: 5,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        console.error('[EvaluationTab] Holistic evaluation error:', data)
+        setError(data.message || '종합 평가 중 오류가 발생했습니다.')
+        return
+      }
+
+      setHolisticResult(data.result)
+      console.log('[EvaluationTab] Holistic evaluation complete:', data.result?.scoreC?.overall)
+    } catch (err) {
+      console.error('[EvaluationTab] Holistic evaluation error:', err)
+      setError('종합 평가 요청 중 오류가 발생했습니다.')
+    } finally {
+      setIsHolisticLoading(false)
+    }
+  }, [content, category])
+
   // ---------------------------------------------------------------------------
   // 평가 실행 핸들러
   // ---------------------------------------------------------------------------
@@ -227,12 +280,17 @@ export default function EvaluationTab() {
     setIsSaved(false)
 
     try {
+      // =========================================================================
+      // [P1-04] 카테고리 격리: 현재 문서의 카테고리를 평가 API에 전달
+      // 목적: 동일 카테고리의 참고자료만 사용하여 평가
+      // =========================================================================
       const response = await fetch('/api/rag/evaluate', {
         method: 'POST',
         headers: getApiHeaders(),
         body: JSON.stringify({
           userText: textToEvaluate,
           topK: 5,
+          category: category || null,  // [P1-04] 카테고리 격리 적용
         }),
       })
 
@@ -488,6 +546,7 @@ export default function EvaluationTab() {
     <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
       {/* -----------------------------------------------------------------------
           헤더 및 평가 버튼 (초기 상태에서만 표시)
+          [P2-06] 종합 평가 버튼 추가
           ----------------------------------------------------------------------- */}
       {showInitialState && (
         <div className="p-4 pb-0">
@@ -496,17 +555,39 @@ export default function EvaluationTab() {
               글 평가
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              AI가 루브릭 기준으로 글을 분석하고 피드백을 제공합니다.
+              AI가 글을 분석하고 종합 피드백을 제공합니다.
             </p>
 
+            {/* [P2-06] 종합 평가 버튼 (메인) */}
+            <button
+              onClick={handleHolisticEvaluate}
+              disabled={isHolisticLoading}
+              className="w-full px-4 py-3 bg-indigo-600 hover:bg-indigo-700 
+                      text-white font-medium rounded-lg 
+                      transition-colors flex items-center justify-center gap-2 shadow-sm
+                      disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="종합 평가하기"
+            >
+              {isHolisticLoading ? (
+                <>
+                  <span className="animate-spin">⏳</span> 평가 중...
+                </>
+              ) : (
+                <>📊 종합 평가하기</>
+              )}
+            </button>
+
+            {/* 기준별 평가 버튼 (보조) */}
             <button
               onClick={handleEvaluate}
-              className="w-full px-4 py-3 bg-prism-primary hover:bg-prism-primary/90 
-                      text-white font-medium rounded-lg 
-                      transition-colors flex items-center justify-center gap-2 shadow-sm"
-              aria-label="지금 평가하기"
+              disabled={isLoading}
+              className="w-full mt-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 
+                      dark:bg-gray-800 dark:hover:bg-gray-700
+                      text-gray-700 dark:text-gray-300 font-medium rounded-lg 
+                      transition-colors flex items-center justify-center gap-2 text-sm"
+              aria-label="기준별 상세 평가"
             >
-              📊 평가하기
+              📋 기준별 상세 평가
             </button>
           </div>
         </div>
@@ -522,24 +603,99 @@ export default function EvaluationTab() {
       )}
 
       {/* -----------------------------------------------------------------------
-          v5 피드백 패널 (결과 또는 로딩 중일 때 표시)
+          [P2-06] 종합 평가 결과 (holisticResult 또는 isHolisticLoading)
+          ----------------------------------------------------------------------- */}
+      {(holisticResult || isHolisticLoading) && !result && (
+        <div className="flex-1 overflow-y-auto p-4">
+          <HolisticFeedbackPanel 
+            result={holisticResult}
+            isLoading={isHolisticLoading}
+          />
+          
+          {/* 기준별 평가로 전환 버튼 */}
+          {holisticResult && (
+            <button
+              onClick={handleEvaluate}
+              disabled={isLoading}
+              className="w-full mt-4 px-4 py-2 bg-gray-100 hover:bg-gray-200 
+                      dark:bg-gray-800 dark:hover:bg-gray-700
+                      text-gray-700 dark:text-gray-300 font-medium rounded-lg 
+                      transition-colors flex items-center justify-center gap-2 text-sm"
+            >
+              📋 기준별 상세 평가 추가하기
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* -----------------------------------------------------------------------
+          v5 피드백 패널 (result 및 holisticResult 둘 다 있으면 탭 표시)
+          [P2-06] 탭 시스템 추가
           ----------------------------------------------------------------------- */}
       {(result || isLoading) && (
-        <div className="flex-1 overflow-hidden">
-          {/* 저장됨 표시 */}
-          {isSaved && result && (
-            <div className="mx-4 mt-2 mb-0 px-2 py-1 bg-green-100 dark:bg-green-900/30 rounded text-xs text-green-700 dark:text-green-300 flex items-center gap-1">
-              ✅ 평가 결과 저장됨
+        <div className="flex-1 overflow-hidden flex flex-col">
+          {/* [P2-06] 탭 헤더 (holisticResult도 있으면 표시) */}
+          {holisticResult && result && (
+            <div className="flex border-b border-gray-200 dark:border-gray-700 mx-4 mt-2">
+              <button
+                onClick={() => setActiveEvalTab('holistic')}
+                className={clsx(
+                  'px-4 py-2 text-sm font-medium transition-colors',
+                  activeEvalTab === 'holistic'
+                    ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                )}
+                aria-label="종합 평가 탭"
+              >
+                📊 종합 평가
+              </button>
+              <button
+                onClick={() => setActiveEvalTab('detailed')}
+                className={clsx(
+                  'px-4 py-2 text-sm font-medium transition-colors',
+                  activeEvalTab === 'detailed'
+                    ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                )}
+                aria-label="기준별 평가 탭"
+              >
+                📋 기준별 평가
+              </button>
             </div>
           )}
-          <FeedbackPanel 
-            evaluation={result}
-            isLoading={isLoading}
-            onEvaluate={handleEvaluate}
-            onApplyPlan={handleApplyPlan}
-            onRetryPlan={handleRetryPlan}
-            onReevaluate={handleReevaluate}
-          />
+          
+          {/* 탭 컨텐츠 */}
+          <div className="flex-1 overflow-y-auto">
+            {/* 종합 평가 탭 */}
+            {holisticResult && activeEvalTab === 'holistic' && (
+              <div className="p-4">
+                <HolisticFeedbackPanel 
+                  result={holisticResult}
+                  isLoading={false}
+                />
+              </div>
+            )}
+            
+            {/* 기준별 평가 탭 (또는 holisticResult 없으면 바로 표시) */}
+            {(activeEvalTab === 'detailed' || !holisticResult) && (
+              <>
+                {/* 저장됨 표시 */}
+                {isSaved && result && (
+                  <div className="mx-4 mt-2 mb-0 px-2 py-1 bg-green-100 dark:bg-green-900/30 rounded text-xs text-green-700 dark:text-green-300 flex items-center gap-1">
+                    ✅ 평가 결과 저장됨
+                  </div>
+                )}
+                <FeedbackPanel 
+                  evaluation={result}
+                  isLoading={isLoading}
+                  onEvaluate={handleEvaluate}
+                  onApplyPlan={handleApplyPlan}
+                  onRetryPlan={handleRetryPlan}
+                  onReevaluate={handleReevaluate}
+                />
+              </>
+            )}
+          </div>
         </div>
       )}
 

@@ -59,3 +59,71 @@ export interface EvaluationResult {
   /** 전체 점수 (0~100) */
   overall_score: number
 }
+
+// =============================================================================
+// [P2-01] Holistic Evaluation Types (종합 평가)
+// =============================================================================
+// 목적: 전체 글에 대한 종합 피드백 A + B + C 제공
+// 작성일: 2025-12-28
+// =============================================================================
+
+/**
+ * 종합 피드백 A: 한 문단 요약
+ * 전체 글에 대한 종합적인 평가를 100-200자 내외로 요약
+ */
+export interface HolisticSummary {
+  /** 종합 피드백 텍스트 (100-200자) */
+  overview: string
+}
+
+/**
+ * 영역별 조언 B
+ * 구조, 내용, 표현 영역별로 개선 조언 제공
+ */
+export interface AreaAdvice {
+  /** 구조(Structure) 조언 */
+  structure: string
+  /** 내용(Content) 조언 */
+  content: string
+  /** 표현(Expression) 조언 */
+  expression: string
+}
+
+/**
+ * 점수 + 상세 조언 C
+ * 영역별 점수와 구체적인 액션 아이템 제공
+ */
+export interface DetailedScore {
+  /** 종합 점수 (0-100) */
+  overall: number
+  /** 영역별 점수 */
+  breakdown: {
+    /** 구조 점수 */
+    structure: number
+    /** 내용 점수 */
+    content: number
+    /** 표현 점수 */
+    expression: number
+    /** 논리 점수 */
+    logic: number
+  }
+  /** 상세 액션 아이템 (3-5개 권장) */
+  actionItems: string[]
+}
+
+/**
+ * 전체 종합 평가 결과
+ * A(종합 피드백) + B(영역별 조언) + C(점수 + 상세 조언)
+ */
+export interface HolisticEvaluationResult {
+  /** A: 종합 피드백 (한 문단) */
+  summaryA: HolisticSummary
+  /** B: 영역별 조언 */
+  adviceB: AreaAdvice
+  /** C: 점수 + 상세 조언 */
+  scoreC: DetailedScore
+  /** 평가 일시 */
+  evaluated_at: string
+  /** 평가한 글의 카테고리 */
+  category: string
+}
