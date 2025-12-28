@@ -86,13 +86,22 @@ export default function AuthHeader({
               {/* 관리자 전용 대시보드 링크 (Phase 4 Add) */}
               {/* v2.1: 실제 Admin 권한(DB) 또는 로컬 Admin 모드(localStorage)가 켜져있으면 노출 */}
               {(isAdmin || (typeof window !== 'undefined' && localStorage.getItem('prism_admin_mode') === 'true')) && (
-                <Link
-                  href="/admin/feedback"
-                  className="px-3 py-1.5 text-sm text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded transition-colors flex items-center gap-1 font-medium"
-                  aria-label="관리자 대시보드"
-                >
-                  🛡️ 관리자
-                </Link>
+                <>
+                  <Link
+                    href="/admin/feedback"
+                    className="px-3 py-1.5 text-sm text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded transition-colors flex items-center gap-1 font-medium"
+                    aria-label="관리자 대시보드"
+                  >
+                    🛡️ 관리자
+                  </Link>
+                  <Link
+                    href="/admin/raft"
+                    className="px-3 py-1.5 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors flex items-center gap-1 font-medium"
+                    aria-label="RAFT 합성 데이터"
+                  >
+                    🧬 RAFT
+                  </Link>
+                </>
               )}
             </nav>
           </>
