@@ -2,31 +2,28 @@
 // PRISM Writer - RAFT Constants
 // =============================================================================
 // 파일: frontend/src/constants/raft.ts
-// 역할: RAFT 합성 데이터 생성 및 관리에서 사용되는 상수 정의
+// 역할: RAFT 합성 데이터 관련 전역 상수 정의
 // 생성일: 2025-12-28
 // =============================================================================
 
 /**
  * RAFT 데이터 카테고리 목록
- * - UI 드롭다운 및 데이터 필터링에 사용됨
- * - '미분류'는 기본값으로 항상 포함
+ * - UI 드롭다운 및 DB 필터링에 사용됨
  */
 export const RAFT_CATEGORIES = [
-  '미분류',
   '마케팅',
-  '기술',
-  '일반',
-  '사내규정',
-  '재무/회계',
-  '인사/총무'
+  '기술/개발',
+  '일반/상식',
+  '비즈니스',
+  '금융/경제',
+  '기타',
 ] as const;
 
-/**
- * RAFT 카테고리 타입 정의
- */
+/** 카테고리 타입 정의 */
 export type RaftCategory = typeof RAFT_CATEGORIES[number];
 
-/**
- * 기본 카테고리
- */
-export const DEFAULT_RAFT_CATEGORY: RaftCategory = '미분류';
+/** 기본 카테고리 (데이터 누락 시 폴백용) */
+export const DEFAULT_RAFT_CATEGORY = '기타' as const;
+
+/** '전체 보기'용 상수 */
+export const ALL_CATEGORIES_FILTER = 'ALL' as const;

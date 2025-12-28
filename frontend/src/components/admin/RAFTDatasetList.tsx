@@ -86,8 +86,10 @@ export default function RAFTDatasetList() {
     setError(null)
     
     try {
+      // [P4-02] 카테고리 필터를 API에 전달
       const response = await fetchRAFTDataset({
         source: 'synthetic',
+        category: selectedCategory, // 'ALL'일 경우 API에서 필터 생략됨
         limit: ITEMS_PER_PAGE,
         offset: page * ITEMS_PER_PAGE,
       })
@@ -292,12 +294,20 @@ export default function RAFTDatasetList() {
                 </p>
               </div>
               
-              {/* 메타 정보 및 삭제 버튼 */}
+              {/* 메타 정보 및 삭제 버튼 [P4-03 카테고리 폴백 처리] */}
               <div className="flex justify-between items-center text-xs text-gray-400 dark:text-gray-500">
-                <span>
-                  {new Date(item.created_at).toLocaleDateString('ko-KR')} | 
-                  {item.verified ? ' ✅ 검증됨' : ' ⏳ 미검증'}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full text-[10px] font-medium">
+                    {/* 카테고리가 없거나 상수에 없으면 '미분류' 표시 */}
+                    {item.category && RAFT_CATEGORIES.includes(item.category as any) 
+                      ? item.category 
+                      : '미분류'}
+                  </span>
+                  <span>
+                    {new Date(item.created_at).toLocaleDateString('ko-KR')} | 
+                    {item.verified ? ' ✅ 검증됨' : ' ⏳ 미검증'}
+                  </span>
+                </div>
                 <button
                   onClick={() => handleDelete(item)}
                   disabled={deletingId === item.id}
