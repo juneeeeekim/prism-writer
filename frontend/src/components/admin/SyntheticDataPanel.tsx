@@ -21,6 +21,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { generateSyntheticDataAPI } from '@/lib/api/raft'
 import { RAFT_CATEGORIES, DEFAULT_RAFT_CATEGORY } from '@/constants/raft'
+import CategoryCombobox from '@/components/admin/CategoryCombobox'
 
 // =============================================================================
 // 로컬 컴포넌트: Spinner
@@ -197,20 +198,11 @@ export default function SyntheticDataPanel({
           <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1">
             🏷️ 카테고리 (Knowledge Domain)
           </label>
-          <select
+          <CategoryCombobox
             value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 
-                       text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent 
-                       transition-all cursor-pointer"
+            onChange={setSelectedCategory}
             disabled={isGenerating}
-          >
-            {RAFT_CATEGORIES.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
+          />
           <p className="text-[10px] text-gray-400">
             생성된 Q&A는 선택한 카테고리로 저장됩니다.
           </p>
