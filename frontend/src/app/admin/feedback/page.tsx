@@ -15,6 +15,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import AuthHeader from '@/components/auth/AuthHeader'
 
 // =============================================================================
 // 타입 정의
@@ -131,14 +132,16 @@ export default function AdminFeedbackPage() {
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      {/* -----------------------------------------------------------------------
-          헤더
-      ----------------------------------------------------------------------- */}
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">
-          🎯 환각 피드백 대시보드
-        </h1>
+    <>
+      <AuthHeader showLogo={true} />
+      <div className="min-h-screen bg-gray-50 p-6">
+        {/* -----------------------------------------------------------------------
+            헤더
+        ----------------------------------------------------------------------- */}
+        <div className="max-w-6xl mx-auto">
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">
+            🎯 환각 피드백 대시보드
+          </h1>
         <p className="text-gray-600 mb-6">
           사용자 피드백을 기반으로 환각 답변을 모니터링합니다.
         </p>
@@ -241,7 +244,8 @@ export default function AdminFeedbackPage() {
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </>
   )
 }
 
