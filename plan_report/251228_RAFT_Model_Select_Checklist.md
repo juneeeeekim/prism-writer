@@ -60,12 +60,26 @@
   - `generateSyntheticDataAPI` 함수 시그니처 변경 (modelId 인자 추가).
   - `SyntheticDataPanel`에서 호출 시 선택된 모델 전달.
 
+### [Phase 4: Data Connection (Context from DB)]
+
+- [ ] **Data-01**: DB Fetch API 구현 (`/api/raft/context`)
+  - Request: `{ category }`
+  - Logic:
+    1. `documents` 테이블에서 해당 `category`를 가진 `id` 목록 조회.
+    2. `document_chunks` 테이블에서 해당 `document_id`들에 속한 청크 조회.
+    3. Random Sampling (최대 10~20개) 또는 최신순 조회.
+    4. 텍스트 병합하여 반환.
+- [ ] **Data-02**: UI 연동 (`SyntheticDataPanel`)
+  - "Context Source" 탭 추가 (직접 입력 / DB에서 가져오기).
+  - "DB에서 가져오기" 클릭 시 API 호출 및 Textarea 자동 채움.
+
 ---
 
 ## 🧪 3. Verification Plan
 
 - [ ] **Config Test**: `config/llm-usage-map.ts`에서 타입 에러(Syntax) 없는지 확인.
 - [ ] **UI Test**: 브라우저에서 모델 변경 시 드롭다운 반영 확인.
+- [ ] **Connection Test**: 특정 카테고리 선택 후 "DB 불러오기" 클릭 시 텍스트가 채워지는지 확인.
 - [ ] **API Test**:
   - `gpt-4o` 선택 후 생성 요청 -> 로그에서 `model: gpt-4o` 사용 확인.
   - `gpt-4o-mini` 선택 후 생성 요청 -> 정상 동작 확인.

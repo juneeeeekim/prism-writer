@@ -29,7 +29,8 @@ export type LLMUsageContext =
   | 'example.mining'       // 예시 마이닝
   | 'rule.mining'          // 규칙 마이닝
   | 'premium.answer'       // 프리미엄 답변
-  | 'premium.reviewer';    // 프리미엄 검토
+  | 'premium.reviewer'     // 프리미엄 검토
+  | 'raft.generation';     // RAFT 합성 데이터 생성
 
 /**
  * 사용 설정 인터페이스
@@ -126,6 +127,15 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
     modelId: 'gemini-3-pro-preview',
     fallback: 'gemini-3-flash-preview',
     description: '프리미엄 사용자용 고품질 검토',
+  },
+
+  // ---------------------------------------------------------------------------
+  // RAFT Synthetic Data
+  // ---------------------------------------------------------------------------
+  'raft.generation': {
+    modelId: 'gpt-4o-mini',
+    fallback: 'gpt-3.5-turbo',
+    description: 'RAFT 합성 데이터 생성',
   },
 };
 

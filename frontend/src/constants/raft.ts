@@ -27,3 +27,13 @@ export const DEFAULT_RAFT_CATEGORY = '기타' as const;
 
 /** '전체 보기'용 상수 */
 export const ALL_CATEGORIES_FILTER = 'ALL' as const;
+
+/**
+ * RAFT 생성에 사용 가능한 LLM 모델 목록
+ * - Model Selector UI에서 사용됨
+ */
+export const RAFT_AVAILABLE_MODELS = [
+  { id: 'gpt-4o-mini', name: 'GPT-4o Mini (Fast & Cheap)' },
+  { id: 'gpt-4o', name: 'GPT-4o (High Quality)' },
+  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash (Alternative)' },
+] as const;

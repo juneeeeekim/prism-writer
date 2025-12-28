@@ -20,8 +20,9 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { generateSyntheticDataAPI } from '@/lib/api/raft'
-import { RAFT_CATEGORIES, DEFAULT_RAFT_CATEGORY } from '@/constants/raft'
+import { RAFT_CATEGORIES, DEFAULT_RAFT_CATEGORY, RAFT_AVAILABLE_MODELS } from '@/constants/raft'
 import CategoryCombobox from '@/components/admin/CategoryCombobox'
+import { getModelForUsage } from '@/config/llm-usage-map'
 
 // =============================================================================
 // 로컬 컴포넌트: Spinner
@@ -86,6 +87,12 @@ export default function SyntheticDataPanel({
   )
   const [count, setCount] = useState<number>(10)
   const [context, setContext] = useState<string>('')
+  const [selectedModel, setSelectedModel] = useState<string>(
+    getModelForUsage('raft.generation') || RAFT_AVAILABLE_MODELS[0].id
+  )
+  const [contextSource, setContextSource] = useState<'manual' | 'db'>('manual')
+  const [isFetchingContext, setIsFetchingContext] = useState<boolean>(false)
+
   const [isGenerating, setIsGenerating] = useState<boolean>(false)
   const [isConfirming, setIsConfirming] = useState<boolean>(false)
   const [result, setResult] = useState<GenerationResult | null>(null)
@@ -108,7 +115,7 @@ export default function SyntheticDataPanel({
     setResult(null)
     
     try {
-      const response = await generateSyntheticDataAPI(context, count, selectedCategory)
+      const response = await generateSyntheticDataAPI(context, count, selectedCategory, selectedModel)
       
       setResult({
         success: response.success,
@@ -140,10 +147,11 @@ export default function SyntheticDataPanel({
   }
 
   // ---------------------------------------------------------------------------
-  // UI 렌더링 (인증 상태 체크)
+  // UI 렌더링 (인증 상태 체크) 
+  // [Fix] DevMode일 때는 로딩 스킵
   // ---------------------------------------------------------------------------
   
-  if (authLoading) {
+  if (authLoading && !isDevMode) {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 flex flex-col items-center justify-center gap-4">
         <Spinner size="lg" />
@@ -215,14 +223,86 @@ export default function SyntheticDataPanel({
               📚 참고 자료 (Context)
               <span className="text-red-500">*</span>
             </label>
-            <span className={`text-[10px] ${context.length > 5000 ? 'text-red-500 font-bold' : 'text-gray-400'}`}>
-              {context.length.toLocaleString()} / 5,000 자
-            </span>
+            <div className="flex items-center gap-2">
+              <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                <button
+                  type="button"
+                  onClick={() => setContextSource('manual')}
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                    contextSource === 'manual' 
+                      ? 'bg-white dark:bg-gray-600 text-indigo-600 dark:text-white shadow-sm' 
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  }`}
+                >
+                  ✏️ 직접 입력
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setContextSource('db')}
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                    contextSource === 'db' 
+                      ? 'bg-white dark:bg-gray-600 text-indigo-600 dark:text-white shadow-sm' 
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  }`}
+                >
+                  🗄️ DB에서 불러오기
+                </button>
+              </div>
+              <span className={`text-[10px] ${context.length > 5000 ? 'text-red-500 font-bold' : 'text-gray-400'}`}>
+                {context.length.toLocaleString()} / 5,000 자
+              </span>
+            </div>
           </div>
+
+          {contextSource === 'db' && (
+            <div className="mb-2 p-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 rounded-lg flex items-center justify-between">
+              <div className="text-xs text-indigo-800 dark:text-indigo-200">
+                <span className="font-bold">선택된 카테고리:</span> {selectedCategory}
+                <p className="mt-0.5 opacity-80">이 카테고리의 문서 내용을 자동으로 불러옵니다.</p>
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (isFetchingContext) return
+                  const confirmMsg = context.length > 0 ? '현재 입력된 내용이 덮어씌워집니다. 계속하시겠습니까?' : null
+                  if (confirmMsg && !confirm(confirmMsg)) return
+
+                  try {
+                    setIsFetchingContext(true)
+                    const res = await fetch('/api/raft/context', {
+                      method: 'POST',
+                      headers: {'Content-Type': 'application/json'},
+                      body: JSON.stringify({ category: selectedCategory })
+                    })
+                    const data = await res.json()
+                    
+                    if (!res.ok) throw new Error(data.error || 'Fetch failed')
+                    if (!data.context) {
+                      alert(data.message || '해당 카테고리의 문서를 찾을 수 없습니다.')
+                    } else {
+                      setContext(data.context)
+                    }
+                  } catch (e: any) {
+                    alert('불러오기 실패: ' + e.message)
+                  } finally {
+                    setIsFetchingContext(false)
+                  }
+                }}
+                disabled={isFetchingContext}
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50"
+              >
+                {isFetchingContext ? <Spinner size="sm" color="white" /> : '📥 문서 불러오기'}
+              </button>
+            </div>
+          )}
+
           <textarea
             value={context}
             onChange={(e) => setContext(e.target.value)}
-            placeholder="합성 데이터의 기반이 될 텍스트를 입력해주세요. (예: 시스템 메뉴얼, 정책 문서 등)"
+            placeholder={contextSource === 'db' 
+              ? "상단의 '문서 불러오기' 버튼을 클릭하면 내용이 채워집니다. (필요 시 수정 가능)" 
+              : "합성 데이터의 기반이 될 텍스트를 입력해주세요. (예: 시스템 메뉴얼, 정책 문서 등)"
+            }
             className="w-full h-48 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 
                        text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent 
                        transition-all resize-none placeholder:text-gray-400 dark:placeholder:text-gray-600"
@@ -250,10 +330,28 @@ export default function SyntheticDataPanel({
             </div>
           </div>
 
+          <div className="w-full sm:w-1/3 space-y-2">
+            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+              🤖 모델 선택
+            </label>
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="w-full h-10 px-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 
+                         text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500"
+            >
+              {RAFT_AVAILABLE_MODELS.map(model => (
+                <option key={model.id} value={model.id}>
+                  {model.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="flex-1 bg-indigo-50/30 dark:bg-indigo-900/10 rounded-lg p-3 border border-indigo-100/50 dark:border-indigo-800/30">
             <h3 className="text-[10px] font-bold text-indigo-400 dark:text-indigo-500 uppercase tracking-wider mb-2">Generation Info</h3>
             <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1.5 list-disc list-inside">
-              <li>모델: <span className="text-indigo-600 dark:text-indigo-400 font-medium">gpt-4o-mini</span></li>
+              <li>모델: <span className="text-indigo-600 dark:text-indigo-400 font-medium">{RAFT_AVAILABLE_MODELS.find(m => m.id === selectedModel)?.name || selectedModel}</span></li>
               <li>언어: <span className="font-medium text-gray-800 dark:text-gray-200">한국어 (Korean)</span></li>
               <li>카테고리: <span className="font-medium text-indigo-600 dark:text-indigo-400">{selectedCategory}</span></li>
             </ul>

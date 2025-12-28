@@ -87,7 +87,8 @@ async function getAuthToken(): Promise<string | null> {
 export async function generateSyntheticDataAPI(
   context: string,
   count: number,
-  category?: string // [P3-03]
+  category?: string, // [P3-03]
+  modelId?: string   // [P3-04] Model Select
 ): Promise<GenerationAPIResponse> {
   const token = await getAuthToken()
 
@@ -104,7 +105,8 @@ export async function generateSyntheticDataAPI(
     body: JSON.stringify({ 
       context, 
       count,
-      category // [P3-03]
+      category, // [P3-03]
+      modelId   // [P3-04]
     }),
   })
 

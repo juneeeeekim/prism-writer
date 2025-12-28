@@ -20,6 +20,7 @@ import {
   validateGeneratedData,
   GeneratedQAPair 
 } from '@/lib/raft/syntheticDataGenerator'
+import { getModelForUsage } from '@/config/llm-usage-map'
 
 // =============================================================================
 // 상수 정의
@@ -99,7 +100,7 @@ async function verifyAdminAccess(request: NextRequest): Promise<{
  * 
  * [Risk 5 해결] 타임아웃 30초로 API 중단 방지
  */
-async function generateTextWithTimeout(prompt: string): Promise<string> {
+async function generateTextWithTimeout(prompt: string, modelId?: string): Promise<string> {
   // ---------------------------------------------------------------------------
   // OpenAI API 호출 (타임아웃 래핑)
   // ---------------------------------------------------------------------------
@@ -119,7 +120,7 @@ async function generateTextWithTimeout(prompt: string): Promise<string> {
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini', // 비용 효율적인 모델 사용
+        model: modelId || 'gpt-4o-mini', // 동적 모델 ID 사용 (기본값: gpt-4o-mini)
         messages: [
           {
             role: 'system',
@@ -268,7 +269,7 @@ export async function POST(request: NextRequest) {
     // -------------------------------------------------------------------------
     const result = await generateSyntheticData(
       { context: body.context, count },
-      generateTextWithTimeout
+      (prompt) => generateTextWithTimeout(prompt, body.modelId || getModelForUsage('raft.generation'))
     )
 
     // -------------------------------------------------------------------------

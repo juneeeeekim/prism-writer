@@ -9,6 +9,8 @@
 
 import { useState, useRef, DragEvent, ChangeEvent } from 'react'
 import { useToast } from '@/hooks/useToast'
+import { RAFT_CATEGORIES, DEFAULT_RAFT_CATEGORY } from '@/constants/raft'
+import CategoryCombobox from '@/components/admin/CategoryCombobox'
 
 // =============================================================================
 // 타입 정의
@@ -41,6 +43,7 @@ export default function DocumentUploader({ onUploadSuccess, className = '' }: Do
   const [isDragging, setIsDragging] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
+  const [selectedCategory, setSelectedCategory] = useState<string>(DEFAULT_RAFT_CATEGORY) // [Phase 1] Category Select
   const fileInputRef = useRef<HTMLInputElement>(null)
   const toast = useToast()
 
@@ -99,6 +102,7 @@ export default function DocumentUploader({ onUploadSuccess, className = '' }: Do
       // FormData 생성
       const formData = new FormData()
       formData.append('file', file)
+      formData.append('category', selectedCategory) // [Phase 1]
 
       // API 호출
       const response = await fetch('/api/documents/upload', {
@@ -282,6 +286,24 @@ export default function DocumentUploader({ onUploadSuccess, className = '' }: Do
           className="hidden"
           aria-label="파일 선택"
         />
+      </div>
+
+       {/* [Phase 1] Category Selector Area */}
+       <div className="mt-4 flex flex-col gap-2 text-left">
+        <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+          📂 카테고리 지정
+        </label>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+          업로드할 문서의 카테고리를 선택해주세요. RAFT 학습 시 해당 카테고리로 활용됩니다.
+        </p>
+        <div className="w-full sm:w-1/2">
+          <CategoryCombobox 
+            value={selectedCategory}
+            onChange={setSelectedCategory}
+            disabled={isUploading}
+            placeholder="카테고리 선택 (예: 마케팅, 개발)"
+          />
+        </div>
       </div>
     </div>
   )
