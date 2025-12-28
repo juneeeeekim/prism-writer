@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     // 2. Ownership Check (Implicit via JOIN or RLS, but explicit check is safer if RLS is tricky on chunks directly)
     // Checking rag_documents ownership first
     const { data: doc, error: docError } = await supabase
-      .from('rag_documents')
+      .from('user_documents')
       .select('user_id')
       .eq('id', documentId)
       .single()
