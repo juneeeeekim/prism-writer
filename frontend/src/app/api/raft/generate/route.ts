@@ -288,6 +288,12 @@ export async function POST(request: NextRequest) {
     }
 
     // -------------------------------------------------------------------------
+    // category 값 검증 (P3-01)
+    // -------------------------------------------------------------------------
+    const category = body.category || '미분류' 
+    // TODO: RAFT_CATEGORIES와 유효성 검증 로직 추가 가능 (현재는 DB Default 의존)
+
+    // -------------------------------------------------------------------------
     // 생성된 데이터를 raft_dataset 테이블에 저장
     // -------------------------------------------------------------------------
     // supabase 변수는 이미 상단에서 선언됨
@@ -296,6 +302,7 @@ export async function POST(request: NextRequest) {
       context: body.context,
       gold_answer: item.answer,
       source: 'synthetic',
+      category: category, 
       verified: false,
     }))
 

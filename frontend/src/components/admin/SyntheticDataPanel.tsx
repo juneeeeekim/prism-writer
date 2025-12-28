@@ -25,6 +25,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { generateSyntheticDataAPI } from '@/lib/api/raft'
+import { RAFT_CATEGORIES, DEFAULT_RAFT_CATEGORY } from '@/constants/raft'
 
 // =============================================================================
 // 타입 정의
@@ -34,6 +35,13 @@ interface GenerationResult {
   success: boolean
   generated: number
   errors: string[]
+}
+
+interface SyntheticDataPanelProps {
+  /** 개발 모드 여부 (인증 우회) */
+  isDevMode?: boolean
+  /** 초기 카테고리 (URL 파라미터 등) */
+  initialCategory?: string
 }
 
 // =============================================================================
@@ -58,10 +66,18 @@ const DAILY_LIMIT = 500
  * - 참고 자료(context) 입력 필수 (100자 이상)
  * - 일일 생성 한도 500개
  */
-export default function SyntheticDataPanel() {
+export default function SyntheticDataPanel({ 
+  isDevMode = false, 
+  initialCategory 
+}: SyntheticDataPanelProps) {
   // ---------------------------------------------------------------------------
   // 상태 변수 (P2-01)
   // ---------------------------------------------------------------------------
+  
+  /** 선택된 카테고리 [P2-02] */
+  const [selectedCategory, setSelectedCategory] = useState<string>(
+    initialCategory || DEFAULT_RAFT_CATEGORY
+  )
   
   /** 생성할 Q&A 개수 (1-50) */
   const [count, setCount] = useState<number>(DEFAULT_COUNT)
@@ -79,10 +95,16 @@ export default function SyntheticDataPanel() {
   const [todayCount, setTodayCount] = useState<number>(0)
 
   // ---------------------------------------------------------------------------
-  // 인증 상태 [JeDebug Critical-02]
+  // 인증 상태 [JeDebug Critical-02] & Hotfix [P2-01]
   // ---------------------------------------------------------------------------
   
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
+  
+  // 인증 로딩 중일 때 스피너 표시 (깜빡임 방지) - 렌더링 시점에 처리
+  // if (authLoading) return ... (Hooks Rule 위반으로 아래 JSX에서 처리)
+
+  // 로그인 상태 또는 개발 모드 우회
+  const isAuthorized = user !== null || isDevMode
 
   // ---------------------------------------------------------------------------
   // 입력 검증 [JeDebug High-01]
@@ -90,8 +112,7 @@ export default function SyntheticDataPanel() {
   
   /** context 최소 100자 + 로그인 상태 확인 */
   const isContextValid = context.trim().length >= MIN_CONTEXT_LENGTH
-  const isLoggedIn = user !== null
-  const isValid = isContextValid && isLoggedIn && !isLoading
+  const isValid = isContextValid && isAuthorized && !isLoading
   
   /** 남은 글자 수 (100자 미만일 때만 표시) */
   const remainingChars = MIN_CONTEXT_LENGTH - context.trim().length
@@ -134,7 +155,8 @@ export default function SyntheticDataPanel() {
     
     try {
       // [P3-02] 실제 API 호출
-      const response = await generateSyntheticDataAPI(context, count)
+      // [P3-04] 카테고리 정보 전달
+      const response = await generateSyntheticDataAPI(context, count, selectedCategory)
       
       // 성공 시 상태 업데이트
       setResult({
@@ -185,6 +207,17 @@ export default function SyntheticDataPanel() {
   // JSX 렌더링
   // ---------------------------------------------------------------------------
   
+  if (authLoading) {
+    return (
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-10 shadow-sm flex justify-center items-center h-[600px]">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
+          <p className="text-gray-500">사용자 권한 확인 중...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm">
       {/* ===================================================================== */}
@@ -197,7 +230,10 @@ export default function SyntheticDataPanel() {
       {/* ===================================================================== */}
       {/* 로그인 필요 안내 */}
       {/* ===================================================================== */}
-      {!isLoggedIn && (
+      {/* ===================================================================== */}
+      {/* 로그인 필요 안내 */}
+      {/* ===================================================================== */}
+      {!isAuthorized && (
         <div 
           className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg"
           role="alert"
@@ -207,6 +243,35 @@ export default function SyntheticDataPanel() {
           </p>
         </div>
       )}
+      
+      {/* ===================================================================== */}
+      {/* 카테고리 선택 [P2-02] */}
+      {/* ===================================================================== */}
+      <div className="mb-4">
+        <label 
+          htmlFor="category-select" 
+          className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+        >
+          카테고리 (Knowledge Domain)
+        </label>
+        <select
+          id="category-select"
+          value={selectedCategory}
+          onChange={(e) => setSelectedCategory(e.target.value)}
+          className="
+            w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
+            focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+            dark:bg-gray-700 dark:text-gray-100
+          "
+          disabled={isLoading}
+        >
+          {RAFT_CATEGORIES.map((cat) => (
+            <option key={cat} value={cat}>
+              {cat}
+            </option>
+          ))}
+        </select>
+      </div>
       
       {/* ===================================================================== */}
       {/* 참고 자료 입력 [JeDebug Critical-01] */}

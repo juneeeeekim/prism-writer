@@ -141,6 +141,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const source = searchParams.get('source')
     const verified = searchParams.get('verified')
+    const category = searchParams.get('category')
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
     const offset = parseInt(searchParams.get('offset') || '0')
 
@@ -156,6 +157,9 @@ export async function GET(request: NextRequest) {
     // 필터 적용
     if (source) {
       query = query.eq('source', source)
+    }
+    if (category && category !== 'ALL') { // [P3-02] 카테고리 필터
+      query = query.eq('category', category)
     }
     if (verified !== null) {
       query = query.eq('verified', verified === 'true')

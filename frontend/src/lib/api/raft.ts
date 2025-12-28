@@ -48,7 +48,9 @@ export interface RAFTDatasetItem {
   source: 'synthetic' | 'user_feedback' | 'manual' | 'ab_test'
   verified: boolean
   created_at: string
+
   model_id?: string
+  category?: string // [P3-03]
 }
 
 /**
@@ -84,7 +86,8 @@ async function getAuthToken(): Promise<string | null> {
  */
 export async function generateSyntheticDataAPI(
   context: string,
-  count: number
+  count: number,
+  category?: string // [P3-03]
 ): Promise<GenerationAPIResponse> {
   const token = await getAuthToken()
 
@@ -98,7 +101,11 @@ export async function generateSyntheticDataAPI(
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`,
     },
-    body: JSON.stringify({ context, count }),
+    body: JSON.stringify({ 
+      context, 
+      count,
+      category // [P3-03]
+    }),
   })
 
   const data = await res.json()
@@ -128,6 +135,7 @@ export async function generateSyntheticDataAPI(
 export async function fetchRAFTDataset(options?: {
   source?: string
   verified?: boolean
+  category?: string // [P3-03]
   limit?: number
   offset?: number
 }): Promise<RAFTDatasetListResponse> {
@@ -140,6 +148,7 @@ export async function fetchRAFTDataset(options?: {
   // 쿼리 파라미터 구성
   const params = new URLSearchParams()
   if (options?.source) params.set('source', options.source)
+  if (options?.category && options?.category !== 'ALL') params.set('category', options.category) // [P3-03]
   if (options?.verified !== undefined) params.set('verified', String(options.verified))
   if (options?.limit) params.set('limit', String(options.limit))
   if (options?.offset) params.set('offset', String(options.offset))

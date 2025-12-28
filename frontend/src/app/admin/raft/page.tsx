@@ -39,7 +39,11 @@ export const metadata: Metadata = {
  * [접근 조건]
  * - ENABLE_RAFT_FEATURES=true 환경 변수 필요
  */
-export default function RaftAdminPage() {
+export default function RaftAdminPage({ 
+  searchParams 
+}: { 
+  searchParams: { category?: string } 
+}) {
   // ---------------------------------------------------------------------------
   // Feature Flag 확인 (서버에서 환경 변수 접근)
   // ---------------------------------------------------------------------------
@@ -62,16 +66,32 @@ export default function RaftAdminPage() {
   }
 
   // ---------------------------------------------------------------------------
+  // 환경 변수 및 파라미터 준비 (P2-01, P2-02)
+  // ---------------------------------------------------------------------------
+  // 개발 모드 인증 우회 여부 (서버 환경 변수 -> 클라이언트 전달)
+  const isDevMode = process.env.SKIP_RAFT_AUTH === 'true'
+  // URL 쿼리 파라미터로 초기 카테고리 설정 (?category=...)
+  const initialCategory = searchParams.category
+
+  // ---------------------------------------------------------------------------
   // 활성화 상태: SyntheticDataPanel + RAFTDatasetList 렌더링
   // ---------------------------------------------------------------------------
   return (
     <main className="container mx-auto p-8">
       <h1 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">
         RAFT 관리
+        {isDevMode && (
+          <span className="ml-3 text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full align-middle">
+            Dev Mode (Auth Skipped)
+          </span>
+        )}
       </h1>
       
-      {/* 합성 데이터 생성 패널 */}
-      <SyntheticDataPanel />
+      {/* 합성 데이터 생성 패널 (Props 전달) */}
+      <SyntheticDataPanel 
+        isDevMode={isDevMode}
+        initialCategory={initialCategory}
+      />
       
       {/* 생성된 Q&A 목록 (검토 및 삭제) */}
       <RAFTDatasetList />

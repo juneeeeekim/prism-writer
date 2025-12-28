@@ -16,6 +16,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchRAFTDataset, deleteRAFTDataset, RAFTDatasetItem } from '@/lib/api/raft'
 import { useAuth } from '@/hooks/useAuth'
+import { RAFT_CATEGORIES } from '@/constants/raft'
 
 // =============================================================================
 // 상수 정의
@@ -58,6 +59,9 @@ export default function RAFTDatasetList() {
   /** 현재 페이지 (0-indexed) */
   const [page, setPage] = useState<number>(0)
 
+  /** 선택된 카테고리 필터 [P2-03] */
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL')
+
   // ---------------------------------------------------------------------------
   // 인증 상태 확인
   // ---------------------------------------------------------------------------
@@ -96,7 +100,8 @@ export default function RAFTDatasetList() {
     } finally {
       setIsLoading(false)
     }
-  }, [page, isLoggedIn])
+
+  }, [page, isLoggedIn, selectedCategory])
 
   // ---------------------------------------------------------------------------
   // 초기 로드 및 페이지 변경 시 데이터 조회
@@ -168,6 +173,24 @@ export default function RAFTDatasetList() {
           📋 생성된 Q&A 목록
         </h2>
         <div className="flex items-center gap-2">
+          {/* 카테고리 필터 [P2-03] */}
+          <select
+            value={selectedCategory}
+            onChange={(e) => {
+              setSelectedCategory(e.target.value)
+              setPage(0) // 필터 변경 시 첫 페이지로 이동
+            }}
+            className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200"
+            disabled={isLoading}
+          >
+            <option value="ALL">전체 카테고리</option>
+            {RAFT_CATEGORIES.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
+          </select>
+
           <span className="text-sm text-gray-500 dark:text-gray-400">
             총 {totalCount}개
           </span>
