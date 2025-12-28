@@ -68,11 +68,13 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
     // 1. 사용자 인증 확인
     // ---------------------------------------------------------------------------
     const supabase = createClient()
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
 
-    if (!session) {
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
       return NextResponse.json(
         {
           success: false,
@@ -83,7 +85,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
       )
     }
 
-    const userId = session.user.id
+    const userId = user.id
 
     // ---------------------------------------------------------------------------
     // 2. FormData에서 파일 추출
@@ -193,9 +195,14 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
         
         category: category, // [Phase 2]
         source: 'upload',
-        // Assuming content is optional or we put placeholder.
         content: `(File Uploaded: ${file.name})`, // Temporary content until processed
         
+        // [Phase 2 Fix] Add required columns for document processing
+        file_path: uploadData.path,
+        file_type: fileType,
+        file_size: file.size,
+        status: 'pending',
+
         // Extra metadata
         metadata: {
           file_path: uploadData.path,

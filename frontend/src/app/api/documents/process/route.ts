@@ -18,17 +18,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // ---------------------------------------------------------------------------
     const supabase = createClient()
     const {
-      data: { session },
-    } = await supabase.auth.getSession()
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
 
-    if (!session) {
+    if (authError || !user) {
       return NextResponse.json(
         { success: false, message: '로그인이 필요합니다.', error: 'UNAUTHORIZED' },
         { status: 401 }
       )
     }
 
-    const userId = session.user.id
+    const userId = user.id
+
+
 
     // ---------------------------------------------------------------------------
     // 2. Request Body 검증
@@ -47,7 +50,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // 3. 문서 정보 조회 및 소유권 검증 (Security: IDOR 방지)
     // ---------------------------------------------------------------------------
     const { data: documentData, error: dbError } = await supabase
-      .from('rag_documents')
+      .from('user_documents')
       .select('id, file_path, file_type, status, user_id')
       .eq('id', documentId)
       .eq('user_id', userId) // 본인 소유 확인

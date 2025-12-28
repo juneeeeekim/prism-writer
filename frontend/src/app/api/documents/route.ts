@@ -49,10 +49,11 @@ export async function GET(): Promise<NextResponse<GetDocumentsResponse>> {
     // ---------------------------------------------------------------------------
     const supabase = createClient()
     const {
-      data: { session },
-    } = await supabase.auth.getSession()
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
 
-    if (!session) {
+    if (authError || !user) {
       return NextResponse.json(
         {
           success: false,
@@ -63,13 +64,13 @@ export async function GET(): Promise<NextResponse<GetDocumentsResponse>> {
       )
     }
 
-    const userId = session.user.id
+    const userId = user.id
 
     // ---------------------------------------------------------------------------
     // 2. 데이터베이스에서 문서 목록 조회
     // ---------------------------------------------------------------------------
     const { data: documents, error } = await supabase
-      .from('rag_documents')
+      .from('user_documents')
       .select('id, title, file_path, file_type, file_size, status, error_message, created_at, updated_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
@@ -120,10 +121,11 @@ export async function DELETE(request: Request): Promise<NextResponse> {
     // 1. 사용자 인증 확인
     const supabase = createClient()
     const {
-      data: { session },
-    } = await supabase.auth.getSession()
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
 
-    if (!session) {
+    if (authError || !user) {
       return NextResponse.json(
         { success: false, message: '로그인이 필요합니다.', error: 'UNAUTHORIZED' },
         { status: 401 }
@@ -144,10 +146,10 @@ export async function DELETE(request: Request): Promise<NextResponse> {
     // 3. DB에서 문서 삭제 (Cascade 설정으로 인해 chunks도 자동 삭제됨)
     // 본인 소유의 문서인지 확인하는 조건(eq('user_id', ...)) 필수
     const { error } = await supabase
-      .from('rag_documents')
+      .from('user_documents')
       .delete()
       .eq('id', documentId)
-      .eq('user_id', session.user.id)
+      .eq('user_id', user.id)
 
     if (error) {
       console.error('Database delete error:', error)

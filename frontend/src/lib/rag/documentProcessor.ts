@@ -79,7 +79,7 @@ async function updateDocumentStatus(
   }
 
   const { error } = await supabase
-    .from('rag_documents')
+    .from('user_documents')
     .update(updateData)
     .eq('id', documentId)
 
