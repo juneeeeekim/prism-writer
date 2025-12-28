@@ -679,6 +679,22 @@ export default function EvaluationTab() {
             {/* 기준별 평가 탭 (또는 holisticResult 없으면 바로 표시) */}
             {(activeEvalTab === 'detailed' || !holisticResult) && (
               <>
+                {/* [UX Fix] 종합 평가 유도 버튼 (종합 평가 결과가 없을 때) */}
+                {!holisticResult && (
+                  <div className="mx-4 mt-2 p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100 dark:border-indigo-800 flex justify-between items-center">
+                    <div className="text-sm text-indigo-700 dark:text-indigo-300">
+                      <span className="font-semibold">💡 전체적인 글 평가가 필요하신가요?</span>
+                    </div>
+                    <button
+                      onClick={handleHolisticEvaluate}
+                      disabled={isHolisticLoading}
+                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded transition-colors shadow-sm"
+                    >
+                      {isHolisticLoading ? '분석 중...' : '📊 종합 평가 실행'}
+                    </button>
+                  </div>
+                )}
+
                 {/* 저장됨 표시 */}
                 {isSaved && result && (
                   <div className="mx-4 mt-2 mb-0 px-2 py-1 bg-green-100 dark:bg-green-900/30 rounded text-xs text-green-700 dark:text-green-300 flex items-center gap-1">
