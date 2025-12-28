@@ -25,6 +25,8 @@ interface SearchRequest {
   topK?: number
   /** 최소 유사도 임계값 (기본: 0.5) */
   threshold?: number
+  /** [Phase C] 카테고리 필터 (필수 - 격리 모드) */
+  category?: string
 }
 
 /** 검색 결과 아이템 (DB에서 반환되는 형식) */
@@ -112,7 +114,8 @@ export async function POST(request: Request): Promise<NextResponse<SearchRespons
     const { 
       query, 
       topK = DEFAULT_TOP_K, 
-      threshold = DEFAULT_THRESHOLD 
+      threshold = DEFAULT_THRESHOLD,
+      category  // [Phase C] 카테고리 필터
     } = body
 
     // 쿼리 검증
@@ -126,6 +129,22 @@ export async function POST(request: Request): Promise<NextResponse<SearchRespons
         { status: 400 }
       )
     }
+
+    // [Phase C] C-01: 카테고리 필수 검증 (격리 모드는 선택적)
+    // 주석: 증분 검증 - undefined/null이면 전체 검색 허용
+    // 향후 격육 필요 시: 아래 주석 해제
+    /*
+    if (!category) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: '카테고리별 격리 검색을 위해 category 파라미터가 필요합니다.',
+          error: 'MISSING_CATEGORY',
+        },
+        { status: 400 }
+      )
+    }
+    */
 
     // Top-K 값 검증 및 제한
     const validTopK = Math.min(Math.max(topK, 1), MAX_TOP_K)
@@ -150,6 +169,7 @@ export async function POST(request: Request): Promise<NextResponse<SearchRespons
 
     // ---------------------------------------------------------------------------
     // 4. match_document_chunks RPC 호출 (P2 Phase 1에서 생성된 함수)
+    // [Phase C] C-02: user_id_param과 category_param 전달
     // ---------------------------------------------------------------------------
     const { data: searchResults, error: searchError } = await supabase.rpc(
       'match_document_chunks',
@@ -157,6 +177,8 @@ export async function POST(request: Request): Promise<NextResponse<SearchRespons
         query_embedding: queryEmbedding,
         match_threshold: threshold,
         match_count: validTopK,
+        user_id_param: session.user.id,        // [Phase C] 사용자 ID 전달
+        category_param: category || null       // [Phase C] 카테고리 필터 (null = 전체)
       }
     )
 

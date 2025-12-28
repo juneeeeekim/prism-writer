@@ -206,9 +206,46 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
 
     // -------------------------------------------------------------------------
-    // 필수 파라미터 검증
+    // [Phase B] B-02: useExistingChunks 분기 로직
     // -------------------------------------------------------------------------
-    if (!body.context || body.context.trim() === '') {
+    let finalContext = body.context || ''
+    let chunkInfo: { chunkCount: number; truncated: boolean; warning?: string } = { 
+      chunkCount: 0, 
+      truncated: false 
+    }
+
+    // useExistingChunks 모드: 백엔드에서 카테고리별 청크 자동 추출
+    if (body.useExistingChunks && body.category) {
+      const { extractCategoryChunks } = await import('@/lib/raft/chunkExtractor')
+      const extraction = await extractCategoryChunks(body.category, 100)
+      
+      finalContext = extraction.text
+      chunkInfo = {
+        chunkCount: extraction.chunkCount,
+        truncated: extraction.truncated,
+        warning: extraction.warning
+      }
+
+      // 방어 로직: 최소 컨텍스트 길이 검증
+      if (!finalContext || finalContext.length < 100) {
+        return NextResponse.json(
+          { 
+            success: false,
+            error: 'INSUFFICIENT_CHUNKS',
+            message: `카테고리 '${body.category}'에 충분한 청크 데이터가 없습니다. (최소 100자 필요, 현재: ${finalContext?.length || 0}자)`,
+            chunkInfo
+          },
+          { status: 400 }
+        )
+      }
+
+      console.log(`[Phase B] useExistingChunks: category=${body.category}, chunks=${chunkInfo.chunkCount}, length=${finalContext.length}`)
+    }
+
+    // -------------------------------------------------------------------------
+    // 필수 파라미터 검증 (useExistingChunks가 아닌 경우에만)
+    // -------------------------------------------------------------------------
+    if (!body.useExistingChunks && (!finalContext || finalContext.trim() === '')) {
       return NextResponse.json(
         { error: 'context is required', message: 'context 파라미터가 필요합니다.' },
         { status: 400 }
@@ -267,8 +304,9 @@ export async function POST(request: NextRequest) {
     // -------------------------------------------------------------------------
     // LLM을 사용하여 합성 데이터 생성
     // -------------------------------------------------------------------------
+    // [Phase B] body.context 대신 finalContext 사용 (청크 추출 모드 지원)
     const result = await generateSyntheticData(
-      { context: body.context, count },
+      { context: finalContext, count },
       (prompt) => generateTextWithTimeout(prompt, body.modelId || getModelForUsage('raft.generation'))
     )
 
@@ -298,9 +336,10 @@ export async function POST(request: NextRequest) {
     // 생성된 데이터를 raft_dataset 테이블에 저장
     // -------------------------------------------------------------------------
     // supabase 변수는 이미 상단에서 선언됨
+    // [Phase B] body.context 대신 finalContext 저장 (청크 추출 모드 지원)
     const insertData = result.data.map((item: GeneratedQAPair) => ({
       user_query: item.question,
-      context: body.context,
+      context: finalContext,
       gold_answer: item.answer,
       source: 'synthetic',
       category: category, 

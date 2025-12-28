@@ -83,12 +83,19 @@ async function getAuthToken(): Promise<string | null> {
 
 /**
  * 합성 데이터 생성 API 호출
+ * 
+ * @param context - 참고 자료 텍스트 (useExistingChunks=true 시 빈 문자열 가능)
+ * @param count - 생성할 Q&A 개수
+ * @param category - 카테고리 (필수)
+ * @param modelId - 사용할 LLM 모델 ID
+ * @param useExistingChunks - true일 경우 백엔드에서 해당 카테고리 청크 자동 추출 [Phase A]
  */
 export async function generateSyntheticDataAPI(
   context: string,
   count: number,
-  category?: string, // [P3-03]
-  modelId?: string   // [P3-04] Model Select
+  category?: string,
+  modelId?: string,
+  useExistingChunks: boolean = false  // [Phase A] 신규 파라미터
 ): Promise<GenerationAPIResponse> {
   const token = await getAuthToken()
 
@@ -103,10 +110,11 @@ export async function generateSyntheticDataAPI(
       'Authorization': `Bearer ${token}`,
     },
     body: JSON.stringify({ 
-      context, 
+      context: useExistingChunks ? '' : context,  // [Phase A] 청크 사용 시 빈 문자열
       count,
-      category, // [P3-03]
-      modelId   // [P3-04]
+      category,
+      modelId,
+      useExistingChunks  // [Phase A] 신규 필드
     }),
   })
 

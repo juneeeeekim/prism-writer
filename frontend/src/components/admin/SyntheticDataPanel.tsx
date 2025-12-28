@@ -92,6 +92,8 @@ export default function SyntheticDataPanel({
   )
   const [contextSource, setContextSource] = useState<'manual' | 'db'>('manual')
   const [isFetchingContext, setIsFetchingContext] = useState<boolean>(false)
+  // [Phase A] A-01: 기존 청크 전체 활용 상태
+  const [useExistingChunks, setUseExistingChunks] = useState<boolean>(false)
 
   const [isGenerating, setIsGenerating] = useState<boolean>(false)
   const [isConfirming, setIsConfirming] = useState<boolean>(false)
@@ -115,7 +117,15 @@ export default function SyntheticDataPanel({
     setResult(null)
     
     try {
-      const response = await generateSyntheticDataAPI(context, count, selectedCategory, selectedModel)
+      // [Phase A] A-05: useExistingChunks 파라미터 전달
+      const shouldUseChunks = useExistingChunks && contextSource === 'db'
+      const response = await generateSyntheticDataAPI(
+        shouldUseChunks ? '' : context,  // 청크 사용 시 빈 문자열
+        count, 
+        selectedCategory, 
+        selectedModel,
+        shouldUseChunks  // [Phase A] 신규 파라미터
+      )
       
       setResult({
         success: response.success,
@@ -139,10 +149,19 @@ export default function SyntheticDataPanel({
   }
 
   const handleInitialGenerate = () => {
-    if (context.trim().length < 100) {
+    // [Phase A] A-05: useExistingChunks 모드일 때는 context 검증 스킵
+    const shouldUseChunks = useExistingChunks && contextSource === 'db'
+    
+    if (!shouldUseChunks && context.trim().length < 100) {
       alert('참고 자료는 최소 100자 이상 입력해야 합니다.')
       return
     }
+    
+    if (shouldUseChunks && !selectedCategory) {
+      alert('청크 활용 모드는 카테고리 선택이 필수입니다.')
+      return
+    }
+    
     setIsConfirming(true)
   }
 
@@ -255,58 +274,87 @@ export default function SyntheticDataPanel({
           </div>
 
           {contextSource === 'db' && (
-            <div className="mb-2 p-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 rounded-lg flex items-center justify-between">
-              <div className="text-xs text-indigo-800 dark:text-indigo-200">
-                <span className="font-bold">선택된 카테고리:</span> {selectedCategory}
-                <p className="mt-0.5 opacity-80">이 카테고리의 문서 내용을 자동으로 불러옵니다.</p>
-              </div>
-              <button
-                type="button"
-                onClick={async () => {
-                  if (isFetchingContext) return
-                  const confirmMsg = context.length > 0 ? '현재 입력된 내용이 덮어씌워집니다. 계속하시겠습니까?' : null
-                  if (confirmMsg && !confirm(confirmMsg)) return
+            <div className="mb-2 p-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="text-xs text-indigo-800 dark:text-indigo-200">
+                  <span className="font-bold">선택된 카테고리:</span> {selectedCategory}
+                  <p className="mt-0.5 opacity-80">이 카테고리의 문서 내용을 자동으로 불러옵니다.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (isFetchingContext) return
+                    const confirmMsg = context.length > 0 ? '현재 입력된 내용이 덮어씌워집니다. 계속하시겠습니까?' : null
+                    if (confirmMsg && !confirm(confirmMsg)) return
 
-                  try {
-                    setIsFetchingContext(true)
-                    const res = await fetch('/api/raft/context', {
-                      method: 'POST',
-                      headers: {'Content-Type': 'application/json'},
-                      body: JSON.stringify({ category: selectedCategory })
-                    })
-                    const data = await res.json()
-                    
-                    if (!res.ok) throw new Error(data.error || 'Fetch failed')
-                    if (!data.context) {
-                      alert(data.message || '해당 카테고리의 문서를 찾을 수 없습니다.')
-                    } else {
-                      setContext(data.context)
+                    try {
+                      setIsFetchingContext(true)
+                      const res = await fetch('/api/raft/context', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ category: selectedCategory })
+                      })
+                      const data = await res.json()
+                      
+                      if (!res.ok) throw new Error(data.error || 'Fetch failed')
+                      if (!data.context) {
+                        alert(data.message || '해당 카테고리의 문서를 찾을 수 없습니다.')
+                      } else {
+                        setContext(data.context)
+                      }
+                    } catch (e: any) {
+                      alert('불러오기 실패: ' + e.message)
+                    } finally {
+                      setIsFetchingContext(false)
                     }
-                  } catch (e: any) {
-                    alert('불러오기 실패: ' + e.message)
-                  } finally {
-                    setIsFetchingContext(false)
-                  }
-                }}
-                disabled={isFetchingContext}
-                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50"
-              >
-                {isFetchingContext ? <Spinner size="sm" color="white" /> : '📥 문서 불러오기'}
-              </button>
+                  }}
+                  disabled={isFetchingContext || useExistingChunks}
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50"
+                >
+                  {isFetchingContext ? <Spinner size="sm" color="white" /> : '📥 문서 불러오기'}
+                </button>
+              </div>
+              
+              {/* [Phase A] A-01: Existing Chunks 사용 체크박스 */}
+              <label className="flex items-center gap-2 text-sm mt-3 p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={useExistingChunks}
+                  onChange={(e) => setUseExistingChunks(e.target.checked)}
+                  className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  aria-label="기존 청크 전체 활용"
+                />
+                <span className="text-gray-700 dark:text-gray-300">
+                  📦 해당 카테고리의 모든 청크를 컨텍스트로 자동 활용
+                </span>
+              </label>
             </div>
           )}
 
-          <textarea
-            value={context}
-            onChange={(e) => setContext(e.target.value)}
-            placeholder={contextSource === 'db' 
-              ? "상단의 '문서 불러오기' 버튼을 클릭하면 내용이 채워집니다. (필요 시 수정 가능)" 
-              : "합성 데이터의 기반이 될 텍스트를 입력해주세요. (예: 시스템 메뉴얼, 정책 문서 등)"
-            }
-            className="w-full h-48 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 
-                       text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent 
-                       transition-all resize-none placeholder:text-gray-400 dark:placeholder:text-gray-600"
-          />
+          {/* [Phase A] A-02: 조건부 렌더링 - useExistingChunks 시 안내 메시지 표시 */}
+          {useExistingChunks && contextSource === 'db' ? (
+            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 transition-all duration-300">
+              <p className="text-blue-700 dark:text-blue-300 text-sm flex items-center gap-2">
+                <span className="text-lg">✨</span>
+                선택된 카테고리 <strong className="font-bold">'{selectedCategory}'</strong>의 모든 청크를 자동으로 활용합니다.
+              </p>
+              <p className="text-blue-600 dark:text-blue-400 text-xs mt-1 ml-7">
+                (직접 입력 없이 DB에 저장된 문서 청크를 기반으로 Q&A를 생성합니다)
+              </p>
+            </div>
+          ) : (
+            <textarea
+              value={context}
+              onChange={(e) => setContext(e.target.value)}
+              placeholder={contextSource === 'db' 
+                ? "상단의 '문서 불러오기' 버튼을 클릭하면 내용이 채워집니다. (필요 시 수정 가능)" 
+                : "합성 데이터의 기반이 될 텍스트를 입력해주세요. (예: 시스템 메뉴얼, 정책 문서 등)"
+              }
+              className="w-full h-48 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 
+                         text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent 
+                         transition-all resize-none placeholder:text-gray-400 dark:placeholder:text-gray-600"
+            />
+          )}
         </div>
 
         <div className="flex flex-col sm:flex-row gap-6">
