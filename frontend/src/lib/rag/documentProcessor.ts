@@ -359,7 +359,8 @@ export async function processDocument(
       embeddingsGenerated = true
 
       // 사용량 기록
-      await trackUsage(userId, totalTokens, documentId)
+      const supabase = createClient()
+      await trackUsage(userId, totalTokens, documentId, supabase)
     } catch (embeddingError) {
       console.error('Failed to generate embeddings:', embeddingError)
       // [수정] 임베딩 실패는 검색 불가로 이어지므로 에러로 처리
