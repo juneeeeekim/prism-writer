@@ -10,6 +10,7 @@
 import { GoogleGenerativeAI, type GenerativeModel } from '@google/generative-ai'
 import type { SearchResult } from './search'
 import { hasQuotes, hasDialogue, hasNumericData } from './chunking'
+import { getModelForUsage } from '@/config/llm-usage-map'
 
 // =============================================================================
 // 타입 정의
@@ -56,8 +57,9 @@ export const DEFAULT_EXAMPLE_RERANKER_CONFIG: ExampleRerankerConfig = {
 // 상수
 // =============================================================================
 
-/** 기본 모델 - Gemini 3 Flash (Pipeline v4) */
-const DEFAULT_MODEL = 'gemini-3-flash-preview'
+// ❌ (중앙화 마이그레이션 2025-12-28)
+// const DEFAULT_MODEL = 'gemini-3-flash-preview'
+// 대신 getModelForUsage('rag.reranker') 직접 호출
 
 /** 기본 Top-K */
 const DEFAULT_TOP_K = 5
@@ -69,11 +71,15 @@ const DEFAULT_BATCH_SIZE = 10
 // Gemini 클라이언트 초기화 (Pipeline v4)
 // =============================================================================
 
+// ⚠️ 중앙화 주의: 모듈 레벨 캐싱으로 인해 최초 호출 시점의 모델 ID가 유지됨
+// 현재는 'rag.reranker' context가 단일 모델을 사용하므로 문제 없음
+// 향후 다중 모델 지원 시 캐시 무효화 로직 검토 필요
 let geminiModel: GenerativeModel | null = null
 
 /**
  * Gemini 모델 가져오기 (지연 초기화)
  * 주석(LLM 전문 개발자): Gemini 3 Flash로 업그레이드 (2025-12-25)
+ * 주석(중앙화 마이그레이션): getModelForUsage 적용 (2025-12-28)
  */
 function getGeminiModel(): GenerativeModel {
   if (!geminiModel) {
@@ -88,7 +94,7 @@ function getGeminiModel(): GenerativeModel {
 
     const genAI = new GoogleGenerativeAI(apiKey)
     geminiModel = genAI.getGenerativeModel({
-      model: DEFAULT_MODEL,
+      model: getModelForUsage('rag.reranker'),
       generationConfig: {
         temperature: 1.0,  // Gemini 3 권장 (Gemini_3_Flash_Reference.md)
         maxOutputTokens: 10,
@@ -201,7 +207,7 @@ export async function rerank(
 ): Promise<SearchResult[]> {
   const {
     topK = DEFAULT_TOP_K,
-    model = DEFAULT_MODEL,
+    model = getModelForUsage('rag.reranker'),
     batchSize = DEFAULT_BATCH_SIZE,
   } = options
 

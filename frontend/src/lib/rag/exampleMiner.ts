@@ -4,7 +4,9 @@ import { hybridSearch } from './search'
 import { applyExampleBoost, DEFAULT_EXAMPLE_RERANKER_CONFIG } from './reranker'
 import { generateExampleGenerationPrompt, EXAMPLE_GENERATION_SYSTEM_PROMPT } from './prompts/exampleGeneration'
 import { type Rule } from './ruleMiner'
-import OpenAI from 'openai'
+import { getModelForUsage } from '@/config/llm-usage-map'
+// ❌ (중앙화 마이그레이션 2025-12-28) 미사용 import 제거
+// import OpenAI from 'openai'
 
 // =============================================================================
 // 타입 정의
@@ -117,11 +119,12 @@ async function generateExamplesForRule(rule: Rule, sourceChunks: string[]): Prom
 
   // ---------------------------------------------------------------------------
   // Gemini 3 Flash 초기화 (LLM 전문 개발자)
+  // 주석(중앙화 마이그레이션): getModelForUsage 적용 (2025-12-28)
   // ---------------------------------------------------------------------------
   const { GoogleGenerativeAI } = await import('@google/generative-ai')
   const genAI = new GoogleGenerativeAI(apiKey)
   const model = genAI.getGenerativeModel({ 
-    model: 'gemini-3-flash-preview',
+    model: getModelForUsage('example.mining'),
     generationConfig: {
       temperature: 1.0,  // Gemini 3 권장 (Gemini_3_Flash_Reference.md)
       responseMimeType: 'application/json',

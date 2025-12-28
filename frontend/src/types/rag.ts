@@ -2,6 +2,7 @@
 // =============================================================================
 
 import { getDefaultModelId } from '@/config/models'
+import { getModelForUsage } from '@/config/llm-usage-map'
 
 // =============================================================================
 // 문서 상태 관련 타입 (Phase 1: Foundation)
@@ -204,7 +205,8 @@ export interface RouterConfig {
  */
 function createRouterConfigs(): Record<RouterMode, RouterConfig> {
   const defaultModel = getDefaultModelId()
-  const premiumModel = 'gemini-3-pro-preview'
+  // 주석(중앙화 마이그레이션): getModelForUsage 적용 (2025-12-28)
+  const premiumModel = getModelForUsage('premium.answer')
 
   return {
     cheap: {

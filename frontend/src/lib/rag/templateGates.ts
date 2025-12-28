@@ -2,6 +2,7 @@
 import { type TemplateSchema } from './templateTypes'
 import { type Chunk } from './search'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { getModelForUsage } from '@/config/llm-usage-map'
 
 // =============================================================================
 // 타입 정의
@@ -67,8 +68,9 @@ export async function validateConsistencyGate(template: TemplateSchema): Promise
   if (!apiKey) return { passed: true, reason: 'Skipped (No GOOGLE_API_KEY)', score: 0.5 }
 
   const genAI = new GoogleGenerativeAI(apiKey)
+  // 주석(중앙화 마이그레이션): getModelForUsage 적용 (2025-12-28)
   const model = genAI.getGenerativeModel({ 
-    model: 'gemini-3-flash-preview',
+    model: getModelForUsage('template.consistency'),
     generationConfig: {
       temperature: 1.0,  // Gemini 3 권장 (Gemini_3_Flash_Reference.md)
       responseMimeType: 'application/json',
@@ -139,8 +141,9 @@ export async function validateHallucinationGate(
   if (!apiKey) return { passed: true, reason: 'Skipped (No GOOGLE_API_KEY)', score: 0.5 }
 
   const genAI = new GoogleGenerativeAI(apiKey)
+  // 주석(중앙화 마이그레이션): getModelForUsage 적용 (2025-12-28)
   const model = genAI.getGenerativeModel({ 
-    model: 'gemini-3-flash-preview',
+    model: getModelForUsage('template.hallucination'),
     generationConfig: {
       temperature: 1.0,  // Gemini 3 권장 (Gemini_3_Flash_Reference.md)
       responseMimeType: 'application/json',
@@ -192,10 +195,13 @@ JSON 형식으로 응답해주세요:
 // ---------------------------------------------------------------------------
 // 주석(시니어 개발자): 성능 최적화 상수
 // 주석(LLM 전문 개발자): Gemini 3 Flash로 업그레이드 (2025-12-25)
+// 주석(중앙화 마이그레이션): getModelForUsage 적용 (2025-12-28)
 // ---------------------------------------------------------------------------
 const REGRESSION_MAX_SAMPLES = 5  // 최대 샘플 수 제한 (성능 최적화)
 const REGRESSION_TOLERANCE = 0.1  // 허용 점수 편차 (±10%)
-const REGRESSION_MODEL = 'gemini-3-flash-preview'  // Gemini 3 Flash (비용/속도/성능 최적화)
+// ❌ (중앙화 마이그레이션 2025-12-28)
+// const REGRESSION_MODEL = 'gemini-3-flash-preview'
+// 대신 getModelForUsage('template.regression') 직접 호출
 const REGRESSION_THINKING_LEVEL = 'low'  // 빠른 응답용 (Gemini_3_Flash_Reference.md 권장)
 
 /**
@@ -267,7 +273,7 @@ export async function validateRegressionGate(
 
   const genAI = new GoogleGenerativeAI(apiKey)
   const model = genAI.getGenerativeModel({ 
-    model: REGRESSION_MODEL,
+    model: getModelForUsage('template.regression'),
     generationConfig: {
       temperature: 1.0,  // Gemini 3 권장 (Gemini_3_Flash_Reference.md)
       responseMimeType: 'application/json',
