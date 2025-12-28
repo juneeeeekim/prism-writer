@@ -448,3 +448,97 @@ export async function DELETE(request: NextRequest) {
     )
   }
 }
+
+// =============================================================================
+// PATCH: RAFT 데이터셋 수정 (품질 평점 등)
+// =============================================================================
+
+/**
+ * RAFT 데이터셋 항목 수정
+ * 
+ * @body id - 수정할 항목 ID
+ * @body qualityScore - (선택) 품질 평점 (1~5)
+ * 
+ * @returns { success: true }
+ */
+export async function PATCH(request: NextRequest) {
+  // ---------------------------------------------------------------------------
+  // Feature Flag 체크
+  // ---------------------------------------------------------------------------
+  if (!FEATURE_FLAGS.ENABLE_RAFT_FEATURES) {
+    return NextResponse.json(
+      { error: 'RAFT features are disabled' },
+      { status: 503 }
+    )
+  }
+
+  // ---------------------------------------------------------------------------
+  // [Risk 9] 관리자 인증 검증
+  // ---------------------------------------------------------------------------
+  const auth = await verifyAdminAccess(request)
+  if (!auth.authorized) {
+    return NextResponse.json(
+      { error: 'Unauthorized', message: auth.error || '인증이 필요합니다.' },
+      { status: 403 }
+    )
+  }
+
+  try {
+    const body = await request.json()
+    const { id, qualityScore } = body
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Missing id', message: 'id 필드가 필요합니다.' },
+        { status: 400 }
+      )
+    }
+
+    const supabase = getSupabaseAdmin()
+    const updateData: any = {}
+
+    // 품질 평점 업데이트
+    if (qualityScore !== undefined) {
+      const score = Number(qualityScore)
+      if (isNaN(score) || score < 1 || score > 5) {
+        return NextResponse.json(
+          { error: 'Invalid quality_score', message: '평점은 1~5 사이의 숫자여야 합니다.' },
+          { status: 400 }
+        )
+      }
+      updateData.quality_score = score
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json(
+        { error: 'No fields to update', message: '수정할 내용이 없습니다.' },
+        { status: 400 }
+      )
+    }
+
+    // 업데이트 실행
+    const { error } = await supabase
+      .from('raft_dataset')
+      .update(updateData)
+      .eq('id', id)
+
+    if (error) {
+      console.error('[RAFT API] PATCH Error:', error)
+      return NextResponse.json(
+        { error: 'Failed to update RAFT data', details: error.message },
+        { status: 500 }
+      )
+    }
+
+    console.log(`[RAFT API] PATCH: Entry ${id} updated with ${JSON.stringify(updateData)}`)
+
+    return NextResponse.json({ success: true })
+
+  } catch (error: any) {
+    console.error('[RAFT API] PATCH Exception:', error)
+    return NextResponse.json(
+      { error: error.message || 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}

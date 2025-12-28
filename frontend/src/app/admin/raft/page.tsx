@@ -15,6 +15,7 @@ import { FEATURE_FLAGS } from '@/config/featureFlags'
 import { Metadata } from 'next'
 import SyntheticDataPanel from '@/components/admin/SyntheticDataPanel'
 import RAFTDatasetList from '@/components/admin/RAFTDatasetList'
+import RAFTStatsDashboard from '@/components/admin/RAFTStatsDashboard' // P3-01 추가
 import { AuthHeader } from '@/components/auth' // P2-01 추가
 
 // =============================================================================
@@ -99,6 +100,9 @@ export default function RaftAdminPage({
         </h1>
         
         <div className="space-y-8">
+          {/* [P3-01] 통계 대시보드 추가 */}
+          <RAFTStatsDashboard />
+
           {/* 합성 데이터 생성 패널 (Props 전달) */}
           <SyntheticDataPanel 
             isDevMode={isDevMode}

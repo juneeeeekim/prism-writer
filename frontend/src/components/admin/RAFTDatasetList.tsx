@@ -14,9 +14,45 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { fetchRAFTDataset, deleteRAFTDataset, RAFTDatasetItem } from '@/lib/api/raft'
+import { fetchRAFTDataset, deleteRAFTDataset, updateRAFTDatasetQuality, exportRAFTDataset, RAFTDatasetItem } from '@/lib/api/raft'
 import { useAuth } from '@/hooks/useAuth'
 import { RAFT_CATEGORIES } from '@/constants/raft'
+
+// =============================================================================
+// 서브 컴포넌트
+// =============================================================================
+
+interface StarRatingProps {
+  score: number
+  onChange: (score: number) => void
+  disabled?: boolean
+}
+
+function StarRating({ score, onChange, disabled }: StarRatingProps) {
+  const [hoverScore, setHoverScore] = useState<number | null>(null)
+
+  return (
+    <div className="flex items-center gap-0.5" onMouseLeave={() => setHoverScore(null)}>
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          disabled={disabled}
+          onClick={() => onChange(star)}
+          onMouseEnter={() => !disabled && setHoverScore(star)}
+          className={`text-lg transition-colors focus:outline-none ${
+            star <= (hoverScore ?? score)
+              ? 'text-yellow-400'
+              : 'text-gray-300 dark:text-gray-600'
+          } ${disabled ? 'cursor-default' : 'cursor-pointer hover:scale-110'}`}
+          aria-label={`${star}점`}
+        >
+          ★
+        </button>
+      ))}
+    </div>
+  )
+}
 
 // =============================================================================
 // 상수 정의
@@ -145,12 +181,45 @@ export default function RAFTDatasetList() {
   }
 
   // ---------------------------------------------------------------------------
+  // 평점 핸들러 [P3-02]
+  // ---------------------------------------------------------------------------
+
+  const handleRate = async (item: RAFTDatasetItem, score: number) => {
+    // 낙관적 업데이트
+    const previousScore = item.quality_score
+    setItems(prev => prev.map(i => i.id === item.id ? { ...i, quality_score: score } : i))
+
+    try {
+      await updateRAFTDatasetQuality(item.id, score)
+    } catch (err) {
+      // 실패 시 롤백
+      setItems(prev => prev.map(i => i.id === item.id ? { ...i, quality_score: previousScore } : i))
+      alert('평점 반영에 실패했습니다.')
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // 새로고침 핸들러
   // ---------------------------------------------------------------------------
   
   const handleRefresh = () => {
     setPage(0)
     loadData()
+  }
+
+  // ---------------------------------------------------------------------------
+  // 내보내기 핸들러 [P3-03]
+  // ---------------------------------------------------------------------------
+
+  const handleExport = async (format: 'jsonl' | 'csv') => {
+    try {
+      const confirmed = window.confirm(`${format.toUpperCase()} 포맷으로 데이터를 내보내시겠습니까?\n(검증된 데이터만 추출됩니다)`)
+      if (!confirmed) return
+
+      await exportRAFTDataset(format, selectedCategory)
+    } catch (err: any) {
+      alert(err.message || '내보내기에 실패했습니다.')
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -196,6 +265,25 @@ export default function RAFTDatasetList() {
           <span className="text-sm text-gray-500 dark:text-gray-400">
             총 {totalCount}개
           </span>
+          
+          <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1 ml-2">
+            <button
+              onClick={() => handleExport('jsonl')}
+              className="px-2 py-0.5 text-xs font-medium hover:text-blue-600 dark:hover:text-blue-400"
+              title="Gemini Fine-tuning Format"
+            >
+              JSONL
+            </button>
+            <div className="w-px bg-gray-300 dark:bg-gray-600 mx-1"></div>
+            <button
+              onClick={() => handleExport('csv')}
+              className="px-2 py-0.5 text-xs font-medium hover:text-blue-600 dark:hover:text-blue-400"
+              title="CSV Format"
+            >
+              CSV
+            </button>
+          </div>
+
           <button
             onClick={handleRefresh}
             className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
@@ -308,14 +396,24 @@ export default function RAFTDatasetList() {
                     {item.verified ? ' ✅ 검증됨' : ' ⏳ 미검증'}
                   </span>
                 </div>
-                <button
-                  onClick={() => handleDelete(item)}
-                  disabled={deletingId === item.id}
-                  className="px-3 py-1 text-red-500 hover:text-white hover:bg-red-500 border border-red-300 dark:border-red-700 rounded transition-colors"
-                  aria-label="삭제"
-                >
-                  🗑️ 삭제
-                </button>
+
+                <div className="flex items-center gap-4">
+                  {/* 평점 컴포넌트 [P3-02] */}
+                  <StarRating 
+                    score={item.quality_score || 0} 
+                    onChange={(score) => handleRate(item, score)}
+                    disabled={deletingId === item.id}
+                  />
+
+                  <button
+                    onClick={() => handleDelete(item)}
+                    disabled={deletingId === item.id}
+                    className="px-3 py-1 text-red-500 hover:text-white hover:bg-red-500 border border-red-300 dark:border-red-700 rounded transition-colors text-sm"
+                    aria-label="삭제"
+                  >
+                    🗑️ 삭제
+                  </button>
+                </div>
               </div>
             </div>
           ))}

@@ -51,6 +51,7 @@ export interface RAFTDatasetItem {
 
   model_id?: string
   category?: string // [P3-03]
+  quality_score?: number // [P3-02]
 }
 
 /**
@@ -204,5 +205,77 @@ export async function deleteRAFTDataset(id: string): Promise<void> {
     const data = await res.json()
     throw new Error(data.message || '삭제에 실패했습니다.')
   }
+}
+
+/**
+ * RAFT 데이터셋 품질 평점 업데이트 [P3-02]
+ * 
+ * @param id - 항목 ID
+ * @param qualityScore - 평점 (1~5)
+ */
+export async function updateRAFTDatasetQuality(id: string, qualityScore: number): Promise<void> {
+  const token = await getAuthToken()
+
+  if (!token) {
+    throw new Error('로그인이 필요합니다')
+  }
+
+  const res = await fetch('/api/raft/dataset', {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ id, qualityScore }),
+  })
+
+  if (!res.ok) {
+    const data = await res.json()
+    throw new Error(data.message || '평점 업데이트에 실패했습니다.')
+  }
+}
+
+/**
+ * RAFT 데이터셋 내보내기 [P3-03]
+ * 
+ * @param format - 파일 포맷 'jsonl' | 'csv'
+ * @param category - 카테고리 필터 (Optional)
+ */
+export async function exportRAFTDataset(format: 'jsonl' | 'csv', category?: string): Promise<void> {
+  const token = await getAuthToken()
+
+  if (!token) {
+    throw new Error('로그인이 필요합니다')
+  }
+
+  const params = new URLSearchParams()
+  params.set('format', format)
+  if (category && category !== 'ALL') params.set('category', category)
+  params.set('verified', 'true') // 기본적으로 검증된 데이터만 추출
+
+  const res = await fetch(`/api/raft/export?${params.toString()}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  })
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.message || data.error || '내보내기에 실패했습니다.')
+  }
+
+  // 파일 다운로드 처리
+  const blob = await res.blob()
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  // Content-Disposition 헤더에서 파일명 추출하면 좋지만, 간단히 여기서 생성
+  const date = new Date().toISOString().split('T')[0]
+  a.download = `raft_dataset_${category || 'all'}_${date}.${format}`
+  document.body.appendChild(a)
+  a.click()
+  window.URL.revokeObjectURL(url)
+  document.body.removeChild(a)
 }
 
