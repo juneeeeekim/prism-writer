@@ -7,7 +7,7 @@ import { RAFT_CATEGORIES } from '@/constants/raft'
 // PRISM Writer - Unique Category Fetch API
 // =============================================================================
 // 파일: frontend/src/app/api/categories/unique/route.ts
-// 역할: documents 테이블의 유니크 카테고리 목록을 조회하여 반환
+// 역할: user_documents 테이블의 유니크 카테고리 목록을 조회하여 반환
 // 보안: SKIP_RAFT_AUTH 환경변수 또는 Admin 권한 체크
 // =============================================================================
 
@@ -35,12 +35,12 @@ export async function GET() {
       // if (user.role !== 'admin') { ... }
     }
 
-    // -------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------
     // 2. DB에서 유니크 카테고리 조회
-    // -------------------------------------------------------------------------
-    // documents 테이블에서 category 컬럼만 가져옴
+    // ---------------------------------------------------------------------------
+    // [Phase P1-01] user_documents 테이블에서 category 컬럼만 가져옴
     const { data: documents, error: dbError } = await supabase
-      .from('documents')
+      .from('user_documents')
       .select('category')
       .not('category', 'is', null) // NULL 제외
 

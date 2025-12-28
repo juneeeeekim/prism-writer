@@ -6,11 +6,9 @@
 // 생성일: 2025-12-28
 // =============================================================================
 
-/**
- * RAFT 데이터 카테고리 목록
- * - UI 드롭다운 및 DB 필터링에 사용됨
- */
+// [Phase P1-02] RAFT 데이터 카테고리 목록 (DB 기본값 '미분류' 호환)
 export const RAFT_CATEGORIES = [
+  '미분류',     // DB 기본값 - user_documents.category DEFAULT '미분류'
   '마케팅',
   '기술/개발',
   '일반/상식',
@@ -22,8 +20,8 @@ export const RAFT_CATEGORIES = [
 /** 카테고리 타입 정의 */
 export type RaftCategory = typeof RAFT_CATEGORIES[number];
 
-/** 기본 카테고리 (데이터 누락 시 폴백용) */
-export const DEFAULT_RAFT_CATEGORY = '기타' as const;
+// [Phase P1-03] 기본 카테고리 (DB 기본값과 통일)
+export const DEFAULT_RAFT_CATEGORY = '미분류' as const;
 
 /** '전체 보기'용 상수 */
 export const ALL_CATEGORIES_FILTER = 'ALL' as const;
