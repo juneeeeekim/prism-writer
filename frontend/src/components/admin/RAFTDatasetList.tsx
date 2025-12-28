@@ -15,6 +15,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { fetchRAFTDataset, deleteRAFTDataset, RAFTDatasetItem } from '@/lib/api/raft'
+import { useAuth } from '@/hooks/useAuth'
 
 // =============================================================================
 // 상수 정의
@@ -46,7 +47,7 @@ export default function RAFTDatasetList() {
   const [totalCount, setTotalCount] = useState<number>(0)
   
   /** 로딩 상태 */
-  const [isLoading, setIsLoading] = useState<boolean>(true)
+  const [isLoading, setIsLoading] = useState<boolean>(false)
   
   /** 에러 메시지 */
   const [error, setError] = useState<string | null>(null)
@@ -58,10 +59,25 @@ export default function RAFTDatasetList() {
   const [page, setPage] = useState<number>(0)
 
   // ---------------------------------------------------------------------------
+  // 인증 상태 확인
+  // ---------------------------------------------------------------------------
+  
+  const { user, loading: authLoading } = useAuth()
+  const isLoggedIn = user !== null
+
+  // ---------------------------------------------------------------------------
   // 데이터 조회 함수
   // ---------------------------------------------------------------------------
   
   const loadData = useCallback(async () => {
+    // 로그인하지 않은 경우 데이터 조회 안함
+    if (!isLoggedIn) {
+      setItems([])
+      setTotalCount(0)
+      setIsLoading(false)
+      return
+    }
+
     setIsLoading(true)
     setError(null)
     
@@ -80,15 +96,18 @@ export default function RAFTDatasetList() {
     } finally {
       setIsLoading(false)
     }
-  }, [page])
+  }, [page, isLoggedIn])
 
   // ---------------------------------------------------------------------------
   // 초기 로드 및 페이지 변경 시 데이터 조회
   // ---------------------------------------------------------------------------
   
   useEffect(() => {
-    loadData()
-  }, [loadData])
+    // 인증 로딩 완료 후에만 데이터 로드
+    if (!authLoading) {
+      loadData()
+    }
+  }, [loadData, authLoading])
 
   // ---------------------------------------------------------------------------
   // 삭제 핸들러
@@ -195,9 +214,19 @@ export default function RAFTDatasetList() {
       )}
 
       {/* ===================================================================== */}
-      {/* 빈 상태 */}
+      {/* 로그인 필요 안내 */}
       {/* ===================================================================== */}
-      {!isLoading && !error && items.length === 0 && (
+      {!authLoading && !isLoggedIn && (
+        <div className="py-8 text-center text-gray-500 dark:text-gray-400">
+          <p>🔒 로그인이 필요합니다.</p>
+          <p className="text-sm mt-2">Q&A 목록을 보려면 먼저 로그인해주세요.</p>
+        </div>
+      )}
+
+      {/* ===================================================================== */}
+      {/* 빈 상태 (로그인 후) */}
+      {/* ===================================================================== */}
+      {!isLoading && !error && isLoggedIn && items.length === 0 && (
         <div className="py-8 text-center text-gray-500 dark:text-gray-400">
           <p>📭 생성된 Q&A가 없습니다.</p>
           <p className="text-sm mt-2">위의 "합성 데이터 생성" 기능을 사용해 Q&A를 생성해보세요.</p>
