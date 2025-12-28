@@ -26,6 +26,8 @@ interface HolisticFeedbackPanelProps {
   result?: HolisticEvaluationResult | null
   /** 로딩 상태 */
   isLoading?: boolean
+  /** [P4] 재평가 핸들러 */
+  onRetry?: () => void
 }
 
 // =============================================================================
@@ -157,7 +159,8 @@ const AdviceAccordion = memo(function AdviceAccordion({
 
 export default function HolisticFeedbackPanel({ 
   result, 
-  isLoading = false 
+  isLoading = false,
+  onRetry
 }: HolisticFeedbackPanelProps) {
   // ---------------------------------------------------------------------------
   // 로딩 상태
@@ -204,10 +207,23 @@ export default function HolisticFeedbackPanel({
   // ---------------------------------------------------------------------------
   return (
     <div 
-      className="space-y-4 p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700"
+      className="space-y-4 p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 relative"
       role="region"
       aria-label="종합 평가 결과"
     >
+      {/* [P4] 재평가 버튼 (상단 우측) */}
+      {onRetry && (
+        <div className="absolute top-4 right-4">
+          <button
+            onClick={onRetry}
+            disabled={isLoading}
+            className="text-xs flex items-center gap-1 px-2 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-300 transition-colors"
+            title="다시 평가하기"
+          >
+            <span>🔄</span> 재평가
+          </button>
+        </div>
+      )}
       {/* ===================================================================== */}
       {/* 섹션 A: 종합 피드백 (한 문단) */}
       {/* ===================================================================== */}
@@ -274,6 +290,21 @@ export default function HolisticFeedbackPanel({
             {scoreC.overall}
           </span>
           <span className="text-sm text-gray-400">/100</span>
+
+          {/* [P4] 0점 에러 상황 대응 */}
+          {scoreC.overall === 0 && (
+            <div className="ml-auto text-xs text-red-500 flex items-center gap-1">
+              <span>⚠️ 평가 오류 발생</span>
+              {onRetry && (
+                <button 
+                  onClick={onRetry}
+                  className="underline hover:text-red-600 font-medium"
+                >
+                  다시 시도
+                </button>
+              )}
+            </div>
+          )}
         </div>
         
         {/* 영역별 점수 바 */}

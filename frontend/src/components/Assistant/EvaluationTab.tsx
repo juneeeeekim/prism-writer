@@ -126,12 +126,21 @@ export default function EvaluationTab() {
           const latest = data.evaluations[0]
           if (latest.result_data) {
             setResult(latest.result_data)
+            
+            // [P4] Holistic Result 복원
+            if (latest.result_data.holistic_result) {
+              setHolisticResult(latest.result_data.holistic_result)
+            } else {
+              setHolisticResult(null)
+            }
+            
             setIsSaved(true)
           }
         } else {
           // Phase 15: 평가 없으면 빈 상태로 초기화
           setSavedEvaluations([])
           setResult(null)
+          setHolisticResult(null)
           setIsSaved(false)
         }
       } catch (err) {
@@ -164,7 +173,11 @@ export default function EvaluationTab() {
         body: JSON.stringify({
           documentId,  // Phase 15: 문서 ID 연결
           documentText,
-          resultData,
+          resultData: {
+            ...resultData,
+            // [P4] Holistic Result 병합 (이미 resultData에 있으면 유지, 없으면 현재 state 사용)
+            holistic_result: resultData.holistic_result || holisticResult || undefined
+          },
           overallScore: resultData.overall_score
         })
       })
@@ -255,13 +268,35 @@ export default function EvaluationTab() {
 
       setHolisticResult(data.result)
       console.log('[EvaluationTab] Holistic evaluation complete:', data.result?.scoreC?.overall)
+      
+      // [P4] 평가 결과 자동 저장
+      const resultToSave: V5EvaluationResult = result ? { ...result } : {
+        document_id: documentId || 'unknown',
+        template_id: 'holistic-only',
+        evaluated_at: new Date().toISOString(),
+        overall_score: data.result.scoreC.overall || 0,
+        judgments: [],
+        upgrade_plans: []
+      }
+      
+      // holistic_result 추가
+      resultToSave.holistic_result = data.result
+      
+      // 저장 실행
+      await saveEvaluation(resultToSave, textToEvaluate)
+      
+      // 상세 평가 결과가 없었다면 result 상태도 업데이트 (저장된 것과 동기화)
+      if (!result) {
+        setResult(resultToSave)
+      }
+      
     } catch (err) {
       console.error('[EvaluationTab] Holistic evaluation error:', err)
       setError('종합 평가 요청 중 오류가 발생했습니다.')
     } finally {
       setIsHolisticLoading(false)
     }
-  }, [content, category])
+  }, [content, category, result, documentId, saveEvaluation, holisticResult])
 
   // ---------------------------------------------------------------------------
   // 평가 실행 핸들러
@@ -392,6 +427,12 @@ export default function EvaluationTab() {
   const handleLoadEvaluation = (evaluation: SavedEvaluation) => {
     if (evaluation.result_data) {
       setResult(evaluation.result_data)
+      // [P4] Holistic Result 복원
+      if (evaluation.result_data.holistic_result) {
+        setHolisticResult(evaluation.result_data.holistic_result)
+      } else {
+        setHolisticResult(null)
+      }
       setIsSaved(true)
     }
   }
@@ -610,6 +651,7 @@ export default function EvaluationTab() {
           <HolisticFeedbackPanel 
             result={holisticResult}
             isLoading={isHolisticLoading}
+            onRetry={handleHolisticEvaluate}
           />
           
           {/* 기준별 평가로 전환 버튼 */}
@@ -672,6 +714,7 @@ export default function EvaluationTab() {
                 <HolisticFeedbackPanel 
                   result={holisticResult}
                   isLoading={false}
+                  onRetry={handleHolisticEvaluate}
                 />
               </div>
             )}

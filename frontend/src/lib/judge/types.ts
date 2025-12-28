@@ -58,6 +58,7 @@ export interface EvaluationResult {
   upgrade_plans: UpgradePlan[]
   /** 전체 점수 (0~100) */
   overall_score: number
+  holistic_result?: HolisticEvaluationResult // [P4] Persistence for Holistic Eval
 }
 
 // =============================================================================
