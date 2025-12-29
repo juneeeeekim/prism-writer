@@ -205,8 +205,9 @@ export async function vectorSearch(
     }
     
     // v3 결과 반환 (클라이언트 사이드 필터링)
+    // [P0-01-D Fix] RPC returns 'id', not 'chunk_id' - mapped correctly
     let v3Results: SearchResult[] = (v3Data || []).map((item: any) => ({
-      chunkId: item.chunk_id,
+      chunkId: item.id,  // Fixed: RPC returns 'id' not 'chunk_id'
       documentId: item.document_id,
       content: item.content,
       score: item.similarity,
@@ -246,8 +247,9 @@ export async function vectorSearch(
     }
     
     // 폴백 시 클라이언트 사이드 필터링
+    // [P0-01-D Fix] RPC returns 'id', not 'chunk_id' - mapped correctly
     let fallbackResults: SearchResult[] = (fallbackData || []).map((item: any) => ({
-      chunkId: item.chunk_id,
+      chunkId: item.id,  // Fixed: RPC returns 'id' not 'chunk_id'
       documentId: item.document_id,
       content: item.content,
       score: item.similarity,
@@ -268,8 +270,9 @@ export async function vectorSearch(
   // ---------------------------------------------------------------------------
   // 3. 결과 포맷팅 (Pipeline v4: DB에서 이미 필터링됨)
   // ---------------------------------------------------------------------------
+  // [P0-01-D Fix] RPC returns 'id', not 'chunk_id' - mapped correctly
   let results: SearchResult[] = (data || []).map((item: any) => ({
-    chunkId: item.chunk_id,
+    chunkId: item.id,  // Fixed: RPC returns 'id' not 'chunk_id'
     documentId: item.document_id,
     content: item.content,
     score: item.similarity,
@@ -343,11 +346,11 @@ export async function fullTextSearch(
       content,
       metadata,
       chunk_type,
-      rag_documents!inner(user_id)
+      user_documents!inner(user_id)
     `
     )
     .textSearch('content', searchQuery)
-    .eq('rag_documents.user_id', userId)
+    .eq('user_documents.user_id', userId)
     .limit(topK)
 
   // 문서 ID 필터
