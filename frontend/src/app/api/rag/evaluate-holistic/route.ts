@@ -16,6 +16,9 @@ import { createClient } from '@/lib/supabase/server'
 import { vectorSearch } from '@/lib/rag/search'
 import { runHolisticEvaluation } from '@/lib/judge/holisticAdvisor'
 import { type HolisticEvaluationResult } from '@/lib/judge/types'
+// [P3-05] Template 컨텍스트 지원
+import { type TemplateSchema } from '@/lib/rag/templateTypes'
+import { FEATURE_FLAGS } from '@/config/featureFlags'
 
 // =============================================================================
 // 타입 정의
@@ -133,14 +136,47 @@ export async function POST(request: NextRequest): Promise<NextResponse<HolisticE
     }
 
     // -------------------------------------------------------------------------
-    // 4. 종합 평가 수행
+    // 4. [P3-05] Template 예시 컨텍스트 조회
+    // -------------------------------------------------------------------------
+    let templateExamplesContext = ''
+    if (FEATURE_FLAGS.ENABLE_PIPELINE_V5) {
+      try {
+        const { data: templateData } = await supabase
+          .from('rag_templates')
+          .select('criteria_json')
+          .eq('user_id', userId)
+          .eq('status', 'approved')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single()
+
+        if (templateData?.criteria_json) {
+          const templates = templateData.criteria_json as TemplateSchema[]
+          // 긍정/부정 예시가 있는 템플릿만 컨텍스트로 생성
+          const templatesWithExamples = templates.filter(t => t.positive_examples.length > 0)
+          if (templatesWithExamples.length > 0) {
+            templateExamplesContext = templatesWithExamples
+              .map(t => `[평가 기준: ${t.rationale}]\n좋은 예: ${t.positive_examples[0]}\n나쁜 예: ${t.negative_examples[0] || '(없음)'}`)
+              .join('\n\n')
+            console.log(`[Holistic Evaluate API] P3-05: Template ${templatesWithExamples.length}개 기준 컨텍스트 생성`)
+          }
+        }
+      } catch (templateErr) {
+        console.warn('[Holistic Evaluate API] Template fetch failed, continuing without:', templateErr)
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // 5. 종합 평가 수행
     // -------------------------------------------------------------------------
     console.log('[Holistic Evaluate API] Starting holistic evaluation...')
     
+    // [P3-05] templateExamplesContext를 4번째 인자로 전달
     const result = await runHolisticEvaluation(
       userText,
       evidenceContext,
-      category
+      category,
+      templateExamplesContext  // [P3-05] Template 예시 컨텍스트
     )
 
     console.log(`[Holistic Evaluate API] Evaluation complete - Score: ${result.scoreC.overall}`)

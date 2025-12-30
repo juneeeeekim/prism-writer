@@ -2,6 +2,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { type TemplateSchema } from '../rag/templateTypes'
 import { type JudgeResult } from './types'
+// [P3-06] Feature Flags import
+import { FEATURE_FLAGS } from '@/config/featureFlags'
 
 // =============================================================================
 // Helper: JSON Sanitization
@@ -82,15 +84,27 @@ ${userText}
 1. pass: 기준을 명확하게 충족함
 2. fail: 기준을 명확하게 위반함
 3. partial: 일부만 충족하거나 애매함
-${evidenceContext ? '4. 업로드된 참고자료가 있다면, 이를 근거로 활용하여 판정하세요.' : ''}
+${
+       evidenceContext
+        ? '4. 업로드된 참고자료가 있다면, 이를 근거로 활용하여 판정하세요.'
+        : ''
+    }
 
 [CRITICAL: JSON 포맷 준수]
 반드시 아래 형식의 순수 JSON만 출력하세요. 마크다운 코드 블록이나 추가 설명 없이 JSON만 반환하세요.
-{
-  "status": "pass",
+${
+        // [P3-06] ENABLE_SOURCE_CITATIONS 플래그에 따른 조건부 citation 요청
+        FEATURE_FLAGS.ENABLE_SOURCE_CITATIONS
+          ? `{
+  "status": "pass" | "fail" | "partial",
   "reasoning": "판정 이유 (한글로 간결하게)",
-  "citation": "판정의 근거가 되는 사용자 글의 일부 문장 (없으면 null)"
-}
+  "citation": "원문에서 근거가 된 부분 인용 (없으면 null)"
+}`
+          : `{
+  "status": "pass" | "fail" | "partial",
+  "reasoning": "판정 이유 (한글로 간결하게)"
+}`
+      }
 `
 
   try {
@@ -115,7 +129,8 @@ ${evidenceContext ? '4. 업로드된 참고자료가 있다면, 이를 근거로
       criteria_id: criteria.criteria_id || 'unknown',
       status: parsed.status,
       reasoning: parsed.reasoning,
-      citation: parsed.citation || undefined,
+      // [P3-06] ENABLE_SOURCE_CITATIONS 플래그에 따라 citation 조건부 포함
+      citation: FEATURE_FLAGS.ENABLE_SOURCE_CITATIONS ? (parsed.citation || undefined) : undefined,
     }
   } catch (error) {
     console.error('[AlignJudge] Error:', error)

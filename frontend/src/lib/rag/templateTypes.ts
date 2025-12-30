@@ -32,6 +32,52 @@ export interface TemplateSchema {
 }
 
 // =============================================================================
+// [P2-04] Template Schema V2 (Lineage 추적 포함)
+// =============================================================================
+
+/**
+ * Gate-Keeper 검증 결과
+ * @description 템플릿 생성 시 수행되는 검증 결과
+ */
+export interface GateKeeperResult {
+  /** Citation Gate: 원문 인용 검증 */
+  citation_passed: boolean
+  /** Consistency Gate: 규칙 간 일관성 검증 */
+  consistency_passed: boolean
+  /** Hallucination Gate: 환각 검증 */
+  hallucination_passed: boolean
+}
+
+/**
+ * [P2-04] Template Schema V2 (Lineage 추적 포함)
+ * @version 2.0.0
+ * @description TemplateSchema의 확장 버전, 원본 추적 및 검증 결과 포함
+ */
+export interface TemplateSchemaV2 extends TemplateSchema {
+  // ---------------------------------------------------------------------------
+  // Lineage (원본 추적)
+  // ---------------------------------------------------------------------------
+  /** 원본 규칙 ID (rag_rules.id) */
+  source_rule_id?: string
+  /** 원본 청크 ID 목록 (rag_chunks.id[]) */
+  source_chunk_ids?: string[]
+
+  // ---------------------------------------------------------------------------
+  // Gate-Keeper 검증 결과
+  // ---------------------------------------------------------------------------
+  /** Gate-Keeper 검증 결과 */
+  gate_results?: GateKeeperResult
+
+  // ---------------------------------------------------------------------------
+  // 생성 메타데이터
+  // ---------------------------------------------------------------------------
+  /** 생성 방법 */
+  created_by?: 'llm' | 'manual' | 'migration'
+  /** 사용된 LLM 모델 */
+  model_used?: string
+}
+
+// =============================================================================
 // 2. Template Entity (DB 구조)
 // =============================================================================
 

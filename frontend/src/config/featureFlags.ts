@@ -143,6 +143,43 @@ export const FEATURE_FLAGS = {
    * 기본값: false
    */
   FF_EVIDENCE_QUALITY: process.env.FF_EVIDENCE_QUALITY === 'true',
+
+  // ==========================================================================
+  // [P3-01] Phase 3 Feature Flags (2025-12-29 추가)
+  // ==========================================================================
+
+  /**
+   * 채팅에 Template 컨텍스트 사용 여부
+   * 환경 변수: USE_TEMPLATE_FOR_CHAT
+   * 기본값: false (점진적 롤아웃)
+   * 
+   * @description
+   * - 채팅 RAG 검색 시 사용자 템플릿의 규칙/예시를 참고자료로 활용
+   * - 활성화 시 시스템 프롬프트에 템플릿 컨텍스트 추가
+   */
+  USE_TEMPLATE_FOR_CHAT: process.env.USE_TEMPLATE_FOR_CHAT === 'true',
+
+  /**
+   * 평가 결과에 source_citations 포함 여부
+   * 환경 변수: ENABLE_SOURCE_CITATIONS
+   * 기본값: true (투명성 강화)
+   * 
+   * @description
+   * - 평가 근거의 원문 인용을 결과에 포함
+   * - Align Judge 응답에 citation 필드 추가
+   */
+  ENABLE_SOURCE_CITATIONS: process.env.ENABLE_SOURCE_CITATIONS !== 'false',
+
+  /**
+   * Shadow Mode (v2/v3 병렬 실행 및 비교 로깅)
+   * 환경 변수: ENABLE_SHADOW_MODE
+   * 기본값: false (성능 비용)
+   * 
+   * @description
+   * - v2와 v3 평가를 동시에 실행하여 결과 비교
+   * - 마이그레이션 검증용
+   */
+  ENABLE_SHADOW_MODE: process.env.ENABLE_SHADOW_MODE === 'true',
 } as const
 
 // =============================================================================

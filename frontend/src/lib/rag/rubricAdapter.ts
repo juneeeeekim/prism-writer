@@ -78,4 +78,55 @@ export class RubricAdapter {
         return 'expression'
     }
   }
+
+  // ===========================================================================
+  // [P3-03] Batch 변환 메서드 (2025-12-29 추가)
+  // ===========================================================================
+
+  /**
+   * [P3-03] Rubric 배열을 TemplateSchema 배열로 일괄 변환합니다.
+   * 
+   * @param rubrics - 변환할 Rubric 배열
+   * @returns 변환된 TemplateSchema 배열 (enabled된 것만)
+   */
+  static toTemplateArray(rubrics: Rubric[]): TemplateSchema[] {
+    return rubrics.filter(r => r.enabled).map(r => this.toTemplate(r))
+  }
+
+  /**
+   * [P3-03] TemplateSchema 배열을 Rubric 배열로 일괄 변환합니다.
+   * 
+   * @param templates - 변환할 TemplateSchema 배열
+   * @returns 변환된 Rubric 배열
+   */
+  static toRubricArray(templates: TemplateSchema[]): Rubric[] {
+    return templates.map(t => this.toRubric(t))
+  }
+
+  /**
+   * [P3-03] 기본 Templates 캐싱용 변수
+   * @private
+   */
+  private static _defaultTemplates: TemplateSchema[] | null = null
+
+  /**
+   * [P3-03] 기본 Rubrics를 TemplateSchema로 변환하여 캐싱합니다.
+   * 
+   * @description 첫 호출 시 변환하여 캐싱, 이후 호출 시 캐싱된 값 반환
+   * @param defaultRubrics - 기본 Rubric 배열 (DEFAULT_RUBRICS)
+   * @returns 캐싱된 TemplateSchema 배열
+   */
+  static getDefaultTemplates(defaultRubrics: Rubric[]): TemplateSchema[] {
+    if (!this._defaultTemplates) {
+      this._defaultTemplates = this.toTemplateArray(defaultRubrics)
+    }
+    return this._defaultTemplates
+  }
+
+  /**
+   * [P3-03] 캐시를 초기화합니다. (테스트용)
+   */
+  static clearCache(): void {
+    this._defaultTemplates = null
+  }
 }

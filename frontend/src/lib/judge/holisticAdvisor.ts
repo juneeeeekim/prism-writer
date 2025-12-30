@@ -84,11 +84,13 @@ function getDefaultHolisticResult(category: string): HolisticEvaluationResult {
 
 /**
  * 종합 평가를 위한 프롬프트 생성
+ * [P3-05] templateExamplesContext 지원 추가
  */
 function buildHolisticPrompt(
   userText: string, 
   evidenceContext: string, 
-  category: string
+  category: string,
+  templateExamplesContext?: string  // [P3-05]
 ): string {
   return `
 당신은 ${category} 분야의 전문 글쓰기 컨설턴트입니다.
@@ -105,6 +107,12 @@ ${evidenceContext}
 
 [카테고리]
 ${category}
+
+${templateExamplesContext ? `[평가 기준 및 예시 (Template)]
+${templateExamplesContext}
+
+위 예시를 참고하여 좋은 글과 나쁜 글의 차이점을 평가해주세요.
+` : ''}
 
 [평가 가이드라인]
 1. summaryA.overview: 전체 글에 대한 종합 평가를 100-200자 내외로 작성
@@ -161,12 +169,14 @@ ${category}
  * @param userText - 사용자가 작성한 전체 글
  * @param evidenceContext - 해당 카테고리의 참고자료 컨텍스트
  * @param category - 글의 카테고리
+ * @param templateExamplesContext - [P3-05] 템플릿 예시 컨텍스트 (optional)
  * @returns HolisticEvaluationResult - A + B + C 종합 평가 결과
  */
 export async function runHolisticEvaluation(
   userText: string,
   evidenceContext: string,
-  category: string
+  category: string,
+  templateExamplesContext?: string  // [P3-05]
 ): Promise<HolisticEvaluationResult> {
   // ---------------------------------------------------------------------------
   // 1. API Key 확인
@@ -186,7 +196,8 @@ export async function runHolisticEvaluation(
   // ---------------------------------------------------------------------------
   // 3. 프롬프트 생성 및 LLM 호출
   // ---------------------------------------------------------------------------
-  const prompt = buildHolisticPrompt(userText, evidenceContext, category)
+  // [P3-05] templateExamplesContext 전달
+  const prompt = buildHolisticPrompt(userText, evidenceContext, category, templateExamplesContext)
 
   try {
     console.log('[HolisticAdvisor] Starting holistic evaluation...')

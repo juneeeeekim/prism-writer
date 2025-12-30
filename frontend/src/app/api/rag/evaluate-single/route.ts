@@ -20,6 +20,8 @@ import { type TemplateSchema } from '@/lib/rag/templateTypes'
 import { vectorSearch } from '@/lib/rag/search'
 import { DEFAULT_RUBRICS } from '@/lib/rag/rubrics'
 import { RubricAdapter } from '@/lib/rag/rubricAdapter'
+// [P3-04] Feature Flags 중앙 관리 적용
+import { FEATURE_FLAGS } from '@/config/featureFlags'
 
 // =============================================================================
 // 타입 정의
@@ -33,6 +35,9 @@ interface EvaluateSingleRequest {
   criteriaId: string
   /** RAG 검색 결과 개수 */
   topK?: number
+  // [P3-04] Template ID 파라미터 추가
+  /** 특정 템플릿 ID (optional) */
+  templateId?: string
 }
 
 /** 단일 평가 응답 */
@@ -86,7 +91,8 @@ export async function POST(
     // 2. 요청 바디 파싱 및 검증
     // -------------------------------------------------------------------------
     const body = (await request.json()) as EvaluateSingleRequest
-    const { userText, criteriaId, topK } = body
+    // [P3-04] templateId 추가
+    const { userText, criteriaId, topK, templateId } = body
 
     if (!userText || userText.length < MIN_TEXT_LENGTH) {
       return NextResponse.json(
@@ -111,24 +117,45 @@ export async function POST(
     }
 
     // -------------------------------------------------------------------------
-    // 3. criteriaId → TemplateSchema 매핑 (P8A-02.5)
+    // 3. criteriaId → TemplateSchema 매핑 [P3-04 업데이트]
     // -------------------------------------------------------------------------
-    // 먼저 사용자의 템플릿에서 검색, 없으면 기본 루브릭에서 검색
+    // 우선순위: 1) 명시적 templateId → 2) 사용자 최신 템플릿 → 3) DEFAULT_RUBRICS
     let targetCriteria: TemplateSchema | null = null
 
-    // 3-1. rag_templates 테이블에서 사용자 템플릿 조회
-    const { data: templateData } = await supabase
-      .from('rag_templates')
-      .select('schema')
-      .eq('tenant_id', user.id)
-      .eq('status', 'approved')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
+    // [P3-04] 3-0. 명시적 templateId가 있고 ENABLE_PIPELINE_V5가 활성화된 경우
+    if (templateId && FEATURE_FLAGS.ENABLE_PIPELINE_V5) {
+      try {
+        const { data } = await supabase
+          .from('rag_templates')
+          .select('criteria_json')
+          .eq('id', templateId)
+          .single()
 
-    if (templateData?.schema) {
-      const schemas = templateData.schema as TemplateSchema[]
-      targetCriteria = schemas.find((s) => s.criteria_id === criteriaId) || null
+        if (data?.criteria_json) {
+          const templates = data.criteria_json as TemplateSchema[]
+          targetCriteria = templates.find(t => t.criteria_id === criteriaId) || null
+          console.log(`[EvaluateSingle] P3-04: Template ${templateId} 에서 criteria 로드`)
+        }
+      } catch (err) {
+        console.warn(`[EvaluateSingle] Template ${templateId} 조회 실패, fallback 진행`, err)
+      }
+    }
+
+    // 3-1. 위에서 못 찾았으면 사용자 최신 approved 템플릿 조회
+    if (!targetCriteria) {
+      const { data: templateData } = await supabase
+        .from('rag_templates')
+        .select('criteria_json')  // [P3-04] schema → criteria_json 컬럼명 통일
+        .eq('user_id', user.id)   // [P3-04] tenant_id → user_id 컬럼명 통일
+        .eq('status', 'approved')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (templateData?.criteria_json) {
+        const schemas = templateData.criteria_json as TemplateSchema[]
+        targetCriteria = schemas.find((s) => s.criteria_id === criteriaId) || null
+      }
     }
 
     // 3-2. 템플릿에 없으면 기본 루브릭에서 검색

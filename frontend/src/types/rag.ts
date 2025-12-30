@@ -380,3 +380,232 @@ export interface EvidenceQuality {
   }
 }
 
+// =============================================================================
+// [P1-03] RPC 함수 계약 타입 (API 계약 - 변경 금지)
+// =============================================================================
+
+/**
+ * [P1-03] RPC match_document_chunks 입력 파라미터
+ * @version 1.0.0
+ * @frozen 이 인터페이스는 API 계약으로 고정됨 - 변경 금지
+ */
+export interface MatchDocumentChunksParams {
+  /** 쿼리 임베딩 벡터 (1536 dimensions) */
+  query_embedding: number[]
+  /** 유사도 임계값 (0.0 ~ 1.0) */
+  match_threshold: number
+  /** 반환할 최대 청크 수 (Top-K) */
+  match_count: number
+  /** 사용자 ID (UUID) */
+  user_id_param: string
+  /** 카테고리 필터 (옵션) */
+  category_param?: string
+}
+
+/**
+ * [P1-03] RPC match_document_chunks 반환 타입
+ * @version 1.0.0
+ * @frozen 이 인터페이스는 API 계약으로 고정됨 - 변경 금지
+ */
+export interface MatchDocumentChunksResult {
+  /** 청크 UUID */
+  id: string
+  /** 문서 UUID (Required) */
+  document_id: string
+  /** 청크 텍스트 내용 */
+  content: string
+  /** 메타데이터 (JSONB) */
+  metadata: Record<string, unknown>
+  /** 유사도 점수 (0.0 ~ 1.0) */
+  similarity: number
+}
+
+// =============================================================================
+// [P1-04] DB 스키마 동기화 타입
+// =============================================================================
+
+/**
+ * [P1-04] RAG Chunk 타입 (DB 스키마와 동기화)
+ * @description rag_chunks 테이블과 1:1 매핑
+ */
+export interface RagChunk {
+  /** 청크 UUID */
+  id: string
+  /** 문서 UUID (FK → user_documents) */
+  document_id: string
+  /** 청크 순서 (0부터 시작) */
+  chunk_index: number
+  /** 청크 텍스트 내용 */
+  content: string
+  /** 임베딩 벡터 (Optional - 대용량) */
+  embedding?: number[]
+  /** 메타데이터 */
+  metadata: ChunkMetadata
+  /** 생성일 */
+  created_at: string
+  /** 임베딩 모델 ID */
+  embedding_model_id?: string
+  /** 임베딩 차원 */
+  embedding_dim?: number
+  /** 임베딩 생성일 */
+  embedded_at?: string
+  /** 테넌트 ID (옵션) */
+  tenant_id?: string
+  /** 청크 타입 */
+  chunk_type?: string
+}
+
+/**
+ * [P1-04] User Document 타입 (DB 스키마와 동기화)
+ * @description user_documents 테이블과 1:1 매핑
+ */
+export interface UserDocument {
+  /** 문서 UUID */
+  id: string
+  /** 사용자 UUID (FK → auth.users) */
+  user_id: string
+  /** 문서 제목 */
+  title: string
+  /** 문서 내용 */
+  content: string
+  /** 생성일 */
+  created_at: string
+  /** 수정일 */
+  updated_at: string
+  /** 카테고리 */
+  category?: string
+  /** 정렬 순서 */
+  sort_order?: number
+  /** 메타데이터 */
+  metadata?: Record<string, unknown>
+  /** 소스 (upload, etc.) */
+  source?: string
+  /** 파일 경로 */
+  file_path?: string
+  /** 파일 타입 */
+  file_type?: string
+  /** 처리 상태 */
+  status?: string
+  /** 에러 메시지 */
+  error_message?: string
+  /** 파일 크기 (bytes) */
+  file_size?: number
+  /** 처리 시작 시간 */
+  started_at?: string
+}
+
+// =============================================================================
+// [P2-05] Phase 2 DB 엔티티 타입 (Template Builder)
+// =============================================================================
+
+/** 규칙 카테고리 타입 */
+export type RuleCategory = 'structure' | 'expression' | 'tone' | 'prohibition'
+
+/** 규칙 추출 방법 */
+export type ExtractionMethod = 'llm' | 'manual' | 'rule-based'
+
+/** 예시 타입 */
+export type ExampleType = 'positive' | 'negative'
+
+/** 예시 소스 타입 */
+export type ExampleSourceType = 'mined' | 'generated' | 'manual'
+
+/** 템플릿 상태 */
+export type RagTemplateStatus = 'draft' | 'pending' | 'approved' | 'rejected'
+
+/**
+ * [P2-05] RAG Rule 엔티티 (rag_rules 테이블)
+ * @description 문서에서 추출된 원자적 규칙
+ */
+export interface RagRule {
+  /** 규칙 UUID */
+  id: string
+  /** 원본 문서 ID (FK → user_documents) */
+  document_id?: string
+  /** 원본 청크 ID (FK → rag_chunks) */
+  chunk_id?: string
+  /** 사용자 ID (FK → auth.users) */
+  user_id: string
+  /** 규칙 텍스트 */
+  rule_text: string
+  /** 카테고리 */
+  category: RuleCategory
+  /** 추출 신뢰도 (0.0 ~ 1.0) */
+  confidence: number
+  /** 원문 인용 */
+  source_quote?: string
+  /** 추출 방법 */
+  extraction_method: ExtractionMethod
+  /** 메타데이터 */
+  metadata?: Record<string, unknown>
+  /** 생성일 */
+  created_at: string
+  /** 수정일 */
+  updated_at: string
+}
+
+/**
+ * [P2-05] RAG Example 엔티티 (rag_examples 테이블)
+ * @description 좋은/나쁜 예시
+ */
+export interface RagExample {
+  /** 예시 UUID */
+  id: string
+  /** 규칙 ID (FK → rag_rules) */
+  rule_id: string
+  /** 사용자 ID (FK → auth.users) */
+  user_id: string
+  /** 예시 유형 */
+  example_type: ExampleType
+  /** 예시 텍스트 */
+  example_text: string
+  /** 나쁜 예 → 좋은 예 힌트 */
+  diff_hint?: string
+  /** 소스 타입 */
+  source_type: ExampleSourceType
+  /** 소스 청크 ID (FK → rag_chunks) */
+  source_chunk_id?: string
+  /** 신뢰도 (0.0 ~ 1.0) */
+  confidence: number
+  /** 메타데이터 */
+  metadata?: Record<string, unknown>
+  /** 생성일 */
+  created_at: string
+}
+
+/**
+ * [P2-05] RAG Template 엔티티 (rag_templates 테이블)
+ * @description 최종 평가 템플릿
+ */
+export interface RagTemplate {
+  /** 템플릿 UUID */
+  id: string
+  /** 테넌트 ID */
+  tenant_id?: string
+  /** 사용자 ID (FK → auth.users) */
+  user_id: string
+  /** 원본 문서 ID (FK → user_documents) */
+  document_id?: string
+  /** 템플릿 이름 */
+  name: string
+  /** 템플릿 설명 */
+  description?: string
+  /** 버전 */
+  version: number
+  /** 상태 */
+  status: RagTemplateStatus
+  /** 공개 여부 */
+  is_public: boolean
+  /** 평가 기준 JSON (TemplateSchemaV2[]) */
+  criteria_json: unknown[]
+  /** 승인일 */
+  approved_at?: string
+  /** 승인자 ID */
+  approved_by?: string
+  /** 거절 사유 */
+  rejection_reason?: string
+  /** 생성일 */
+  created_at: string
+  /** 수정일 */
+  updated_at: string
+}

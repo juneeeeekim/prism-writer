@@ -14,6 +14,8 @@ import { getDefaultModel } from '@/config/llm.config'
 import { createClient } from '@/lib/supabase/server'
 import { verifyCitation } from '@/lib/rag/citationGate'
 import { MemoryService } from '@/lib/rag/memory'
+import { FEATURE_FLAGS } from '@/config/featureFlags'
+import { type TemplateSchema } from '@/lib/rag/templateTypes'
 
 export const runtime = 'nodejs'
 
@@ -90,6 +92,45 @@ export async function POST(req: NextRequest) {
             return []
           })
       : Promise.resolve([])
+
+    // -------------------------------------------------------------------------
+    // 2.7. Template Context Search (P3-07)
+    // -------------------------------------------------------------------------
+    let templateContext = ''
+    if (FEATURE_FLAGS.USE_TEMPLATE_FOR_CHAT && userId) {
+      try {
+        const { data: templateData } = await supabase
+          .from('rag_templates')
+          .select('criteria_json, name')
+          .eq('user_id', userId)
+          .eq('status', 'approved')
+          .limit(1)
+          .single()
+
+        if (templateData?.criteria_json) {
+          const templates = templateData.criteria_json as TemplateSchema[]
+          // 관련된 기준 2개까지 추출
+          const relevantTemplates = templates.filter(t =>
+            query.includes(t.category) ||
+            t.rationale.toLowerCase().includes(query.toLowerCase().split(' ')[0])
+          ).slice(0, 2)
+
+          if (relevantTemplates.length > 0) {
+            templateContext = relevantTemplates.map(t => {
+              let ctx = `[평가 기준: ${t.rationale}]`
+              if (t.positive_examples.length > 0)
+                ctx += `\n좋은 예: ${t.positive_examples[0]}`
+              if (t.negative_examples.length > 0)
+                ctx += `\n나쁜 예: ${t.negative_examples[0]}`
+              return ctx
+            }).join('\n\n')
+            console.log(`[Chat API] Applied ${relevantTemplates.length} template criteria from "${templateData.name}"`)
+          }
+        }
+      } catch (err) {
+        console.warn('[Chat API] Template fetch failed:', err)
+      }
+    }
 
     // -------------------------------------------------------------------------
     // 2. RAG 검색 (Hybrid Search + Query Expansion)
@@ -206,6 +247,9 @@ export async function POST(req: NextRequest) {
 ⚠️ 다른 참고 자료보다 **가장 최우선으로** 이 스타일과 내용을 반영하여 답변하세요.
 ${userPreferencesContext ? userPreferencesContext : '(별도 선호 사항 없음)'}
 
+# 평가 기준 템플릿 (P3-07)
+${templateContext ? templateContext : '(템플릿 기준 없음)'}
+
 # 참고 자료
 ${context ? context : '(참고 자료 없음 - 일반 지식으로 답변 가능)'}
 
@@ -229,6 +273,9 @@ ${context ? context : '(참고 자료 없음 - 일반 지식으로 답변 가능
 
 [User Preferences (최우선 반영)]
 ${userPreferencesContext ? userPreferencesContext : '없음'}
+
+[평가 기준 템플릿]
+${templateContext ? templateContext : '없음'}
 
 [참고 자료]
 ${context ? context : '관련된 참고 자료가 없습니다.'}

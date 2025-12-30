@@ -21,6 +21,8 @@ import { type EvaluationResult, type JudgeResult, type UpgradePlan } from '@/lib
 import { type TemplateSchema } from '@/lib/rag/templateTypes'
 import { logShadowModeComparison } from '@/lib/rag/shadowModeLogger'
 import { RubricAdapter } from '@/lib/rag/rubricAdapter'
+// [P3-02] Feature Flags 중앙 관리 적용
+import { FEATURE_FLAGS } from '@/config/featureFlags'
 
 // =============================================================================
 // 타입 정의
@@ -119,9 +121,8 @@ export async function POST(
     }
 
     const { userText, rubricIds, searchQuery, topK, useV3, templateId } = body
-    // [FIX] ENABLE_PIPELINE_V5 플래그 사용 (3Panel UI와 분리)
-    const USE_V3_FLAG = process.env.ENABLE_PIPELINE_V5 !== 'false'
-    const effectiveUseV3 = useV3 !== undefined ? useV3 : USE_V3_FLAG
+    // [P3-02] Feature Flags 중앙 관리 적용 (하드코딩 → FEATURE_FLAGS)
+    const effectiveUseV3 = useV3 !== undefined ? useV3 : FEATURE_FLAGS.ENABLE_PIPELINE_V5
 
     // ---------------------------------------------------------------------------
     // 3. 입력 유효성 검사
