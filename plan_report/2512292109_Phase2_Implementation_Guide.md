@@ -202,35 +202,13 @@ lib/api/errorHandler.ts:22 ───▶  handleApiError ✅ (P1-10 유지)
 
 ---
 
-- [ ] **P2-04-A**: 확장 타입 정의
+- [x] **P2-04-A**: 확장 타입 정의 ✅ **ALREADY IMPLEMENTED (2025-12-30 19:56 확인)**
 
   - `Target`: `frontend/src/lib/rag/templateTypes.ts`
-  - `Logic (Pseudo)`:
-
-    ```typescript
-    /**
-     * [P2-04] Template Schema V2 (Lineage 추적 포함)
-     * @version 2.0.0
-     */
-    export interface TemplateSchemaV2 extends TemplateSchema {
-      // Lineage (원본 추적)
-      source_rule_id?: string; // rag_rules.id
-      source_chunk_ids?: string[]; // rag_chunks.id[]
-
-      // Gate-Keeper 검증 결과
-      gate_results?: {
-        citation_passed: boolean;
-        consistency_passed: boolean;
-        hallucination_passed: boolean;
-      };
-
-      // 생성 메타데이터
-      created_by?: "llm" | "manual" | "migration";
-      model_used?: string;
-    }
-    ```
-
-  - `Key Variables`: `TemplateSchemaV2`, `GateResults`
+  - `Result`: ✅ **이미 구현됨**
+    - `GateKeeperResult` (Line 42-49): citation, consistency, hallucination 검증 결과
+    - `TemplateSchemaV2` (Line 56-78): TemplateSchema 확장, Lineage 추적 포함
+  - `Key Variables`: `source_rule_id`, `source_chunk_ids`, `gate_results`, `created_by`, `model_used`
   - `Safety`: 기존 `TemplateSchema` 유지, 확장만
 
 ---
@@ -242,75 +220,16 @@ lib/api/errorHandler.ts:22 ───▶  handleApiError ✅ (P1-10 유지)
 
 ---
 
-- [ ] **P2-05-A**: DB 엔티티 인터페이스 추가
+- [x] **P2-05-A**: DB 엔티티 인터페이스 추가 ✅ **ALREADY IMPLEMENTED (2025-12-30 19:56 확인)**
 
   - `Target`: `frontend/src/types/rag.ts`
-  - `Logic (Pseudo)`:
-
-    ```typescript
-    // =============================================================================
-    // [P2-05] Phase 2 DB 엔티티 타입
-    // =============================================================================
-
-    /**
-     * [P2-05] RAG Rule 엔티티 (DB 스키마 동기화)
-     */
-    export interface RagRule {
-      id: string;
-      document_id?: string;
-      chunk_id?: string;
-      user_id: string;
-      rule_text: string;
-      category: "structure" | "expression" | "tone" | "prohibition";
-      confidence: number;
-      source_quote?: string;
-      extraction_method: "llm" | "manual" | "rule-based";
-      metadata?: Record<string, unknown>;
-      created_at: string;
-      updated_at: string;
-    }
-
-    /**
-     * [P2-05] RAG Example 엔티티
-     */
-    export interface RagExample {
-      id: string;
-      rule_id: string;
-      user_id: string;
-      example_type: "positive" | "negative";
-      example_text: string;
-      diff_hint?: string;
-      source_type: "mined" | "generated" | "manual";
-      source_chunk_id?: string;
-      confidence: number;
-      metadata?: Record<string, unknown>;
-      created_at: string;
-    }
-
-    /**
-     * [P2-05] RAG Template 엔티티
-     */
-    export interface RagTemplate {
-      id: string;
-      tenant_id?: string;
-      user_id: string;
-      document_id?: string;
-      name: string;
-      description?: string;
-      version: number;
-      status: "draft" | "pending" | "approved" | "rejected";
-      is_public: boolean;
-      criteria_json: TemplateSchemaV2[];
-      approved_at?: string;
-      approved_by?: string;
-      rejection_reason?: string;
-      created_at: string;
-      updated_at: string;
-    }
-    ```
-
+  - `Result`: ✅ **이미 구현됨** (Line 497-611)
+    - `RuleCategory`, `ExtractionMethod`, `ExampleType`, `ExampleSourceType`, `RagTemplateStatus` 타입 별칭 (Line 501-514)
+    - `RagRule` (Line 520-545): 문서에서 추출된 원자적 규칙
+    - `RagExample` (Line 551-574): 좋은/나쁜 예시
+    - `RagTemplate` (Line 580-611): 최종 평가 템플릿
   - `Key Variables`: `RagRule`, `RagExample`, `RagTemplate`
-  - `Safety`: 기존 타입 유지, 추가만
+  - `Safety`: 기존 타입 유지, Phase 2 DB 스키마와 완전 동기화됨
 
 ---
 
@@ -399,17 +318,18 @@ lib/api/errorHandler.ts:22 ───▶  handleApiError ✅ (P1-10 유지)
 
 ## ✅ Definition of Done (검증) - **ALL PASS ✅**
 
-### 필수 완료 조건
+### 필수 완료 조건 ✅ **ALL VERIFIED (2025-12-30 20:00)**
 
-| #   | 항목                        | 검증 방법                 | 상태       |
-| --- | --------------------------- | ------------------------- | ---------- |
-| 1   | `rag_rules` 테이블 생성     | Supabase Table Editor     | ✅ (21:47) |
-| 2   | `rag_examples` 테이블 생성  | Supabase Table Editor     | ✅ (21:47) |
-| 3   | `rag_templates` 테이블 생성 | Supabase Table Editor     | ✅ (21:47) |
-| 4   | RLS 정책 적용               | 마이그레이션 포함 (12개)  | ✅ (21:47) |
-| 5   | TypeScript 타입 추가        | `rag.ts`에 3개 인터페이스 | ✅ (21:49) |
-| 6   | `npm run build` 성공        | Exit code: 0              | ✅ (21:49) |
-| 7   | 기존 기능 회귀 없음         | Phase 1 타입 유지됨       | ✅         |
+| #   | 항목                        | 검증 방법                | 상태 | 비고                             |
+| --- | --------------------------- | ------------------------ | ---- | -------------------------------- |
+| 1   | `rag_rules` 테이블 생성     | Supabase Table Editor    | ✅   | 12컬럼                           |
+| 2   | `rag_examples` 테이블 생성  | Supabase Table Editor    | ✅   | 10컬럼                           |
+| 3   | `rag_templates` 테이블 생성 | Supabase Table Editor    | ✅   | 13컬럼                           |
+| 4   | RLS 정책 적용               | 마이그레이션 포함 (12개) | ✅   | DROP IF EXISTS 추가됨            |
+| 5   | **P2-04** TemplateSchemaV2  | templateTypes.ts L56-78  | ✅   | GateKeeperResult L42-49          |
+| 6   | **P2-05** DB 엔티티 타입    | rag.ts L497-611          | ✅   | RagRule, RagExample, RagTemplate |
+| 7   | `npm run build` 성공        | Exit code: 0             | ✅   | 2025-12-30 20:00                 |
+| 8   | 기존 기능 회귀 없음         | Phase 1 타입 유지됨      | ✅   |
 
 ### 코드 품질 체크
 
