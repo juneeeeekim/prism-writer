@@ -180,6 +180,22 @@ export const FEATURE_FLAGS = {
    * - 마이그레이션 검증용
    */
   ENABLE_SHADOW_MODE: process.env.ENABLE_SHADOW_MODE === 'true',
+
+  // ==========================================================================
+  // [P4-DoD] 코드 품질 Feature Flags (2025-12-31 추가)
+  // ==========================================================================
+
+  /**
+   * 디버그 로그 활성화
+   * 환경 변수: ENABLE_DEBUG_LOGS
+   * 기본값: development에서만 true
+   * 
+   * @description
+   * - Production에서는 자동 비활성화
+   * - 텔레메트리 및 디버깅 로그 제어
+   */
+  ENABLE_DEBUG_LOGS: process.env.ENABLE_DEBUG_LOGS === 'true' || 
+                     process.env.NODE_ENV === 'development',
 } as const
 
 // =============================================================================
@@ -232,17 +248,44 @@ export function getLLMProvider(): 'gemini' | 'openai' {
   return FEATURE_FLAGS.ENABLE_GEMINI_LLM ? 'gemini' : 'openai'
 }
 
+// =============================================================================
+// [P4-DoD] Debug Logging Helper - 프로덕션 자동 비활성화
+// =============================================================================
+
+/**
+ * 조건부 디버그 로그
+ * 
+ * @param tag - 로그 태그 (예: '[FeatureFlags]', '[RAG]')
+ * @param args - 로그 인자
+ * 
+ * @description
+ * - ENABLE_DEBUG_LOGS가 true일 때만 출력
+ * - Production에서는 자동 비활성화
+ * - console.log의 drop-in replacement
+ * 
+ * @example
+ * ```typescript
+ * debugLog('[Search]', 'Query:', query, 'Results:', results.length)
+ * ```
+ */
+export function debugLog(tag: string, ...args: unknown[]): void {
+  if (FEATURE_FLAGS.ENABLE_DEBUG_LOGS) {
+    console.log(tag, ...args)
+  }
+}
+
 /**
  * 모든 Feature Flag 상태를 로그 출력 (디버깅용)
  * 
  * @returns void
  */
 export function logFeatureFlags(): void {
-  console.log('[FeatureFlags] Current state:')
-  console.log('  Pipeline Version:', getPipelineVersion())
-  console.log('  UI Layout:', getUILayoutType())
-  console.log('  LLM Provider:', getLLMProvider())
-  console.log('  Flags:', FEATURE_FLAGS)
+  // [P4-DoD] debugLog 사용으로 Production 자동 비활성화
+  debugLog('[FeatureFlags] Current state:')
+  debugLog('  Pipeline Version:', getPipelineVersion())
+  debugLog('  UI Layout:', getUILayoutType())
+  debugLog('  LLM Provider:', getLLMProvider())
+  debugLog('  Flags:', FEATURE_FLAGS)
 }
 
 // =============================================================================
