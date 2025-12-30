@@ -530,7 +530,7 @@
 
 ### P5-05: 프로젝트 Context 생성
 
-- [ ] **P5-05-A**: ProjectContext 생성
+- [x] **P5-05-A**: ProjectContext 생성 ✅ **COMPLETED (2025-12-31 08:10)**
 
   - `Target`: `frontend/src/contexts/ProjectContext.tsx` [NEW]
   - `Logic (Pseudo)`:
