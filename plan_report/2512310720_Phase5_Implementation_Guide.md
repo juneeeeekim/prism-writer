@@ -198,7 +198,7 @@
 
 ### P5-02: 타입 정의
 
-- [ ] **P5-02-A**: `Project` 타입 정의
+- [x] **P5-02-A**: `Project` 타입 정의 ✅ **COMPLETED (2025-12-31 07:35)**
 
   - `Target`: `frontend/src/types/project.ts` [NEW]
   - `Logic (Pseudo)`:
