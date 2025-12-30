@@ -52,15 +52,19 @@ CREATE INDEX IF NOT EXISTS idx_rag_rules_category ON public.rag_rules(category);
 -- RLS for rag_rules
 ALTER TABLE public.rag_rules ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can select own rules" ON public.rag_rules;
 CREATE POLICY "Users can select own rules" ON public.rag_rules 
 FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own rules" ON public.rag_rules;
 CREATE POLICY "Users can insert own rules" ON public.rag_rules 
 FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own rules" ON public.rag_rules;
 CREATE POLICY "Users can update own rules" ON public.rag_rules 
 FOR UPDATE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own rules" ON public.rag_rules;
 CREATE POLICY "Users can delete own rules" ON public.rag_rules 
 FOR DELETE USING (auth.uid() = user_id);
 
@@ -110,15 +114,19 @@ CREATE INDEX IF NOT EXISTS idx_rag_examples_type ON public.rag_examples(example_
 -- RLS for rag_examples
 ALTER TABLE public.rag_examples ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can select own examples" ON public.rag_examples;
 CREATE POLICY "Users can select own examples" ON public.rag_examples 
 FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own examples" ON public.rag_examples;
 CREATE POLICY "Users can insert own examples" ON public.rag_examples 
 FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own examples" ON public.rag_examples;
 CREATE POLICY "Users can update own examples" ON public.rag_examples 
 FOR UPDATE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own examples" ON public.rag_examples;
 CREATE POLICY "Users can delete own examples" ON public.rag_examples 
 FOR DELETE USING (auth.uid() = user_id);
 
@@ -181,15 +189,19 @@ CREATE INDEX IF NOT EXISTS idx_rag_templates_document_id ON public.rag_templates
 ALTER TABLE public.rag_templates ENABLE ROW LEVEL SECURITY;
 
 -- 본인 템플릿 또는 공개 템플릿 조회 가능
+DROP POLICY IF EXISTS "Users can select own or public templates" ON public.rag_templates;
 CREATE POLICY "Users can select own or public templates" ON public.rag_templates 
 FOR SELECT USING (auth.uid() = user_id OR is_public = true);
 
+DROP POLICY IF EXISTS "Users can insert own templates" ON public.rag_templates;
 CREATE POLICY "Users can insert own templates" ON public.rag_templates 
 FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own templates" ON public.rag_templates;
 CREATE POLICY "Users can update own templates" ON public.rag_templates 
 FOR UPDATE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own templates" ON public.rag_templates;
 CREATE POLICY "Users can delete own templates" ON public.rag_templates 
 FOR DELETE USING (auth.uid() = user_id);
 
