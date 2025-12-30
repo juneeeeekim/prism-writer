@@ -1,0 +1,406 @@
+# 🔵 Phase 4: 검증 및 완료 - 구현 지시서
+
+> **문서 유형**: Tech Lead Implementation Guide  
+> **생성일**: 2025-12-30 20:00  
+> **원본 설계**: [Phase4 체크리스트](./2512290708_Phase4_Verification_Checklist.md)  
+> **마스터 플랜**: [Architecture Refactoring Master Plan](./2512290307_Architecture_Refactoring_Master_Plan.md)  
+> **선행 조건**: Phase 0, 1, 2, 3 완료 ✅  
+> **목표**: 전체 시스템 안정성 확인 및 문서화  
+> **예상 소요**: 2~3시간
+
+---
+
+## ⚠️ Before Start - 주의사항
+
+### 절대 건드리지 말 것 (레거시 보호)
+
+| 파일                             | 이유                            |
+| -------------------------------- | ------------------------------- |
+| `lib/rag/rubrics.ts`             | DEFAULT_RUBRICS Fallback용 유지 |
+| `supabase/migrations/202512290*` | Phase 0~3 마이그레이션 유지     |
+| `search.ts` L210, 252, 275       | [P0-01-D Fix] 유지              |
+
+### 회귀 테스트 포인트
+
+```
+[Phase 0~3 완료 상태 확인]
+───────────────────────────────────────────────────────────────────────
+✅ RLS 정책 6개 (rag_chunks)
+✅ templateTypes.ts:56-78 → TemplateSchemaV2
+✅ rag.ts:497-611 → RagRule, RagExample, RagTemplate
+✅ featureFlags.ts:160-182 → P3 플래그
+✅ npm run build → Exit code: 0
+```
+
+---
+
+## 📋 Phase 4.1: E2E 테스트
+
+### P4-01-A: 문서 업로드 및 처리 테스트
+
+**담당**: QA 엔지니어  
+**우선순위**: 🔴 Critical
+
+---
+
+- [ ] **P4-01-A**: 문서 업로드 E2E 테스트
+
+  - `Target`: Browser > `http://localhost:3000/editor` > 참고자료 탭
+  - `Logic (Pseudo)`:
+    ```
+    1. 로그인 → 에디터 페이지 이동
+    2. 참고자료 탭 클릭
+    3. 파일 드래그앤드롭 또는 업로드 버튼 클릭
+    4. 10페이지 PDF 선택
+    5. 업로드 진행률 표시 확인
+    6. "처리 중" → "✅ 완료" 상태 변경 확인
+    7. 문서 목록에 새 파일 표시 확인
+    ```
+  - `Key Variables`: `documentId`, `status`, `file_path`
+  - `Safety`:
+    - 업로드 실패 시 에러 메시지 표시 확인
+    - 50MB 초과 파일 → 에러 확인
+    - 지원하지 않는 확장자 → 에러 확인
+
+---
+
+### P4-01-B: 검색 기능 테스트
+
+**담당**: QA 엔지니어  
+**우선순위**: 🟠 High
+
+---
+
+- [ ] **P4-01-B**: RAG 검색 API 테스트
+
+  - `Target`: `frontend/src/lib/rag/search.ts` > `hybridSearch()`
+  - `Logic (Pseudo)`:
+
+    ```
+    // Test 1: 정확한 키워드 검색
+    const results = await hybridSearch("업로드한 문서의 핵심 키워드", {
+      userId: currentUser.id,
+      topK: 5,
+      minScore: 0.35
+    });
+    expect(results.length).toBeGreaterThan(0);
+
+    // Test 2: RLS 검증 (타인 문서 접근 불가)
+    const otherUserResults = await hybridSearch("other_user_content", {
+      userId: currentUser.id,  // 본인 ID로 검색
+      topK: 5
+    });
+    expect(otherUserResults).toEqual([]);  // 빈 결과
+    ```
+
+  - `Key Variables`: `query`, `userId`, `topK`, `minScore`, `category`
+  - `Safety`: try-catch 필수, 빈 결과 처리
+
+---
+
+### P4-01-C: 평가 기능 테스트
+
+**담당**: QA 엔지니어  
+**우선순위**: 🔴 Critical
+
+---
+
+- [ ] **P4-01-C**: 종합 평가 및 기준별 평가 테스트
+
+  - `Target`:
+    - `api/rag/evaluate-holistic/route.ts` > `POST()`
+    - `api/rag/evaluate-single/route.ts` > `POST()`
+  - `Logic (Pseudo)`:
+
+    ```
+    // Test 1: 종합 평가
+    POST /api/rag/evaluate-holistic
+    Body: { userText: "100자 이상 테스트 글", category: "미분류" }
+    Expected: { success: true, result: { scoreC: { overall: 0-100 }, ... } }
+
+    // Test 2: 개별 재평가
+    POST /api/rag/evaluate-single
+    Body: { userText: "...", criteriaId: "structure_intro" }
+    Expected: { success: true, judgment: {...}, upgradePlan: {...} }
+
+    // Test 3: 평가 저장/로드
+    POST /api/evaluations
+    Body: { documentId: "...", result: {...} }
+    GET /api/evaluations?documentId=...
+    Expected: 저장된 평가 결과 반환
+    ```
+
+  - `Key Variables`: `userText`, `category`, `criteriaId`, `templateId`
+  - `Safety`: 50자 미만 → 400 에러, 인증 없음 → 401 에러
+
+---
+
+### P4-01-D: 채팅 기능 테스트
+
+**담당**: QA 엔지니어  
+**우선순위**: 🟠 High
+
+---
+
+- [ ] **P4-01-D**: RAG 기반 채팅 테스트
+
+  - `Target`: `api/chat/route.ts` > `POST()`
+  - `Logic (Pseudo)`:
+
+    ```
+    // Test 1: 일반 질문
+    POST /api/chat
+    Body: { messages: [{ role: "user", content: "글쓰기 팁 알려줘" }] }
+    Expected: Streaming 응답, 200 OK
+
+    // Test 2: RAG 기반 질문
+    POST /api/chat
+    Body: {
+      messages: [{ role: "user", content: "업로드한 문서 관련 질문" }],
+      category: "미분류"
+    }
+    Expected: 참고자료 기반 응답, [참고 문서: ...] 포함
+
+    // Test 3: Template 컨텍스트 (USE_TEMPLATE_FOR_CHAT=true)
+    Expected: 서버 로그에 "Applied X template criteria" 출력
+    ```
+
+  - `Key Variables`: `messages`, `sessionId`, `category`, `FEATURE_FLAGS.USE_TEMPLATE_FOR_CHAT`
+  - `Safety`: Streaming 에러 처리, 세션 저장 실패 시 로그만 기록
+
+---
+
+## 📋 Phase 4.2: 성능 테스트
+
+### P4-02-A: API 응답 시간 측정
+
+**담당**: Backend 개발자  
+**우선순위**: 🟠 High
+
+---
+
+- [ ] **P4-02-A**: 주요 API 응답 시간 측정
+
+  - `Target`: 브라우저 DevTools Network 탭 또는 터미널
+  - `Logic (Pseudo)`:
+
+    ```powershell
+    # PowerShell 응답 시간 측정
+    $endpoints = @(
+      @{ Name = "search"; Url = "http://localhost:3000/api/rag/search"; Body = '{"query":"test","topK":5}' },
+      @{ Name = "evaluate-holistic"; Url = "http://localhost:3000/api/rag/evaluate-holistic"; Body = '{"userText":"테스트 글입니다. 50자 이상 작성해야 합니다. 이것은 테스트를 위한 내용입니다.","category":"미분류"}' }
+    )
+
+    foreach ($ep in $endpoints) {
+      $sw = [System.Diagnostics.Stopwatch]::StartNew()
+      try {
+        $response = Invoke-RestMethod -Uri $ep.Url -Method Post -ContentType "application/json" -Body $ep.Body
+        $sw.Stop()
+        Write-Host "$($ep.Name): $($sw.ElapsedMilliseconds)ms"
+      } catch {
+        Write-Host "$($ep.Name): ERROR"
+      }
+    }
+    ```
+
+  - `Key Variables`: P95 응답 시간 목표
+    - `/api/rag/search` → < 500ms
+    - `/api/rag/evaluate-holistic` → < 5000ms
+    - `/api/chat` TTFT → < 2000ms
+  - `Safety`: 타임아웃 설정, 재시도 로직
+
+---
+
+## 📋 Phase 4.3: 보안 테스트
+
+### P4-03-A: RLS 정책 테스트
+
+**담당**: 보안 엔지니어  
+**우선순위**: 🔴 Critical
+
+---
+
+- [ ] **P4-03-A**: RLS 정책 검증
+
+  - `Target`: Supabase SQL Editor
+  - `Logic (Pseudo)`:
+
+    ```sql
+    -- Test 1: User A가 User B 문서 조회 시도
+    -- (User A로 인증된 상태에서)
+    SELECT * FROM user_documents WHERE user_id = '<USER_B_ID>' LIMIT 1;
+    -- Expected: 0 rows (RLS가 차단)
+
+    -- Test 2: rag_chunks JOIN 검증
+    SELECT rc.* FROM rag_chunks rc
+    JOIN user_documents ud ON rc.document_id = ud.id
+    WHERE ud.user_id = '<USER_B_ID>' LIMIT 1;
+    -- Expected: 0 rows
+
+    -- Test 3: 비공개 템플릿 접근
+    SELECT * FROM rag_templates
+    WHERE user_id = '<USER_B_ID>' AND is_public = false LIMIT 1;
+    -- Expected: 0 rows
+    ```
+
+  - `Key Variables`: `auth.uid()`, `user_id`, `is_public`
+  - `Safety`: 모든 테이블에 RLS 활성화 확인
+
+---
+
+### P4-03-B: API 권한 검사
+
+**담당**: 보안 엔지니어  
+**우선순위**: 🟠 High
+
+---
+
+- [ ] **P4-03-B**: 인증/인가 검증
+
+  - `Target`: 모든 `/api/*` 엔드포인트
+  - `Logic (Pseudo)`:
+
+    ```bash
+    # Test 1: 인증 없이 호출
+    curl -X POST http://localhost:3000/api/rag/evaluate \
+      -H "Content-Type: application/json" \
+      -d '{"userText": "test"}'
+    # Expected: 401 Unauthorized
+
+    # Test 2: 타인 문서 처리 시도
+    curl -X POST http://localhost:3000/api/documents/process \
+      -H "Authorization: Bearer $USER_A_TOKEN" \
+      -d '{"documentId": "<USER_B_DOC_ID>"}'
+    # Expected: 403 Forbidden 또는 404 Not Found
+    ```
+
+  - `Key Variables`: `Authorization` 헤더, `user_id` 검증
+  - `Safety`: IDOR 방지, 적절한 에러 응답
+
+---
+
+## 📋 Phase 4.4: 문서화
+
+### P4-04-A: README 업데이트
+
+**담당**: 문서 담당자  
+**우선순위**: 🟡 Medium
+
+---
+
+- [ ] **P4-04-A**: README 업데이트
+
+  - `Target`: `README.md`
+  - `Logic (Pseudo)`:
+
+    ```markdown
+    ## 추가할 섹션
+
+    ### 아키텍처
+
+    - RAG 기반 계층 구조 다이어그램
+    - Template Builder 시스템 설명
+
+    ### Feature Flags
+
+    | 플래그        | 환경 변수               | 기본값 | 설명                 |
+    | ------------- | ----------------------- | ------ | -------------------- |
+    | v3 평가       | ENABLE_PIPELINE_V5      | true   | v3 평가 시스템       |
+    | Template 채팅 | USE_TEMPLATE_FOR_CHAT   | false  | 채팅 템플릿 컨텍스트 |
+    | 인용 표시     | ENABLE_SOURCE_CITATIONS | true   | 평가 원문 인용       |
+    ```
+
+  - `Key Variables`: N/A
+  - `Safety`: 기존 내용 유지, 추가만
+
+---
+
+## 📋 Phase 4.5: Walkthrough 작성
+
+### P4-05-A: Walkthrough 문서 작성
+
+**담당**: 전체 팀  
+**우선순위**: 🟡 Medium
+
+---
+
+- [ ] **P4-05-A**: 리팩토링 결과 요약
+
+  - `Target`: `plan_report/2512302000_Architecture_Refactoring_Walkthrough.md`
+  - `Logic (Pseudo)`:
+    ```markdown
+    # 포함 내용
+
+    1. 프로젝트 개요 (목표, 기간, 참여자)
+    2. Phase별 변경 사항 요약
+    3. 성과 지표 (KPI) 달성 여부
+    4. 스크린샷 (평가 결과, 채팅 응답)
+    5. 교훈 및 후속 과제
+    ```
+  - `Key Variables`: N/A
+  - `Safety`: 모든 Phase 완료 후 작성
+
+---
+
+## ✅ Definition of Done (검증)
+
+### 필수 완료 조건
+
+| #   | 항목                 | 검증 방법              | 상태 |
+| --- | -------------------- | ---------------------- | ---- |
+| 1   | E2E 테스트 전체 통과 | P4-01-A ~ P4-01-D 완료 | ⬜   |
+| 2   | 성능 목표 달성       | P95 < 3000ms           | ⬜   |
+| 3   | 보안 테스트 통과     | RLS 100% 검증          | ⬜   |
+| 4   | README 업데이트      | Feature Flags 포함     | ⬜   |
+| 5   | Walkthrough 작성     | Phase 0~4 요약         | ⬜   |
+
+### 코드 품질 체크
+
+- [ ] 불필요한 console.log 제거
+- [ ] 성능 측정 로그 임시 → 영구 전환 여부 결정
+- [ ] 테스트 결과 문서화
+
+---
+
+## 🎯 Verification Plan (검증 계획)
+
+### 자동화 테스트
+
+1. **빌드 테스트**: `npm run build` → Exit code: 0
+2. **타입 체크**: `npx tsc --noEmit` → 에러 없음
+
+### 수동 검증 (브라우저)
+
+1. `http://localhost:3000` 접속
+2. 로그인 → 에디터 페이지 이동
+3. 참고자료 탭 → 문서 업로드 → 처리 완료 확인
+4. 평가 탭 → 종합 평가 실행 → 점수 확인
+5. 채팅 탭 → 질문 → AI 응답 확인
+
+### 성능 검증
+
+- DevTools Network 탭에서 API 응답 시간 확인
+- P95 < 3000ms 확인
+
+---
+
+## 📊 예상 소요 시간
+
+| 작업               | 시간       | 담당    |
+| ------------------ | ---------- | ------- |
+| P4-01: E2E 테스트  | 1시간      | QA      |
+| P4-02: 성능 테스트 | 30분       | Backend |
+| P4-03: 보안 테스트 | 30분       | 보안    |
+| P4-04: 문서화      | 30분       | 문서    |
+| P4-05: Walkthrough | 30분       | 전체    |
+| **총계**           | **~3시간** |         |
+
+---
+
+## 🚀 다음 단계
+
+Phase 4 완료 후:
+
+1. **마스터 플랜** 진행률 100%로 업데이트
+2. **운영 모니터링** - 배포 후 1주일 집중 모니터링
+3. **후속 개발** - Template Builder UI, Gate-Keeper 자동화
