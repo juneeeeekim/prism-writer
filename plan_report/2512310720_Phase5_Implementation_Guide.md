@@ -270,7 +270,7 @@
 
 ### P5-03: 프로젝트 CRUD API
 
-- [ ] **P5-03-A**: GET `/api/projects` (목록 조회)
+- [x] **P5-03-A**: GET `/api/projects` (목록 조회) ✅ **COMPLETED**
 
   - `Target`: `frontend/src/app/api/projects/route.ts` [NEW]
   - `Logic (Pseudo)`:
@@ -308,7 +308,7 @@
     - 인증 필수: `if (!user) return unauthorized()`
     - RLS가 추가 보호
 
-- [ ] **P5-03-B**: POST `/api/projects` (생성)
+- [x] **P5-03-B**: POST `/api/projects` (생성) ✅ **COMPLETED**
 
   - `Target`: `frontend/src/app/api/projects/route.ts`
   - `Logic (Pseudo)`:
@@ -356,7 +356,7 @@
     - Trim 처리: `name.trim()`
     - 길이 제한: `name.length > 100`
 
-- [ ] **P5-03-C**: GET `/api/projects/[id]` (상세 조회)
+- [x] **P5-03-C**: GET `/api/projects/[id]` (상세 조회) ✅ **COMPLETED**
 
   - `Target`: `frontend/src/app/api/projects/[id]/route.ts` [NEW]
   - `Logic (Pseudo)`:
@@ -384,7 +384,7 @@
 
   - `Safety`: `eq('user_id', user.id)`로 소유권 이중 확인
 
-- [ ] **P5-03-D**: PATCH `/api/projects/[id]` (수정)
+- [x] **P5-03-D**: PATCH `/api/projects/[id]` (수정) ✅ **COMPLETED**
 
   - `Target`: `frontend/src/app/api/projects/[id]/route.ts`
   - `Logic (Pseudo)`:
@@ -424,7 +424,7 @@
     }
     ```
 
-- [ ] **P5-03-E**: DELETE `/api/projects/[id]` (삭제)
+- [x] **P5-03-E**: DELETE `/api/projects/[id]` (삭제) ✅ **COMPLETED**
 
   - `Target`: `frontend/src/app/api/projects/[id]/route.ts`
   - `Logic (Pseudo)`:
@@ -456,7 +456,7 @@
 
 ### P5-04: 기존 API 수정 (projectId 필터 추가)
 
-- [ ] **P5-04-A**: `/api/documents` 수정
+- [x] **P5-04-A**: `/api/documents` 수정 ✅ **COMPLETED**
 
   - `Target`: `frontend/src/app/api/documents/route.ts`
   - `Logic (Pseudo)`:
@@ -499,7 +499,7 @@
     });
     ```
 
-- [ ] **P5-04-C**: `/api/chat` 수정
+- [x] **P5-04-C**: `/api/chat` 수정 ✅ **COMPLETED**
 
   - `Target`: `frontend/src/app/api/chat/route.ts`
   - `Logic (Pseudo)`:

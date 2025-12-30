@@ -40,9 +40,10 @@ interface GetDocumentsResponse {
 /**
  * 사용자의 문서 목록 조회 API
  * 
+ * @query projectId - 필터링할 프로젝트 ID (선택, 없으면 전체 문서)
  * @returns JSON response with documents array
  */
-export async function GET(): Promise<NextResponse<GetDocumentsResponse>> {
+export async function GET(request: Request): Promise<NextResponse<GetDocumentsResponse>> {
   try {
     // ---------------------------------------------------------------------------
     // 1. 사용자 인증 확인
@@ -67,13 +68,25 @@ export async function GET(): Promise<NextResponse<GetDocumentsResponse>> {
     const userId = user.id
 
     // ---------------------------------------------------------------------------
-    // 2. 데이터베이스에서 문서 목록 조회
+    // [P5-04-A] 2. 쿼리 파라미터에서 projectId 추출
     // ---------------------------------------------------------------------------
-    const { data: documents, error } = await supabase
+    const { searchParams } = new URL(request.url)
+    const projectId = searchParams.get('projectId')
+
+    // ---------------------------------------------------------------------------
+    // 3. 데이터베이스에서 문서 목록 조회
+    // ---------------------------------------------------------------------------
+    let query = supabase
       .from('user_documents')
-      .select('id, title, file_path, file_type, file_size, status, error_message, created_at, updated_at')
+      .select('id, title, file_path, file_type, file_size, status, error_message, created_at, updated_at, project_id')
       .eq('user_id', userId)
-      .order('created_at', { ascending: false })
+    
+    // [P5-04-A] projectId가 있으면 해당 프로젝트의 문서만 조회
+    if (projectId) {
+      query = query.eq('project_id', projectId)
+    }
+    
+    const { data: documents, error } = await query.order('created_at', { ascending: false })
 
     if (error) {
       console.error('Database query error:', error)
