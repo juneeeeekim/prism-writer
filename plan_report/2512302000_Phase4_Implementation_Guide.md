@@ -146,35 +146,20 @@
 
 ---
 
-- [ ] **P4-02-A**: 주요 API 응답 시간 측정
+- [x] **P4-02-A**: 주요 API 응답 시간 측정 ⚠️ **1 PASS / 2 FAIL (2025-12-30 20:50)**
 
-  - `Target`: 브라우저 DevTools Network 탭 또는 터미널
-  - `Logic (Pseudo)`:
-
-    ```powershell
-    # PowerShell 응답 시간 측정
-    $endpoints = @(
-      @{ Name = "search"; Url = "http://localhost:3000/api/rag/search"; Body = '{"query":"test","topK":5}' },
-      @{ Name = "evaluate-holistic"; Url = "http://localhost:3000/api/rag/evaluate-holistic"; Body = '{"userText":"테스트 글입니다. 50자 이상 작성해야 합니다. 이것은 테스트를 위한 내용입니다.","category":"미분류"}' }
-    )
-
-    foreach ($ep in $endpoints) {
-      $sw = [System.Diagnostics.Stopwatch]::StartNew()
-      try {
-        $response = Invoke-RestMethod -Uri $ep.Url -Method Post -ContentType "application/json" -Body $ep.Body
-        $sw.Stop()
-        Write-Host "$($ep.Name): $($sw.ElapsedMilliseconds)ms"
-      } catch {
-        Write-Host "$($ep.Name): ERROR"
-      }
-    }
-    ```
-
-  - `Key Variables`: P95 응답 시간 목표
-    - `/api/rag/search` → < 500ms
-    - `/api/rag/evaluate-holistic` → < 5000ms
-    - `/api/chat` TTFT → < 2000ms
-  - `Safety`: 타임아웃 설정, 재시도 로직
+  - `Target`: 브라우저 DevTools Network 탭
+  - `Result`:
+    | API | 목표 | 측정값 | 상태 | 비고 |
+    |-----|------|--------|------|------|
+    | `/api/rag/search` | < 500ms | **2,665ms** | ❌ FAIL | Status 500 에러 |
+    | `/api/rag/evaluate-holistic` | < 5,000ms | **4,673ms** | ✅ PASS | 목표 내 완료 |
+    | `/api/chat` TTFT | < 2,000ms | **5,526ms** | ❌ FAIL | 첫 토큰 지연 |
+  - `Critical Issues`:
+    - Supabase 406 에러: `llm_daily_usage`, `llm_usage_summary` 테이블
+    - Vector Search 500 에러: 벡터 DB 또는 검색 로직 문제
+  - `Screenshot`: `click_feedback_1767095068386.png`
+  - `Safety`: ⚠️ 추가 조사 필요
 
 ---
 
