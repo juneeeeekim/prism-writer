@@ -19,20 +19,20 @@ export default function HomePage() {
           💎 PRISM Writer
         </h1>
         
-        {/* Tagline */}
+        {/* Tagline - [UI/UX Update] RAG 우선 정체성 반영 */}
         <p className="text-xl text-gray-600 dark:text-gray-300 max-w-md">
-          내 문서를 분석하여 글의 <strong>구조</strong>와 <strong>내용</strong>을 
-          잡아주는 지능형 저작 도구
+          내 문서를 기반으로 <strong>AI 글쓰기 코치</strong>를 만들고
+          <strong> 평가</strong>와 <strong>피드백</strong>을 받아보세요
         </p>
         
-        {/* CTA Button */}
+        {/* CTA Button - [UI/UX Update] RAG 우선 CTA */}
         <Link 
           href="/editor"
           className="inline-block px-8 py-3 bg-indigo-600 text-white font-semibold rounded-lg 
                      hover:bg-indigo-700 transition-colors shadow-lg hover:shadow-xl"
-          aria-label="에디터 시작하기"
+          aria-label="내 자료로 AI 코치 만들기"
         >
-          🚀 에디터 시작하기
+          📚 내 자료로 AI 코치 만들기
         </Link>
       </div>
       
