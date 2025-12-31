@@ -62,6 +62,13 @@ export interface Project {
   /** [P6-03] 온보딩 완료 여부: false(참고자료 설정 필요) | true(설정 완료) */
   setup_completed: boolean
 
+  /** 
+   * [P7-03-A] 소프트 삭제 시간 
+   * - null: 활성 프로젝트 (삭제되지 않음)
+   * - 값 있음: 휴지통에 있음 (30일 후 영구 삭제)
+   */
+  deleted_at: string | null
+
   /** 생성일 (ISO 8601) */
   created_at: string
 

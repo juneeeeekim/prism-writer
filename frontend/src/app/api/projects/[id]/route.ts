@@ -325,27 +325,29 @@ export async function PATCH(
 }
 
 // =============================================================================
-// DELETE: 프로젝트 삭제
+// DELETE: 프로젝트 소프트 삭제 (휴지통으로 이동)
 // =============================================================================
 
 /**
- * 프로젝트 삭제 API
+ * [P7-02-A] 프로젝트 소프트 삭제 API
  * 
- * ⚠️ 주의: CASCADE 삭제로 연결된 문서, 평가, 채팅도 모두 삭제됩니다.
+ * ⚠️ 참고: 실제 삭제가 아닌 휴지통으로 이동 (deleted_at 설정)
+ * 30일 후 자동 영구 삭제 예정
  * 
  * @param id - 프로젝트 ID (UUID)
- * @returns 204 No Content on success
+ * @returns JSON response with soft-delete confirmation
  * 
  * @example
  * DELETE /api/projects/550e8400-e29b-41d4-a716-446655440000
+ * Response: { success: true, message: "Project moved to trash", deleted_at: "..." }
  */
 export async function DELETE(
   request: NextRequest,
   { params }: RouteParams
-): Promise<NextResponse<ApiResponse | null>> {
+): Promise<NextResponse<ApiResponse>> {
   try {
     // -------------------------------------------------------------------------
-    // 1. 사용자 인증 확인
+    // [Step 1] 사용자 인증 확인
     // -------------------------------------------------------------------------
     const supabase = createClient()
     const {
@@ -365,7 +367,7 @@ export async function DELETE(
     }
 
     // -------------------------------------------------------------------------
-    // 2. 프로젝트 ID 확인
+    // [Step 2] 프로젝트 ID 확인
     // -------------------------------------------------------------------------
     const projectId = params.id
     if (!projectId) {
@@ -380,17 +382,22 @@ export async function DELETE(
     }
 
     // -------------------------------------------------------------------------
-    // 3. 데이터베이스에서 프로젝트 삭제
-    // CASCADE로 연결된 user_documents, evaluation_logs, chat_sessions도 삭제됨
+    // [Step 3] 소프트 삭제 (deleted_at 설정)
+    // [P7-02-A] JeDebug 패치: 실제 삭제 대신 deleted_at 타임스탬프 설정
     // -------------------------------------------------------------------------
-    const { error } = await supabase
+    const deletedAt = new Date().toISOString()
+    
+    const { data: project, error } = await supabase
       .from('projects')
-      .delete()
+      .update({ deleted_at: deletedAt, updated_at: deletedAt })
       .eq('id', projectId)
-      .eq('user_id', user.id) // 소유권 이중 확인
+      .eq('user_id', user.id)
+      .is('deleted_at', null)  // 이미 삭제된 프로젝트는 제외
+      .select()
+      .single()
 
     if (error) {
-      console.error('[Projects API] DELETE error:', error)
+      console.error('[Projects API] DELETE (soft) error:', error)
       return NextResponse.json(
         {
           success: false,
@@ -401,10 +408,28 @@ export async function DELETE(
       )
     }
 
+    if (!project) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: '프로젝트를 찾을 수 없거나 이미 삭제되었습니다.',
+          error: 'NOT_FOUND',
+        },
+        { status: 404 }
+      )
+    }
+
     // -------------------------------------------------------------------------
-    // 4. 성공 응답 (204 No Content)
+    // [Step 4] 성공 응답 - soft-delete 상태 명시
     // -------------------------------------------------------------------------
-    return new NextResponse(null, { status: 204 })
+    return NextResponse.json({
+      success: true,
+      message: '프로젝트가 휴지통으로 이동되었습니다. 30일 후 영구 삭제됩니다.',
+      data: {
+        id: projectId,
+        deleted_at: deletedAt,
+      },
+    })
   } catch (error) {
     console.error('[Projects API] DELETE error:', error)
     return NextResponse.json(

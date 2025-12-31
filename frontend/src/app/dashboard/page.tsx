@@ -17,6 +17,8 @@ import Link from 'next/link'
 import { ProjectProvider, useProject } from '@/contexts/ProjectContext'
 import type { Project, CreateProjectInput } from '@/types/project'
 import { PROJECT_ICONS } from '@/types/project'
+// [P7-04-C] 삭제 확인 모달
+import DeleteConfirmModal from '@/components/modals/DeleteConfirmModal'
 
 // =============================================================================
 // 페이지 컴포넌트 (ProjectProvider로 래핑)
@@ -36,9 +38,16 @@ export default function DashboardPage() {
 
 function DashboardContent() {
   const router = useRouter()
-  const { projects, isLoading, error, createProject } = useProject()
+  const { projects, isLoading, error, createProject, deleteProject } = useProject()
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
+  
+  // ---------------------------------------------------------------------------
+  // [P7-04-A] 삭제 모달 상태
+  // ---------------------------------------------------------------------------
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // ---------------------------------------------------------------------------
   // [Phase 6.3-B] 프로젝트 생성 핸들러
@@ -65,6 +74,30 @@ function DashboardContent() {
   // ---------------------------------------------------------------------------
   const handleProjectClick = (project: Project) => {
     router.push(`/editor?projectId=${project.id}`)
+  }
+
+  // ---------------------------------------------------------------------------
+  // [P7-04-A] 프로젝트 삭제 핸들러
+  // ---------------------------------------------------------------------------
+  const handleDeleteClick = (project: Project, e: React.MouseEvent) => {
+    e.stopPropagation() // 카드 클릭 이벤트 전파 방지
+    setProjectToDelete(project)
+    setShowDeleteModal(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!projectToDelete) return
+    
+    try {
+      setIsDeleting(true)
+      await deleteProject(projectToDelete.id)
+      setShowDeleteModal(false)
+      setProjectToDelete(null)
+    } catch (err) {
+      console.error('[Dashboard] Failed to delete project:', err)
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -121,6 +154,7 @@ function DashboardContent() {
               key={project.id}
               project={project}
               onClick={() => handleProjectClick(project)}
+              onDelete={(e) => handleDeleteClick(project, e)}
             />
           ))}
 
@@ -148,6 +182,28 @@ function DashboardContent() {
           isCreating={isCreating}
         />
       )}
+
+      {/* -------------------------------------------------------------------
+          [P7-04-C] 삭제 확인 모달
+          ------------------------------------------------------------------- */}
+      {showDeleteModal && projectToDelete && (
+        <DeleteConfirmModal
+          projectName={projectToDelete.name}
+          onClose={() => {
+            setShowDeleteModal(false)
+            setProjectToDelete(null)
+          }}
+          onConfirm={handleDeleteConfirm}
+          isDeleting={isDeleting}
+        />
+      )}
+
+      {/* -------------------------------------------------------------------
+          [P7-04-B] 휴지통 링크
+          ------------------------------------------------------------------- */}
+      <Link href="/trash" className="trash-link">
+        🗑️ 휴지통
+      </Link>
     </div>
   )
 }
@@ -159,9 +215,10 @@ function DashboardContent() {
 interface ProjectCardProps {
   project: Project
   onClick: () => void
+  onDelete: (e: React.MouseEvent) => void  // [P7-04-A] 삭제 핸들러
 }
 
-function ProjectCard({ project, onClick }: ProjectCardProps) {
+function ProjectCard({ project, onClick, onDelete }: ProjectCardProps) {
   // 마지막 수정일 포맷팅
   const formattedDate = new Date(project.updated_at).toLocaleDateString('ko-KR', {
     year: 'numeric',
@@ -170,23 +227,35 @@ function ProjectCard({ project, onClick }: ProjectCardProps) {
   })
 
   return (
-    <button
-      className="project-card"
-      onClick={onClick}
-      aria-label={`${project.name} 프로젝트 열기`}
-    >
-      <div className="project-card-icon">{project.icon}</div>
-      <div className="project-card-content">
-        <h3 className="project-card-title">{project.name}</h3>
-        {project.description && (
-          <p className="project-card-description">{project.description}</p>
-        )}
-        <span className="project-card-date">
-          마지막 수정: {formattedDate}
-        </span>
-      </div>
-      <div className="project-card-arrow">→</div>
-    </button>
+    <div className="project-card-wrapper">
+      <button
+        className="project-card"
+        onClick={onClick}
+        aria-label={`${project.name} 프로젝트 열기`}
+      >
+        <div className="project-card-icon">{project.icon}</div>
+        <div className="project-card-content">
+          <h3 className="project-card-title">{project.name}</h3>
+          {project.description && (
+            <p className="project-card-description">{project.description}</p>
+          )}
+          <span className="project-card-date">
+            마지막 수정: {formattedDate}
+          </span>
+        </div>
+        <div className="project-card-arrow">→</div>
+      </button>
+      
+      {/* [P7-04-A] 삭제 버튼 */}
+      <button
+        className="project-delete-btn"
+        onClick={onDelete}
+        aria-label={`${project.name} 프로젝트 삭제`}
+        title="휴지통으로 이동"
+      >
+        🗑️
+      </button>
+    </div>
   )
 }
 
