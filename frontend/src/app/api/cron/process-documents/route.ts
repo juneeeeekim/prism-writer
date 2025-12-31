@@ -2,9 +2,10 @@
 // [P9-CRON-01] Pending 문서 자동 처리 Cron Job
 // =============================================================================
 // 파일: frontend/src/app/api/cron/process-documents/route.ts
-// 역할: 5분마다 pending 상태 문서를 찾아서 처리
-// 스케줄: */5 * * * * (매 5분)
+// 역할: 주기적으로 pending 상태 문서를 찾아서 처리
+// 스케줄: 5분마다 (외부 Cron 서비스로 호출)
 // 생성일: 2026-01-01
+// 수정일: 2026-01-01 - 외부 Cron 서비스 지원 (Vercel Hobby 호환)
 // =============================================================================
 //
 // [아키텍처 설명]
@@ -13,11 +14,18 @@
 // - Vercel Hobby 플랜 10초 타임아웃으로 대용량 문서 처리 실패
 // - 클라이언트 연결 끊김 시 처리 중단
 //
-// 해결책 (Vercel Cron):
+// 해결책 (외부 Cron 서비스):
 // - 업로드 시 status='pending'으로만 저장
-// - 5분마다 Cron이 pending 문서를 찾아 처리
+// - 외부 Cron 서비스(cron-job.org 등)가 5분마다 이 API 호출
 // - 한 번에 최대 3개씩 순차 처리 (타임아웃 방지)
 // - 실패 시 retry_count 증가, 3회 초과 시 failed 처리
+//
+// [외부 Cron 설정 방법]
+// 1. https://cron-job.org 무료 가입
+// 2. 새 Cron Job 생성:
+//    - URL: https://your-domain.vercel.app/api/cron/process-documents?key=YOUR_CRON_SECRET
+//    - 스케줄: */5 * * * * (5분마다)
+//    - Method: GET
 //
 // =============================================================================
 
@@ -30,7 +38,7 @@ import { DocumentStatus } from '@/types/rag'
 // 상수 정의
 // =============================================================================
 
-/** Cron 인증 시크릿 (Vercel 환경변수) */
+/** Cron 인증 시크릿 (환경변수) - 외부 Cron 서비스 인증용 */
 const CRON_SECRET = process.env.CRON_SECRET
 
 /** 한 번에 처리할 최대 문서 수 (Vercel 타임아웃 방지) */
@@ -59,11 +67,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   try {
     // -------------------------------------------------------------------------
-    // 1. Cron 인증 확인 (Vercel에서 자동으로 Authorization 헤더 설정)
+    // 1. Cron 인증 확인 (헤더 또는 쿼리 파라미터)
+    // - Vercel Pro: Authorization 헤더 자동 설정
+    // - 외부 Cron 서비스: ?key=CRON_SECRET 쿼리 파라미터
     // -------------------------------------------------------------------------
     const authHeader = request.headers.get('authorization')
+    const { searchParams } = new URL(request.url)
+    const queryKey = searchParams.get('key')
 
-    if (CRON_SECRET && authHeader !== `Bearer ${CRON_SECRET}`) {
+    const isAuthorized =
+      !CRON_SECRET || // 시크릿 미설정 시 통과 (개발 환경)
+      authHeader === `Bearer ${CRON_SECRET}` || // 헤더 인증
+      queryKey === CRON_SECRET // 쿼리 파라미터 인증
+
+    if (!isAuthorized) {
       console.warn('[Cron] Unauthorized access attempt')
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },

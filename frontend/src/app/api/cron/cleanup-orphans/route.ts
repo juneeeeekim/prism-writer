@@ -2,9 +2,10 @@
 // [P9-CRON-02] 고아 파일 정리 Cron Job
 // =============================================================================
 // 파일: frontend/src/app/api/cron/cleanup-orphans/route.ts
-// 역할: 매일 새벽 3시에 7일 이상 pending 상태인 고아 파일 정리
-// 스케줄: 0 3 * * * (매일 03:00 UTC)
+// 역할: 7일 이상 pending 상태인 고아 파일 정리
+// 스케줄: 매일 1회 (외부 Cron 서비스로 호출)
 // 생성일: 2026-01-01
+// 수정일: 2026-01-01 - 외부 Cron 서비스 지원 (Vercel Hobby 호환)
 // =============================================================================
 //
 // [아키텍처 설명]
@@ -18,6 +19,13 @@
 // - pending/failed 상태이면서 7일 이상 경과한 문서
 // - Storage 파일 + DB 레코드 모두 삭제
 // - 관련 chunks도 cascade 삭제됨 (FK 설정)
+//
+// [외부 Cron 설정 방법]
+// 1. https://cron-job.org 무료 가입
+// 2. 새 Cron Job 생성:
+//    - URL: https://your-domain.vercel.app/api/cron/cleanup-orphans?key=YOUR_CRON_SECRET
+//    - 스케줄: 0 3 * * * (매일 03:00 UTC)
+//    - Method: GET
 //
 // =============================================================================
 
@@ -55,11 +63,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   try {
     // -------------------------------------------------------------------------
-    // 1. Cron 인증 확인
+    // 1. Cron 인증 확인 (헤더 또는 쿼리 파라미터)
+    // - Vercel Pro: Authorization 헤더 자동 설정
+    // - 외부 Cron 서비스: ?key=CRON_SECRET 쿼리 파라미터
     // -------------------------------------------------------------------------
     const authHeader = request.headers.get('authorization')
+    const { searchParams } = new URL(request.url)
+    const queryKey = searchParams.get('key')
 
-    if (CRON_SECRET && authHeader !== `Bearer ${CRON_SECRET}`) {
+    const isAuthorized =
+      !CRON_SECRET || // 시크릿 미설정 시 통과 (개발 환경)
+      authHeader === `Bearer ${CRON_SECRET}` || // 헤더 인증
+      queryKey === CRON_SECRET // 쿼리 파라미터 인증
+
+    if (!isAuthorized) {
       console.warn('[Cleanup] Unauthorized access attempt')
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
