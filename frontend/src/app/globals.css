@@ -435,6 +435,259 @@ body {
 }
 
 /* -----------------------------------------------------------------------------
+   [P8-BATCH] 배치 선택 모드 스타일
+   ----------------------------------------------------------------------------- */
+
+/* 선택 모드 버튼 */
+.batch-select-btn {
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.batch-select-btn:hover {
+  border-color: #6366f1;
+  color: #6366f1;
+}
+
+.batch-select-btn.active {
+  background: #6366f1;
+  border-color: #6366f1;
+  color: white;
+}
+
+.dark .batch-select-btn {
+  background: #1e293b;
+  border-color: #334155;
+  color: #94a3b8;
+}
+
+.dark .batch-select-btn:hover {
+  border-color: #8b5cf6;
+  color: #8b5cf6;
+}
+
+.dark .batch-select-btn.active {
+  background: #8b5cf6;
+  border-color: #8b5cf6;
+  color: white;
+}
+
+/* 배치 액션 바 */
+.batch-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+}
+
+.dark .batch-action-bar {
+  background: rgba(251, 191, 36, 0.1);
+  border-color: rgba(251, 191, 36, 0.3);
+}
+
+.batch-select-all-btn {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.813rem;
+  font-weight: 500;
+  border: 1px solid #d97706;
+  border-radius: 6px;
+  background: white;
+  color: #d97706;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.batch-select-all-btn:hover {
+  background: #d97706;
+  color: white;
+}
+
+.dark .batch-select-all-btn {
+  background: transparent;
+  border-color: #fbbf24;
+  color: #fbbf24;
+}
+
+.dark .batch-select-all-btn:hover {
+  background: #fbbf24;
+  color: #1e293b;
+}
+
+.batch-selected-count {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #92400e;
+  flex: 1;
+}
+
+.dark .batch-selected-count {
+  color: #fcd34d;
+}
+
+.batch-delete-btn {
+  padding: 0.5rem 1rem;
+  font-size: 0.813rem;
+  font-weight: 500;
+  border: none;
+  border-radius: 6px;
+  background: #dc2626;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.batch-delete-btn:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.batch-delete-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* 프로젝트 카드 체크박스 */
+.project-checkbox {
+  position: absolute;
+  left: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border: 2px solid #cbd5e1;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: bold;
+  color: white;
+  transition: all 0.2s;
+  z-index: 10;
+}
+
+.project-checkbox:hover {
+  border-color: #6366f1;
+}
+
+.project-checkbox.checked {
+  background: #6366f1;
+  border-color: #6366f1;
+}
+
+.dark .project-checkbox {
+  background: #1e293b;
+  border-color: #475569;
+}
+
+.dark .project-checkbox:hover {
+  border-color: #8b5cf6;
+}
+
+.dark .project-checkbox.checked {
+  background: #8b5cf6;
+  border-color: #8b5cf6;
+}
+
+/* 선택된 카드 wrapper 스타일 */
+.project-card-wrapper {
+  position: relative;
+}
+
+.project-card-wrapper.selected .project-card {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.dark .project-card-wrapper.selected .project-card {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+}
+
+/* 배치 삭제 모달 */
+.batch-delete-modal {
+  max-width: 400px;
+}
+
+.batch-delete-warning {
+  text-align: center;
+  padding: 1rem;
+}
+
+.batch-delete-warning .warning-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.batch-delete-warning p {
+  margin: 0.5rem 0;
+  color: #1e293b;
+}
+
+.dark .batch-delete-warning p {
+  color: #f1f5f9;
+}
+
+.batch-delete-warning .warning-note {
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.dark .batch-delete-warning .warning-note {
+  color: #94a3b8;
+}
+
+/* 위험 버튼 스타일 */
+.btn-danger {
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: none;
+  border-radius: 8px;
+  background: #dc2626;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.btn-danger:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* 반응형: 모바일 배치 액션 바 */
+@media (max-width: 640px) {
+  .batch-action-bar {
+    flex-wrap: wrap;
+  }
+
+  .batch-selected-count {
+    order: -1;
+    width: 100%;
+    text-align: center;
+    margin-bottom: 0.5rem;
+  }
+}
+
+/* -----------------------------------------------------------------------------
    Project Grid
    ----------------------------------------------------------------------------- */
 .project-grid {
