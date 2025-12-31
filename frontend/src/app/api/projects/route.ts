@@ -80,12 +80,14 @@ export async function GET(
 
     // -------------------------------------------------------------------------
     // 3. 데이터베이스에서 프로젝트 목록 조회
+    // [P7-FIX] deleted_at IS NULL 필터 추가 - 휴지통 프로젝트 제외
     // -------------------------------------------------------------------------
     const { data: projects, error } = await supabase
       .from('projects')
       .select('*')
       .eq('user_id', user.id)
       .eq('status', status)
+      .is('deleted_at', null)  // [P7-FIX] 활성 프로젝트만 (휴지통 제외)
       .order('updated_at', { ascending: false })
 
     if (error) {
