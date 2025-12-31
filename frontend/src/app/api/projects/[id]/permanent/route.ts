@@ -11,6 +11,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
+// Dynamic rendering for Vercel deployment
+export const dynamic = 'force-dynamic'
+
 // =============================================================================
 // 응답 타입 정의
 // =============================================================================
