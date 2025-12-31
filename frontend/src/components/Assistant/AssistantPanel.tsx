@@ -18,6 +18,8 @@ import ChatSessionList from './ChatSessionList'
 import ChatHistoryOnboarding from './ChatHistoryOnboarding'
 import { FEATURES } from '@/lib/features'
 import { useEditorState } from '@/hooks/useEditorState'  // Phase 14.5: Category-Scoped
+// [P6-03] 온보딩 상태 기반 탭 필터링
+import { useProject } from '@/contexts/ProjectContext'
 
 // -----------------------------------------------------------------------------
 // Types
@@ -58,7 +60,7 @@ export default function AssistantPanel({ defaultTab = 'reference' }: AssistantPa
   // [P6-03-A] 외부에서 defaultTab prop으로 제어 가능
   const [activeTab, setActiveTab] = useState<TabId>(defaultTab)
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
-  
+
   // Feature Flag 확인 (클라이언트 사이드에서 안전하게 접근)
   const [showSessionList, setShowSessionList] = useState(false)
 
@@ -69,6 +71,24 @@ export default function AssistantPanel({ defaultTab = 'reference' }: AssistantPa
   // Phase 14.5: Get category from Editor for category-scoped RAG/Memory
   const editorCategory = useEditorState((state) => state.category)
 
+  // ===========================================================================
+  // [P6-03] 온보딩 상태 기반 탭 필터링
+  // ===========================================================================
+  const { currentProject } = useProject()
+  const isSetupCompleted = currentProject?.setup_completed ?? true  // 기본값 true (기존 프로젝트 호환)
+
+  // 온보딩 미완료 시 참고자료 탭만 표시
+  const visibleTabs = isSetupCompleted
+    ? TABS
+    : TABS.filter((tab) => tab.id === 'reference')
+
+  // 온보딩 미완료 시 activeTab이 참고자료가 아니면 강제 전환
+  useEffect(() => {
+    if (!isSetupCompleted && activeTab !== 'reference') {
+      setActiveTab('reference')
+    }
+  }, [isSetupCompleted, activeTab])
+
 
 
   return (
@@ -78,13 +98,17 @@ export default function AssistantPanel({ defaultTab = 'reference' }: AssistantPa
         <ChatHistoryOnboarding onDismiss={() => {}} />
       )}
 
-      {/* ... (Tab List remains the same) */}
-      <div 
+      {/* -----------------------------------------------------------------------
+          [P6-03] 온보딩 상태에 따라 탭 표시
+          - setup_completed = false: 참고자료 탭만
+          - setup_completed = true: 전체 탭
+          ----------------------------------------------------------------------- */}
+      <div
         className="flex border-b border-gray-200 dark:border-gray-700"
         role="tablist"
         aria-label="어시스턴트 기능 탭"
       >
-        {TABS.map((tab) => (
+        {visibleTabs.map((tab) => (
           <button
             key={tab.id}
             role="tab"
@@ -92,8 +116,8 @@ export default function AssistantPanel({ defaultTab = 'reference' }: AssistantPa
             aria-selected={activeTab === tab.id}
             aria-controls={`panel-${tab.id}`}
             className={`flex-1 px-4 py-3 text-sm font-medium transition-colors
-                        ${activeTab === tab.id 
-                          ? 'border-b-2 border-prism-primary text-prism-primary bg-white dark:bg-gray-800' 
+                        ${activeTab === tab.id
+                          ? 'border-b-2 border-prism-primary text-prism-primary bg-white dark:bg-gray-800'
                           : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
                         }`}
             onClick={() => setActiveTab(tab.id)}

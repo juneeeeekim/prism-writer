@@ -249,6 +249,11 @@ export async function PATCH(
       updates.status = body.status
     }
 
+    // [P6-03] setup_completed 필드 처리
+    if ((body as { setup_completed?: boolean }).setup_completed !== undefined) {
+      updates.setup_completed = (body as { setup_completed?: boolean }).setup_completed
+    }
+
     // 업데이트할 내용이 없는 경우
     if (Object.keys(updates).length === 0) {
       return NextResponse.json(

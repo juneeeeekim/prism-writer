@@ -8,7 +8,10 @@
 
 'use client'
 
+import { useState } from 'react'
 import DocumentUploader from '@/components/documents/DocumentUploader'
+// [P6-03] 온보딩 완료 처리
+import { useProject } from '@/contexts/ProjectContext'
 
 // =============================================================================
 // Types
@@ -135,6 +138,37 @@ export default function OnboardingGuide({
 }: OnboardingGuideProps) {
   const stepInfo = STEP_DESCRIPTIONS[step]
 
+  // ===========================================================================
+  // [P6-03] 온보딩 완료 처리
+  // ===========================================================================
+  const { completeSetup } = useProject()
+  const [isCompleting, setIsCompleting] = useState(false)
+  const [hasDocuments, setHasDocuments] = useState(false)
+
+  /**
+   * 문서 업로드 성공 시 호출
+   */
+  const handleUploadSuccess = () => {
+    setHasDocuments(true)
+    onUploadSuccess?.()
+  }
+
+  /**
+   * 설정 완료 버튼 클릭
+   */
+  const handleCompleteSetup = async () => {
+    try {
+      setIsCompleting(true)
+      await completeSetup()
+      console.log('[OnboardingGuide] Setup completed!')
+    } catch (error) {
+      console.error('[OnboardingGuide] Complete setup error:', error)
+      alert('설정 완료 처리 중 오류가 발생했습니다.')
+    } finally {
+      setIsCompleting(false)
+    }
+  }
+
   return (
     <div
       className={`
@@ -194,7 +228,7 @@ export default function OnboardingGuide({
           {/* Document Uploader 통합 */}
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
             <DocumentUploader
-              onUploadSuccess={onUploadSuccess}
+              onUploadSuccess={handleUploadSuccess}
               className="w-full"
             />
           </div>
@@ -206,6 +240,49 @@ export default function OnboardingGuide({
               AI가 해당 스타일을 학습하여 더 나은 피드백을 제공합니다.
             </p>
           </div>
+
+          {/* =================================================================
+              [P6-03] 설정 완료 버튼 - 문서 업로드 후 표시
+              ================================================================= */}
+          {hasDocuments && (
+            <div className="mt-8 text-center">
+              <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                <p className="text-green-700 dark:text-green-300 font-medium">
+                  ✅ 참고자료가 등록되었습니다!
+                </p>
+                <p className="text-sm text-green-600 dark:text-green-400 mt-1">
+                  이제 글쓰기를 시작할 준비가 되었습니다.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCompleteSetup}
+                disabled={isCompleting}
+                className={`
+                  px-8 py-3 rounded-lg font-medium text-white
+                  transition-all duration-200 shadow-lg
+                  ${isCompleting
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-xl'
+                  }
+                  focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2
+                `}
+              >
+                {isCompleting ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    처리 중...
+                  </span>
+                ) : (
+                  '🚀 글쓰기 시작하기'
+                )}
+              </button>
+            </div>
+          )}
         </div>
       )}
 

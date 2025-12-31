@@ -210,6 +210,47 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
   }, [currentProject])
 
   /**
+   * [P6-03] 현재 프로젝트 온보딩 완료 처리
+   */
+  const completeSetup = useCallback(async (): Promise<void> => {
+    if (!currentProject) {
+      console.warn('[ProjectContext] No current project to complete setup')
+      return
+    }
+
+    try {
+      setError(null)
+
+      const response = await fetch(`/api/projects/${currentProject.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ setup_completed: true }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || '온보딩 완료 처리 실패')
+      }
+
+      // 현재 프로젝트 상태 업데이트
+      const updatedProject = { ...currentProject, setup_completed: true }
+      setCurrentProject(updatedProject)
+
+      // 목록에서도 업데이트
+      setProjects((prev) =>
+        prev.map((p) => (p.id === currentProject.id ? updatedProject : p))
+      )
+
+      console.log(`[ProjectContext] Setup completed for: ${currentProject.name}`)
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : '온보딩 완료 처리 중 오류'
+      setError(errorMessage)
+      throw e
+    }
+  }, [currentProject])
+
+  /**
    * 프로젝트 삭제
    */
   const deleteProject = useCallback(async (id: string): Promise<void> => {
@@ -272,6 +313,7 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
       updateProject,
       deleteProject,
       refreshProjects,
+      completeSetup,  // [P6-03]
     }),
     [
       currentProject,
@@ -283,6 +325,7 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
       updateProject,
       deleteProject,
       refreshProjects,
+      completeSetup,  // [P6-03]
     ]
   )
 

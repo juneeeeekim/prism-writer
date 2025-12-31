@@ -43,25 +43,28 @@ export type ProjectStatus = 'active' | 'archived'
 export interface Project {
   /** 프로젝트 고유 ID (UUID) */
   id: string
-  
+
   /** 소유자 ID (auth.users 참조) */
   user_id: string
-  
+
   /** 프로젝트 이름 (필수, 최대 100자) */
   name: string
-  
+
   /** 프로젝트 설명 (선택) */
   description: string | null
-  
+
   /** 아이콘 (이모지, 기본값: 📁) */
   icon: string
-  
+
   /** 상태: 'active' | 'archived' */
   status: ProjectStatus
-  
+
+  /** [P6-03] 온보딩 완료 여부: false(참고자료 설정 필요) | true(설정 완료) */
+  setup_completed: boolean
+
   /** 생성일 (ISO 8601) */
   created_at: string
-  
+
   /** 수정일 (ISO 8601) */
   updated_at: string
 }
@@ -97,15 +100,18 @@ export interface CreateProjectInput {
 export interface UpdateProjectInput {
   /** 새 이름 */
   name?: string
-  
+
   /** 새 설명 */
   description?: string | null
-  
+
   /** 새 아이콘 */
   icon?: string
-  
+
   /** 새 상태 */
   status?: ProjectStatus
+
+  /** [P6-03] 온보딩 완료 상태 */
+  setup_completed?: boolean
 }
 
 /**
@@ -209,6 +215,12 @@ export interface ProjectContextValue {
    * 프로젝트 목록 새로고침
    */
   refreshProjects: () => Promise<void>
+
+  /**
+   * [P6-03] 현재 프로젝트 온보딩 완료 처리
+   * @description 참고자료 설정이 완료되면 호출하여 전체 기능 활성화
+   */
+  completeSetup: () => Promise<void>
 }
 
 // =============================================================================
