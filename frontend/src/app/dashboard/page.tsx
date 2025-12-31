@@ -41,14 +41,17 @@ function DashboardContent() {
   const [isCreating, setIsCreating] = useState(false)
 
   // ---------------------------------------------------------------------------
-  // 프로젝트 생성 핸들러
+  // [Phase 6.3-B] 프로젝트 생성 핸들러
+  // - 새 프로젝트 생성 후 에디터로 이동 시 `new=true` 파라미터 추가
+  // - 이를 통해 에디터에서 온보딩 UX 제공 가능
   // ---------------------------------------------------------------------------
   const handleCreateProject = async (input: CreateProjectInput) => {
     try {
       setIsCreating(true)
       const newProject = await createProject(input)
       setShowCreateModal(false)
-      router.push(`/editor?projectId=${newProject.id}`)
+      // [Phase 6.3-B] 새 프로젝트임을 표시하는 파라미터 추가
+      router.push(`/editor?projectId=${newProject.id}&new=true`)
     } catch (err) {
       console.error('[Dashboard] Failed to create project:', err)
       // 에러는 Context에서 처리됨

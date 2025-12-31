@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react'
 import DocumentListPanel from './DocumentListPanel'
 import ActiveContextPanel from './ActiveContextPanel'
+import OnboardingGuide from './OnboardingGuide'
 import { useDocumentStatus } from '@/hooks/useDocumentStatus'
 
 // =============================================================================
@@ -105,7 +106,12 @@ export default function ReferenceStudioContainer() {
   const [mobileView, setMobileView] = useState<'list' | 'detail'>('list')
   
   // Data Fetching
-  const { documents, mutate: refreshDocuments } = useDocumentStatus()
+  const { documents, isLoading, mutate: refreshDocuments } = useDocumentStatus()
+
+  // ===========================================================================
+  // [Phase 6.2] 새 프로젝트 온보딩 - 문서 없음 상태 감지
+  // ===========================================================================
+  const isNewProject = !isLoading && documents.length === 0
 
   // ===========================================================================
   // [localStorage] 선택 상태 변경 시 저장
@@ -163,24 +169,42 @@ export default function ReferenceStudioContainer() {
   // Render
   // =============================================================================
 
+  // ---------------------------------------------------------------------------
+  // [Phase 6.2] 새 프로젝트 온보딩 가이드 표시
+  // ---------------------------------------------------------------------------
+  if (isNewProject) {
+    return (
+      <div className="h-[calc(100vh-12rem)] min-h-[500px] border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden shadow-sm">
+        <OnboardingGuide
+          step={1}
+          onUploadSuccess={refreshDocuments}
+          className="h-full"
+        />
+      </div>
+    )
+  }
+
+  // ---------------------------------------------------------------------------
+  // 일반 2-Pane 레이아웃
+  // ---------------------------------------------------------------------------
   return (
-    <div 
+    <div
       ref={containerRef}
       className="flex h-[calc(100vh-12rem)] min-h-[500px] border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden shadow-sm bg-white dark:bg-gray-800"
       style={{ '--left-panel-width': `${leftWidth}px` } as React.CSSProperties}
     >
-      
+
       {/* ========================================================================
           Desktop: 2-Pane Layout (Always visible on md+)
           Mobile: Stack Navigation (Conditional rendering)
           ======================================================================== */}
-      
+
       {/* Left Panel: Document List */}
       <div className={`
         w-full md:w-[var(--left-panel-width)] md:flex-none h-full
         ${mobileView === 'detail' ? 'hidden md:block' : 'block'}
       `}>
-        <DocumentListPanel 
+        <DocumentListPanel
           documents={documents}
           selectedDocId={selectedDocId}
           onSelectDoc={handleSelectDoc}
@@ -203,7 +227,7 @@ export default function ReferenceStudioContainer() {
         w-full md:flex-1 h-full bg-white dark:bg-gray-800 min-w-0
         ${mobileView === 'list' ? 'hidden md:block' : 'block'}
       `}>
-        <ActiveContextPanel 
+        <ActiveContextPanel
           selectedDocId={selectedDocId}
           className="h-full"
           // Mobile Back Button (only visible on mobile when detail is shown)

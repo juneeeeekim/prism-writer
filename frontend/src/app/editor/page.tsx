@@ -48,6 +48,14 @@ export default function EditorPage() {
 function EditorContent() {
   const searchParams = useSearchParams()
   const documentIdFromUrl = searchParams.get('id')
+
+  // ---------------------------------------------------------------------------
+  // [P6-03-A] URL에서 새 프로젝트 파라미터 읽기
+  // - dashboard에서 새 프로젝트 생성 시 `?new=true` 파라미터가 붙음
+  // - 새 프로젝트면 참고자료 탭, 기존 프로젝트면 목차 탭을 기본 선택
+  // ---------------------------------------------------------------------------
+  const isNewProject = searchParams.get('new') === 'true'
+  const defaultAssistantTab = isNewProject ? 'reference' : 'outline'
   
   const { 
     content, 
@@ -236,7 +244,10 @@ function EditorContent() {
         ) : (
           <DualPaneContainer
             editorPane={<MarkdownEditor />}
-            assistantPane={<AssistantPanel />}
+            assistantPane={
+              // [P6-03-A] 새 프로젝트 여부에 따라 기본 탭 결정
+              <AssistantPanel defaultTab={defaultAssistantTab as 'reference' | 'outline' | 'chat' | 'evaluation'} />
+            }
             initialEditorWidth={55}
           />
         )}

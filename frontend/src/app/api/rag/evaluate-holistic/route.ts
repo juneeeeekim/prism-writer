@@ -32,6 +32,8 @@ interface HolisticEvaluateRequest {
   category: string
   /** 검색 결과 개수 (기본값: 5) */
   topK?: number
+  /** [P5-04-B] 프로젝트 ID (멀티 프로젝트 시스템) */
+  projectId?: string
 }
 
 /** 종합 평가 응답 */
@@ -78,7 +80,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<HolisticE
     // 2. 요청 바디 파싱 및 유효성 검사
     // -------------------------------------------------------------------------
     const body: HolisticEvaluateRequest = await request.json()
-    const { userText, category, topK = DEFAULT_TOP_K } = body
+    const { userText, category, topK = DEFAULT_TOP_K, projectId } = body  // [P5-04-B] projectId 추가
 
     // 필수 필드 검증
     if (!userText) {
@@ -106,7 +108,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<HolisticE
       )
     }
 
-    console.log(`[Holistic Evaluate API] Category: ${category}, Text length: ${userText.length}`)
+    console.log(`[Holistic Evaluate API] Category: ${category}, Text length: ${userText.length}, ProjectId: ${projectId || 'none'}`)
 
     // -------------------------------------------------------------------------
     // 3. 참고자료 검색 (카테고리 격리 적용)

@@ -32,19 +32,31 @@ interface Tab {
 
 // -----------------------------------------------------------------------------
 // Tab Configuration
+// [P6-01-A] 탭 순서 변경: 참고자료 → 목차 제안 → AI 채팅 → 평가
+// 이유: 새 프로젝트 생성 시 RAG 구축(문서 업로드)이 먼저 보이도록
 // -----------------------------------------------------------------------------
 const TABS: Tab[] = [
-  { id: 'outline', label: '목차 제안', icon: '🗂️' },
   { id: 'reference', label: '참고자료', icon: '📚' },
+  { id: 'outline', label: '목차 제안', icon: '🗂️' },
   { id: 'chat', label: 'AI 채팅', icon: '💬' },
   { id: 'evaluation', label: '평가', icon: '📊' },
 ]
 
 // -----------------------------------------------------------------------------
+// Props Interface
+// -----------------------------------------------------------------------------
+interface AssistantPanelProps {
+  /** [P6-03-A] 외부에서 지정하는 기본 탭 (새 프로젝트 여부에 따라 결정) */
+  defaultTab?: TabId
+}
+
+// -----------------------------------------------------------------------------
 // Component
 // -----------------------------------------------------------------------------
-export default function AssistantPanel() {
-  const [activeTab, setActiveTab] = useState<TabId>('outline')
+export default function AssistantPanel({ defaultTab = 'reference' }: AssistantPanelProps) {
+  // [P6-01-A] 기본 탭을 'reference'로 변경 - RAG 구축이 먼저 보이도록
+  // [P6-03-A] 외부에서 defaultTab prop으로 제어 가능
+  const [activeTab, setActiveTab] = useState<TabId>(defaultTab)
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
   
   // Feature Flag 확인 (클라이언트 사이드에서 안전하게 접근)
