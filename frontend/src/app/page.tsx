@@ -25,9 +25,11 @@ export default function HomePage() {
           <strong> 평가</strong>와 <strong>피드백</strong>을 받아보세요
         </p>
         
-        {/* CTA Button - [UI/UX Update] RAG 우선 CTA */}
+        {/* =================================================================
+            [P5-08-A] CTA Button - 대시보드로 이동 (멀티 프로젝트 지원)
+            ================================================================= */}
         <Link 
-          href="/editor"
+          href="/dashboard"
           className="inline-block px-8 py-3 bg-indigo-600 text-white font-semibold rounded-lg 
                      hover:bg-indigo-700 transition-colors shadow-lg hover:shadow-xl"
           aria-label="내 자료로 AI 코치 만들기"

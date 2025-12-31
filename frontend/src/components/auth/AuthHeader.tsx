@@ -1,10 +1,10 @@
 // =============================================================================
-// PRISM Writer - Auth Header Component (v2.0 회원등급 표시 지원)
+// PRISM Writer - Auth Header Component (v3.0 프로젝트 선택기 지원)
 // =============================================================================
 // 파일: frontend/src/components/auth/AuthHeader.tsx
 // 역할: 인증 상태를 표시하는 헤더 컴포넌트
 // 기능: 로그인 상태에 따라 사용자 드롭다운 또는 로그인 버튼 표시
-// 버전: v2.0 - UserDropdown 컴포넌트 통합
+// 버전: v3.0 - [P5-07-A] 프로젝트 선택기 추가
 // =============================================================================
 
 'use client'
@@ -13,6 +13,13 @@ import Link from 'next/link'
 import { useAuth } from '@/hooks/useAuth'
 import UserDropdown from '@/components/ui/UserDropdown'
 import AdminModelSelector from '@/components/admin/AdminModelSelector'
+// [P5-07-A] 프로젝트 선택기 컴포넌트 (Dynamic import로 ProjectProvider 없을 때 에러 방지)
+import dynamic from 'next/dynamic'
+
+const ProjectSelector = dynamic(
+  () => import('@/components/Editor/ProjectSelector'),
+  { ssr: false, loading: () => <div className="h-8 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" /> }
+)
 
 // =============================================================================
 // Props Interface
@@ -24,6 +31,8 @@ interface AuthHeaderProps {
   showLogo?: boolean
   /** 저장/내보내기 버튼 표시 여부 */
   showToolbar?: boolean
+  /** [P5-07-A] 프로젝트 선택기 표시 여부 */
+  showProjectSelector?: boolean
   /** 저장 버튼 클릭 핸들러 */
   onSave?: () => void
   /** 내보내기 버튼 클릭 핸들러 */
@@ -42,6 +51,7 @@ export default function AuthHeader({
   className = '',
   showLogo = true,
   showToolbar = false,
+  showProjectSelector = false,
   onSave,
   onExport,
 }: AuthHeaderProps) {
@@ -64,6 +74,16 @@ export default function AuthHeader({
                 PRISM Writer
               </h1>
             </Link>
+            
+            {/* =============================================================
+                [P5-07-A] 프로젝트 선택기 드롭다운
+                ============================================================= */}
+            {showProjectSelector && (
+              <div className="ml-2 border-l border-gray-200 dark:border-gray-700 pl-3">
+                <ProjectSelector />
+              </div>
+            )}
+            
             {/* 네비게이션 버튼 영역 */}
             <nav className="hidden sm:flex items-center gap-2 ml-4 border-l border-gray-200 dark:border-gray-700 pl-4">
               <Link

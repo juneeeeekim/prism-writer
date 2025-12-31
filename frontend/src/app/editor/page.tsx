@@ -4,6 +4,7 @@
 // 파일: frontend/src/app/editor/page.tsx
 // 역할: Dual Pane Editor 메인 페이지 (에디터 + 어시스턴트 조립)
 // Pipeline v5 준비: Feature Flag로 2패널/3패널 전환 가능
+// [P5-07-A] 프로젝트 선택기 지원 추가
 // =============================================================================
 
 'use client'
@@ -28,11 +29,23 @@ import { createClient } from '@/lib/supabase/client'
 // Pipeline v5: 중앙 집중 Feature Flag 사용
 // ---------------------------------------------------------------------------
 import { isFeatureEnabled, getUILayoutType, logFeatureFlags } from '@/config/featureFlags'
+// [P5-07-A] 프로젝트 Context Provider
+import { ProjectProvider } from '@/contexts/ProjectContext'
 
 // -----------------------------------------------------------------------------
-// Editor Page Component
+// Editor Page Component (ProjectProvider 래핑)
 // -----------------------------------------------------------------------------
 export default function EditorPage() {
+  return (
+    <ProjectProvider>
+      <EditorContent />
+    </ProjectProvider>
+  )
+}
+// -----------------------------------------------------------------------------
+// Editor Content Component
+// -----------------------------------------------------------------------------
+function EditorContent() {
   const searchParams = useSearchParams()
   const documentIdFromUrl = searchParams.get('id')
   
@@ -189,11 +202,12 @@ export default function EditorPage() {
   return (
     <div className="h-screen flex flex-col">
       {/* -----------------------------------------------------------------------
-          Header with Auth State
+          Header with Auth State & Project Selector
           ----------------------------------------------------------------------- */}
       <AuthHeader 
         showLogo 
         showToolbar 
+        showProjectSelector
         onSave={handleSave} 
         onExport={handleExport} 
       />

@@ -639,7 +639,7 @@
 
 ### P5-06: 프로젝트 대시보드 페이지
 
-- [ ] **P5-06-A**: 대시보드 페이지 생성
+- [x] **P5-06-A**: 대시보드 페이지 생성 ✅ **COMPLETED (2025-12-31 19:50)**
 
   - `Target`: `frontend/src/app/dashboard/page.tsx` [NEW]
   - `Logic (Pseudo)`:
@@ -691,7 +691,7 @@
 
 ### P5-07: 에디터 헤더 수정
 
-- [ ] **P5-07-A**: 프로젝트 선택 드롭다운 추가
+- [x] **P5-07-A**: 프로젝트 선택 드롭다운 추가 ✅ **COMPLETED (2025-12-31 20:05)**
 
   - `Target`: `frontend/src/components/editor/EditorHeader.tsx`
   - `Logic (Pseudo)`:
@@ -757,7 +757,7 @@
 
 ### P5-08: 랜딩 페이지 수정
 
-- [ ] **P5-08-A**: CTA 라우팅 변경
+- [x] **P5-08-A**: CTA 라우팅 변경 ✅ **COMPLETED (2025-12-31 20:07)**
 
   - `Target`: `frontend/src/app/page.tsx`
   - `Logic (Pseudo)`:
