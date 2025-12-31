@@ -10,17 +10,21 @@ import { getModelForUsage } from '@/config/llm-usage-map'
 
 /**
  * 문서 처리 상태 Enum
- * 
+ *
  * @description
  * RAG 문서 처리 파이프라인의 각 단계를 정의합니다.
- * - QUEUED: 대기열 등록 (기존 pending)
- * - PARSING: 텍스트 추출 중 (기존 processing 세분화)
- * - CHUNKING: 청킹 중 (기존 processing 세분화)
- * - EMBEDDING: 임베딩 생성 중 (기존 processing 세분화)
- * - COMPLETED: 완료 (기존 ready)
- * - FAILED: 실패 (기존 error)
+ * - PENDING: 업로드 완료, 처리 대기 (DB 초기값)
+ * - QUEUED: 대기열 등록 (레거시 호환)
+ * - PARSING: 텍스트 추출 중
+ * - CHUNKING: 청킹 중
+ * - EMBEDDING: 임베딩 생성 중
+ * - COMPLETED: 완료
+ * - FAILED: 실패
+ *
+ * @updated 2026-01-01 - [P9-CRON] PENDING 상태 추가, Cron 처리 지원
  */
 export enum DocumentStatus {
+  PENDING = 'pending',
   QUEUED = 'queued',
   PARSING = 'processing_parsing',
   CHUNKING = 'processing_chunking',
