@@ -174,36 +174,43 @@ export interface ProjectContextValue {
   // -------------------------------------------------------------------------
   // 상태
   // -------------------------------------------------------------------------
-  
+
   /** 현재 선택된 프로젝트 (null = 미선택) */
   currentProject: Project | null
-  
+
   /** 사용자의 모든 프로젝트 목록 */
   projects: Project[]
-  
+
   /** 로딩 상태 */
   isLoading: boolean
-  
+
   /** 에러 메시지 (null = 에러 없음) */
   error: string | null
-  
+
+  // -------------------------------------------------------------------------
+  // [P8-SEARCH] 필터 상태
+  // -------------------------------------------------------------------------
+
+  /** 현재 적용된 필터 */
+  filter: ProjectFilter
+
   // -------------------------------------------------------------------------
   // 액션
   // -------------------------------------------------------------------------
-  
+
   /**
    * 프로젝트 선택 (전환)
    * @param projectId - 선택할 프로젝트 ID
    */
   selectProject: (projectId: string) => void
-  
+
   /**
    * 새 프로젝트 생성
    * @param input - 생성 입력
    * @returns 생성된 프로젝트
    */
   createProject: (input: CreateProjectInput) => Promise<Project>
-  
+
   /**
    * 프로젝트 수정
    * @param id - 대상 프로젝트 ID
@@ -211,13 +218,13 @@ export interface ProjectContextValue {
    * @returns 수정된 프로젝트
    */
   updateProject: (id: string, input: UpdateProjectInput) => Promise<Project>
-  
+
   /**
    * 프로젝트 삭제
    * @param id - 대상 프로젝트 ID
    */
   deleteProject: (id: string) => Promise<void>
-  
+
   /**
    * 프로젝트 목록 새로고침
    */
@@ -228,6 +235,23 @@ export interface ProjectContextValue {
    * @description 참고자료 설정이 완료되면 호출하여 전체 기능 활성화
    */
   completeSetup: () => Promise<void>
+
+  // -------------------------------------------------------------------------
+  // [P8-SEARCH] 필터 액션
+  // -------------------------------------------------------------------------
+
+  /**
+   * 검색어 설정
+   * @param search - 검색어 (빈 문자열이면 검색 해제)
+   */
+  setSearch: (search: string) => void
+
+  /**
+   * 정렬 옵션 설정
+   * @param sortBy - 정렬 기준
+   * @param sortOrder - 정렬 방향 (기본값: 'desc')
+   */
+  setSortOption: (sortBy: ProjectSortBy, sortOrder?: 'asc' | 'desc') => void
 }
 
 // =============================================================================

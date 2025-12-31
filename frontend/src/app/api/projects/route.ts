@@ -5,11 +5,12 @@
 // 역할: 사용자의 프로젝트 목록 조회 및 생성
 // 메서드: GET, POST
 // 생성일: 2025-12-31
+// 수정일: 2026-01-01 - [P8-SEARCH] 검색/정렬 기능 추가
 // =============================================================================
 
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-import type { Project, CreateProjectInput, ProjectListResponse } from '@/types/project'
+import type { Project, CreateProjectInput, ProjectListResponse, ProjectSortBy } from '@/types/project'
 
 // =============================================================================
 // 응답 타입 정의
@@ -28,13 +29,17 @@ interface ApiResponse<T = unknown> {
 
 /**
  * 사용자의 프로젝트 목록 조회 API
- * 
+ *
  * @query status - 'active' | 'archived' (기본값: 'active')
+ * @query search - 검색어 (이름, 설명에서 검색)
+ * @query sortBy - 정렬 기준: 'name' | 'created_at' | 'updated_at' (기본값: 'updated_at')
+ * @query sortOrder - 정렬 방향: 'asc' | 'desc' (기본값: 'desc')
  * @returns JSON response with projects array
- * 
+ *
  * @example
  * GET /api/projects
  * GET /api/projects?status=archived
+ * GET /api/projects?search=기업&sortBy=name&sortOrder=asc
  */
 export async function GET(
   request: NextRequest
@@ -62,10 +67,14 @@ export async function GET(
 
     // -------------------------------------------------------------------------
     // 2. 쿼리 파라미터 파싱
+    // [P8-SEARCH] 검색/정렬 파라미터 추가
     // -------------------------------------------------------------------------
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status') ?? 'active'
-    
+    const search = searchParams.get('search')?.trim() ?? ''
+    const sortBy = (searchParams.get('sortBy') ?? 'updated_at') as ProjectSortBy
+    const sortOrder = searchParams.get('sortOrder') ?? 'desc'
+
     // 유효한 status 값인지 확인
     if (status !== 'active' && status !== 'archived') {
       return NextResponse.json(
@@ -78,17 +87,54 @@ export async function GET(
       )
     }
 
+    // [P8-SEARCH] 유효한 sortBy 값인지 확인
+    const validSortBy: ProjectSortBy[] = ['name', 'created_at', 'updated_at']
+    if (!validSortBy.includes(sortBy)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'sortBy는 "name", "created_at", "updated_at"만 허용됩니다.',
+          error: 'BAD_REQUEST',
+        },
+        { status: 400 }
+      )
+    }
+
+    // [P8-SEARCH] 유효한 sortOrder 값인지 확인
+    if (sortOrder !== 'asc' && sortOrder !== 'desc') {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'sortOrder는 "asc" 또는 "desc"만 허용됩니다.',
+          error: 'BAD_REQUEST',
+        },
+        { status: 400 }
+      )
+    }
+
     // -------------------------------------------------------------------------
     // 3. 데이터베이스에서 프로젝트 목록 조회
     // [P7-FIX] deleted_at IS NULL 필터 추가 - 휴지통 프로젝트 제외
+    // [P8-SEARCH] 검색 및 정렬 기능 추가
     // -------------------------------------------------------------------------
-    const { data: projects, error } = await supabase
+
+    // [P8-SEARCH] 기본 쿼리 빌더 생성
+    let query = supabase
       .from('projects')
       .select('*')
       .eq('user_id', user.id)
       .eq('status', status)
       .is('deleted_at', null)  // [P7-FIX] 활성 프로젝트만 (휴지통 제외)
-      .order('updated_at', { ascending: false })
+
+    // [P8-SEARCH] 검색어가 있으면 이름 또는 설명에서 검색 (ILIKE)
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`)
+    }
+
+    // [P8-SEARCH] 정렬 적용
+    query = query.order(sortBy, { ascending: sortOrder === 'asc' })
+
+    const { data: projects, error } = await query
 
     if (error) {
       console.error('[Projects API] Database query error:', error)

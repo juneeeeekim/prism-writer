@@ -4,6 +4,7 @@
 // 파일: frontend/src/app/dashboard/page.tsx
 // 역할: 사용자의 프로젝트 목록을 표시하고 새 프로젝트 생성 UI 제공
 // 생성일: 2025-12-31
+// 수정일: 2026-01-01 - [P8-SEARCH] 검색/정렬 UI 추가
 // =============================================================================
 
 'use client'
@@ -11,11 +12,11 @@
 // Dynamic rendering for Vercel deployment (prevent static generation errors)
 export const dynamic = 'force-dynamic'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ProjectProvider, useProject } from '@/contexts/ProjectContext'
-import type { Project, CreateProjectInput } from '@/types/project'
+import type { Project, CreateProjectInput, ProjectSortBy } from '@/types/project'
 import { PROJECT_ICONS } from '@/types/project'
 // [P7-04-C] 삭제 확인 모달
 import DeleteConfirmModal from '@/components/modals/DeleteConfirmModal'
@@ -38,10 +39,41 @@ export default function DashboardPage() {
 
 function DashboardContent() {
   const router = useRouter()
-  const { projects, isLoading, error, createProject, deleteProject } = useProject()
+  const {
+    projects,
+    isLoading,
+    error,
+    createProject,
+    deleteProject,
+    filter,       // [P8-SEARCH]
+    setSearch,    // [P8-SEARCH]
+    setSortOption // [P8-SEARCH]
+  } = useProject()
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
-  
+  // [P8-SEARCH] 검색 입력 로컬 상태 (디바운싱용)
+  const [searchInput, setSearchInput] = useState('')
+
+  // ---------------------------------------------------------------------------
+  // [P8-SEARCH] 검색 디바운싱 (300ms)
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchInput, setSearch])
+
+  // ---------------------------------------------------------------------------
+  // [P8-SEARCH] 정렬 옵션 변경 핸들러
+  // ---------------------------------------------------------------------------
+  const handleSortChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value
+    // 형식: "sortBy-sortOrder" (예: "updated_at-desc")
+    const [sortBy, sortOrder] = value.split('-') as [ProjectSortBy, 'asc' | 'desc']
+    setSortOption(sortBy, sortOrder)
+  }, [setSortOption])
+
   // ---------------------------------------------------------------------------
   // [P7-04-A] 삭제 모달 상태
   // ---------------------------------------------------------------------------
@@ -135,6 +167,54 @@ function DashboardContent() {
       </header>
 
       {/* -------------------------------------------------------------------
+          [P8-SEARCH] 검색 및 정렬 툴바
+          ------------------------------------------------------------------- */}
+      <div className="dashboard-toolbar">
+        <div className="dashboard-toolbar-content">
+          {/* 검색 입력 */}
+          <div className="search-container">
+            <span className="search-icon">🔍</span>
+            <input
+              type="text"
+              className="search-input"
+              placeholder="프로젝트 검색..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              aria-label="프로젝트 검색"
+            />
+            {searchInput && (
+              <button
+                className="search-clear-btn"
+                onClick={() => setSearchInput('')}
+                aria-label="검색어 지우기"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {/* 정렬 드롭다운 */}
+          <div className="sort-container">
+            <label htmlFor="sort-select" className="sort-label">정렬:</label>
+            <select
+              id="sort-select"
+              className="sort-select"
+              value={`${filter.sortBy}-${filter.sortOrder}`}
+              onChange={handleSortChange}
+              aria-label="정렬 옵션"
+            >
+              <option value="updated_at-desc">최근 수정순</option>
+              <option value="updated_at-asc">오래된 수정순</option>
+              <option value="created_at-desc">최근 생성순</option>
+              <option value="created_at-asc">오래된 생성순</option>
+              <option value="name-asc">이름 (ㄱ-ㅎ)</option>
+              <option value="name-desc">이름 (ㅎ-ㄱ)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* -------------------------------------------------------------------
           에러 메시지
           ------------------------------------------------------------------- */}
       {error && (
@@ -158,16 +238,36 @@ function DashboardContent() {
             />
           ))}
 
-          {/* 새 프로젝트 생성 카드 */}
-          <CreateProjectCard onClick={() => setShowCreateModal(true)} />
+          {/* [P8-SEARCH] 검색 중이 아닐 때만 새 프로젝트 생성 카드 표시 */}
+          {!filter.search && (
+            <CreateProjectCard onClick={() => setShowCreateModal(true)} />
+          )}
         </div>
 
-        {/* 프로젝트가 없을 때 안내 메시지 */}
+        {/* [P8-SEARCH] 프로젝트가 없을 때 안내 메시지 */}
         {projects.length === 0 && !error && (
           <div className="dashboard-empty">
-            <div className="dashboard-empty-icon">📚</div>
-            <h2>아직 프로젝트가 없습니다</h2>
-            <p>첫 번째 AI 코치 프로젝트를 만들어보세요!</p>
+            {filter.search ? (
+              // 검색 결과 없음
+              <>
+                <div className="dashboard-empty-icon">🔍</div>
+                <h2>검색 결과가 없습니다</h2>
+                <p>&quot;{filter.search}&quot;에 해당하는 프로젝트를 찾을 수 없습니다.</p>
+                <button
+                  className="btn-secondary"
+                  onClick={() => setSearchInput('')}
+                >
+                  검색 초기화
+                </button>
+              </>
+            ) : (
+              // 프로젝트 없음
+              <>
+                <div className="dashboard-empty-icon">📚</div>
+                <h2>아직 프로젝트가 없습니다</h2>
+                <p>첫 번째 AI 코치 프로젝트를 만들어보세요!</p>
+              </>
+            )}
           </div>
         )}
       </main>

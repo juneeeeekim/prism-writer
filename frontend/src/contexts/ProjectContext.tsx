@@ -4,6 +4,7 @@
 // 파일: frontend/src/contexts/ProjectContext.tsx
 // 역할: 멀티 프로젝트 시스템의 전역 상태 및 CRUD 액션 제공
 // 생성일: 2025-12-31
+// 수정일: 2026-01-01 - [P8-SEARCH] 검색/정렬 필터 상태 추가
 // =============================================================================
 
 'use client'
@@ -21,6 +22,8 @@ import type {
   CreateProjectInput,
   UpdateProjectInput,
   ProjectContextValue,
+  ProjectFilter,
+  ProjectSortBy,
 } from '@/types/project'
 
 // =============================================================================
@@ -56,18 +59,28 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
   // ---------------------------------------------------------------------------
   // 상태 정의
   // ---------------------------------------------------------------------------
-  
+
   /** 현재 선택된 프로젝트 */
   const [currentProject, setCurrentProject] = useState<Project | null>(null)
-  
+
   /** 사용자의 모든 프로젝트 목록 */
   const [projects, setProjects] = useState<Project[]>([])
-  
+
   /** 로딩 상태 */
   const [isLoading, setIsLoading] = useState(true)
-  
+
   /** 에러 메시지 */
   const [error, setError] = useState<string | null>(null)
+
+  // ---------------------------------------------------------------------------
+  // [P8-SEARCH] 필터 상태
+  // ---------------------------------------------------------------------------
+  const [filter, setFilter] = useState<ProjectFilter>({
+    status: 'active',
+    search: '',
+    sortBy: 'updated_at',
+    sortOrder: 'desc',
+  })
 
   // ---------------------------------------------------------------------------
   // API 호출 함수들
@@ -75,20 +88,28 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
 
   /**
    * 프로젝트 목록 새로고침
+   * [P8-SEARCH] 필터 파라미터를 API에 전달
    */
   const refreshProjects = useCallback(async () => {
     try {
       setIsLoading(true)
       setError(null)
 
-      const response = await fetch('/api/projects')
-      
+      // [P8-SEARCH] 필터 파라미터를 쿼리스트링으로 구성
+      const params = new URLSearchParams()
+      if (filter.status) params.set('status', filter.status)
+      if (filter.search) params.set('search', filter.search)
+      if (filter.sortBy) params.set('sortBy', filter.sortBy)
+      if (filter.sortOrder) params.set('sortOrder', filter.sortOrder)
+
+      const response = await fetch(`/api/projects?${params.toString()}`)
+
       if (!response.ok) {
         throw new Error('프로젝트 목록을 불러오는 데 실패했습니다.')
       }
 
       const data = await response.json()
-      
+
       if (!data.success) {
         throw new Error(data.message || '프로젝트 로드 실패')
       }
@@ -97,11 +118,12 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
       setProjects(loadedProjects)
 
       // 현재 프로젝트가 없고, 로드된 프로젝트가 있으면 첫 번째 선택
-      if (!currentProject && loadedProjects.length > 0) {
+      // [P8-SEARCH] 검색 중이 아닐 때만 자동 선택
+      if (!currentProject && loadedProjects.length > 0 && !filter.search) {
         // localStorage에서 마지막 선택 프로젝트 확인
         const lastProjectId = localStorage.getItem('lastProjectId')
         const lastProject = loadedProjects.find((p: Project) => p.id === lastProjectId)
-        
+
         if (lastProject) {
           setCurrentProject(lastProject)
         } else {
@@ -109,7 +131,7 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
         }
       }
 
-      console.log(`[ProjectContext] Loaded ${loadedProjects.length} projects`)
+      console.log(`[ProjectContext] Loaded ${loadedProjects.length} projects (filter: ${filter.search || 'none'})`)
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : '알 수 없는 오류'
       setError(errorMessage)
@@ -117,7 +139,7 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
     } finally {
       setIsLoading(false)
     }
-  }, [currentProject])
+  }, [currentProject, filter])
 
   /**
    * 프로젝트 선택 (전환)
@@ -290,6 +312,24 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
   }, [currentProject, projects])
 
   // ---------------------------------------------------------------------------
+  // [P8-SEARCH] 필터 액션 함수들
+  // ---------------------------------------------------------------------------
+
+  /**
+   * 검색어 설정
+   */
+  const setSearch = useCallback((search: string) => {
+    setFilter((prev) => ({ ...prev, search }))
+  }, [])
+
+  /**
+   * 정렬 옵션 설정
+   */
+  const setSortOption = useCallback((sortBy: ProjectSortBy, sortOrder: 'asc' | 'desc' = 'desc') => {
+    setFilter((prev) => ({ ...prev, sortBy, sortOrder }))
+  }, [])
+
+  // ---------------------------------------------------------------------------
   // 초기 로드
   // ---------------------------------------------------------------------------
 
@@ -297,6 +337,20 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
     refreshProjects()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // ---------------------------------------------------------------------------
+  // [P8-SEARCH] 필터 변경 시 목록 새로고침
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    // 초기 로드는 위에서 처리하므로, 필터 변경 시에만 새로고침
+    // isLoading이 false일 때만 (초기 로드 완료 후)
+    if (!isLoading) {
+      refreshProjects()
+    }
+    // refreshProjects를 deps에서 제외하여 무한 루프 방지
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter.search, filter.sortBy, filter.sortOrder])
 
   // ---------------------------------------------------------------------------
   // Context 값 메모이제이션
@@ -308,24 +362,30 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
       projects,
       isLoading,
       error,
+      filter,  // [P8-SEARCH]
       selectProject,
       createProject,
       updateProject,
       deleteProject,
       refreshProjects,
       completeSetup,  // [P6-03]
+      setSearch,      // [P8-SEARCH]
+      setSortOption,  // [P8-SEARCH]
     }),
     [
       currentProject,
       projects,
       isLoading,
       error,
+      filter,  // [P8-SEARCH]
       selectProject,
       createProject,
       updateProject,
       deleteProject,
       refreshProjects,
       completeSetup,  // [P6-03]
+      setSearch,      // [P8-SEARCH]
+      setSortOption,  // [P8-SEARCH]
     ]
   )
 
