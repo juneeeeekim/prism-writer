@@ -394,7 +394,7 @@ export async function DELETE(
       .eq('user_id', user.id)
       .is('deleted_at', null)  // 이미 삭제된 프로젝트는 제외
       .select()
-      .single()
+      .maybeSingle()  // [Fix] 이미 삭제된 경우 에러 대신 null 반환
 
     if (error) {
       console.error('[Projects API] DELETE (soft) error:', error)
@@ -408,11 +408,29 @@ export async function DELETE(
       )
     }
 
+    // 프로젝트가 반환되지 않은 경우 (이미 삭제되었거나 권한 없음)
     if (!project) {
+      // 이미 삭제되었는지 확인 (선택 사항이지만 사용자 경험을 위해)
+      const { data: existingDeleted } = await supabase
+        .from('projects')
+        .select('id, deleted_at')
+        .eq('id', projectId)
+        .eq('user_id', user.id)
+        .not('deleted_at', 'is', null)
+        .maybeSingle()
+
+      if (existingDeleted) {
+        return NextResponse.json({
+          success: true,
+          message: '이미 휴지통에 있는 프로젝트입니다.',
+          data: existingDeleted,
+        })
+      }
+
       return NextResponse.json(
         {
           success: false,
-          message: '프로젝트를 찾을 수 없거나 이미 삭제되었습니다.',
+          message: '프로젝트를 찾을 수 없습니다.',
           error: 'NOT_FOUND',
         },
         { status: 404 }
