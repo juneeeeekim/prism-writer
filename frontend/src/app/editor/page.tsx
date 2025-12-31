@@ -31,6 +31,8 @@ import { createClient } from '@/lib/supabase/client'
 import { isFeatureEnabled, getUILayoutType, logFeatureFlags } from '@/config/featureFlags'
 // [P5-07-A] 프로젝트 Context Provider
 import { ProjectProvider, useProject } from '@/contexts/ProjectContext'
+// [P6-04] Full-screen Onboarding
+import OnboardingGuide from '@/components/Assistant/Studio/OnboardingGuide'
 
 // -----------------------------------------------------------------------------
 // Editor Page Component (ProjectProvider 래핑)
@@ -232,9 +234,13 @@ function EditorContent() {
 
       {/* -----------------------------------------------------------------------
           Main Content
+          [P6-04] 온보딩 미완료 시 전체 화면 온보딩, 완료 시 에디터 표시
           ----------------------------------------------------------------------- */}
       <div className="flex-1 overflow-hidden">
-        {isThreePanelMode ? (
+        {!(currentProject?.setup_completed ?? true) ? (
+          // [P6-04] 온보딩 미완료 → 전체 화면 온보딩 (에디터 숨김)
+          <OnboardingGuide step={1} />
+        ) : isThreePanelMode ? (
           <ThreePaneLayout
             leftPanel={
               <ReferencePanel 
