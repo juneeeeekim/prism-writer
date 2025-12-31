@@ -1,4 +1,3 @@
-
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -6,6 +5,8 @@ import DocumentListPanel from './DocumentListPanel'
 import ActiveContextPanel from './ActiveContextPanel'
 import OnboardingGuide from './OnboardingGuide'
 import { useDocumentStatus } from '@/hooks/useDocumentStatus'
+// [P7-FIX] 프로젝트 Context 추가
+import { useProject } from '@/contexts/ProjectContext'
 
 // =============================================================================
 // Reference Studio Container (Mobile Responsive)
@@ -30,6 +31,12 @@ const PANEL_WIDTH_KEY = 'prism_ref_panel_width'
 import { useRef, useCallback } from 'react'
 
 export default function ReferenceStudioContainer() {
+  // ===========================================================================
+  // [P7-FIX] 프로젝트 Context에서 현재 프로젝트 ID 가져오기
+  // ===========================================================================
+  const { currentProject } = useProject()
+  const projectId = currentProject?.id ?? null
+
   // ===========================================================================
   // [Resizing Logic] Panel Width Management
   // ===========================================================================
@@ -106,7 +113,8 @@ export default function ReferenceStudioContainer() {
   const [mobileView, setMobileView] = useState<'list' | 'detail'>('list')
   
   // Data Fetching
-  const { documents, isLoading, mutate: refreshDocuments } = useDocumentStatus()
+  // [P7-FIX] projectId 전달하여 프로젝트별 문서만 조회
+  const { documents, isLoading, mutate: refreshDocuments } = useDocumentStatus(projectId)
 
   // ===========================================================================
   // [Phase 6.2] 새 프로젝트 온보딩 - 문서 없음 상태 감지

@@ -30,7 +30,7 @@ import { createClient } from '@/lib/supabase/client'
 // ---------------------------------------------------------------------------
 import { isFeatureEnabled, getUILayoutType, logFeatureFlags } from '@/config/featureFlags'
 // [P5-07-A] 프로젝트 Context Provider
-import { ProjectProvider } from '@/contexts/ProjectContext'
+import { ProjectProvider, useProject } from '@/contexts/ProjectContext'
 
 // -----------------------------------------------------------------------------
 // Editor Page Component (ProjectProvider 래핑)
@@ -48,6 +48,12 @@ export default function EditorPage() {
 function EditorContent() {
   const searchParams = useSearchParams()
   const documentIdFromUrl = searchParams.get('id')
+
+  // ---------------------------------------------------------------------------
+  // [P7-FIX] 프로젝트 Context에서 현재 프로젝트 ID 가져오기
+  // ---------------------------------------------------------------------------
+  const { currentProject } = useProject()
+  const projectId = currentProject?.id ?? null
 
   // ---------------------------------------------------------------------------
   // [P6-03-A] URL에서 새 프로젝트 파라미터 읽기
@@ -73,15 +79,19 @@ function EditorContent() {
   } = useEditorState()
   
   // Phase 11: 문서 저장 관련 훅
-  const { saveDocument, loadDocument, categories, fetchList } = useDocuments()  // Phase 12: categories 추가
+  // [P7-FIX] projectId 전달하여 프로젝트별 문서만 조회/저장
+  const { saveDocument, loadDocument, categories, fetchList } = useDocuments(projectId)  // Phase 12: categories 추가
   const { user } = useAuth()
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   
   // Phase 12: 에디터 마운트 시 카테고리 목록 로드
+  // [P7-FIX] projectId가 있을 때만 fetchList 호출
   useEffect(() => {
-    fetchList()
-  }, [])
+    if (projectId) {
+      fetchList()
+    }
+  }, [projectId, fetchList])
   
   // ---------------------------------------------------------------------------
   // Phase 11: URL에서 문서 ID로 문서 로드

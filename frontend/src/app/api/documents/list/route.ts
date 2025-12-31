@@ -4,6 +4,7 @@
 // 파일: frontend/src/app/api/documents/list/route.ts
 // 역할: 문서 목록 조회 (페이지네이션)
 // 생성일: 2025-12-28
+// [P7-FIX] projectId 필터링 추가
 // =============================================================================
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -28,20 +29,29 @@ export async function GET(req: NextRequest) {
     const user = session.user
 
     // -------------------------------------------------------------------------
-    // 2. 페이지네이션 파라미터
+    // 2. 페이지네이션 파라미터 + [P7-FIX] projectId 추출
     // -------------------------------------------------------------------------
     const { searchParams } = new URL(req.url)
     const page = parseInt(searchParams.get('page') || '1', 10)
     const limit = Math.min(parseInt(searchParams.get('limit') || '20', 10), 50)
     const offset = (page - 1) * limit
+    const projectId = searchParams.get('projectId')  // [P7-FIX]
 
     // -------------------------------------------------------------------------
     // 3. 문서 목록 조회 (미리보기 100자)
+    // [P7-FIX] projectId가 있으면 해당 프로젝트의 문서만 조회
     // -------------------------------------------------------------------------
-    const { data: documents, error: listError, count } = await supabase
+    let query = supabase
       .from('user_documents')
       .select('id, title, content, category, sort_order, updated_at', { count: 'exact' }) // Phase 13: sort_order 추가
       .eq('user_id', user.id)
+
+    // [P7-FIX] projectId 필터링
+    if (projectId) {
+      query = query.eq('project_id', projectId)
+    }
+
+    const { data: documents, error: listError, count } = await query
       .order('sort_order', { ascending: true }) // Phase 13: 정렬 우선순위 1
       .order('updated_at', { ascending: false }) // Phase 13: 정렬 우선순위 2
       .range(offset, offset + limit - 1)

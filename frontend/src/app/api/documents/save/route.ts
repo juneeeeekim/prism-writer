@@ -4,6 +4,7 @@
 // 파일: frontend/src/app/api/documents/save/route.ts
 // 역할: 문서 저장 (INSERT/UPDATE)
 // 생성일: 2025-12-28
+// [P7-FIX] projectId 저장 추가
 // =============================================================================
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -29,10 +30,11 @@ export async function POST(req: NextRequest) {
 
     // -------------------------------------------------------------------------
     // 2. 요청 본문 파싱
+    // [P7-FIX] projectId 추출
     // -------------------------------------------------------------------------
-    const body: SaveDocumentRequest = await req.json()
-    const { id, title, content, category } = body
-    
+    const body = await req.json()
+    const { id, title, content, category, projectId } = body as SaveDocumentRequest & { projectId?: string }
+
     // JeDebug: 카테고리 정규화 (빈 문자열/공백 처리)
     const normalizedCategory = (category?.trim()) || '미분류'
 
@@ -67,14 +69,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(data as SaveDocumentResponse)
     } else {
       // INSERT 새 문서
+      // [P7-FIX] projectId 포함하여 저장
+      const insertData: {
+        user_id: string
+        title: string
+        content: string
+        category: string
+        project_id?: string
+      } = {
+        user_id: user.id,
+        title: title || '제목 없음',
+        content: content || '',
+        category: normalizedCategory
+      }
+
+      // [P7-FIX] projectId가 있으면 추가
+      if (projectId) {
+        insertData.project_id = projectId
+      }
+
       const { data, error } = await supabase
         .from('user_documents')
-        .insert({
-          user_id: user.id,
-          title: title || '제목 없음',
-          content: content || '',
-          category: normalizedCategory
-        })
+        .insert(insertData)
         .select('id, title, category, updated_at')
         .single()
 

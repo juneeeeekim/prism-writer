@@ -3,6 +3,8 @@
 import dynamic from 'next/dynamic'
 import { useEditorState } from '@/hooks/useEditorState'
 import { useDocuments } from '@/hooks/useDocuments'  // Phase 12: 카테고리 목록
+// [P7-FIX] 프로젝트 Context 추가
+import { useProject } from '@/contexts/ProjectContext'
 
 // 동적 import (SSR 비활성화 - 마크다운 에디터는 클라이언트 전용)
 const MDEditor = dynamic(() => import('@uiw/react-md-editor'), { ssr: false })
@@ -11,8 +13,13 @@ const MDEditor = dynamic(() => import('@uiw/react-md-editor'), { ssr: false })
 // Component
 // -----------------------------------------------------------------------------
 export default function MarkdownEditor() {
+  // [P7-FIX] 프로젝트 Context에서 현재 프로젝트 ID 가져오기
+  const { currentProject } = useProject()
+  const projectId = currentProject?.id ?? null
+
   const { content, setContent, title, setTitle, category, setCategory } = useEditorState()
-  const { categories } = useDocuments()  // Phase 12: 기존 카테고리 목록
+  // [P7-FIX] projectId 전달
+  const { categories } = useDocuments(projectId)  // Phase 12: 기존 카테고리 목록
 
   return (
     <div className="flex flex-col h-full">

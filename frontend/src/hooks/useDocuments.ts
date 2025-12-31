@@ -4,6 +4,7 @@
 // 파일: frontend/src/hooks/useDocuments.ts
 // 역할: 문서 CRUD 작업용 훅
 // 생성일: 2025-12-28
+// [P7-FIX] projectId 파라미터 추가로 프로젝트별 문서 격리
 // =============================================================================
 
 'use client'
@@ -35,7 +36,12 @@ interface UseDocumentsReturn {
 // =============================================================================
 // Hook Implementation
 // =============================================================================
-export function useDocuments(): UseDocumentsReturn {
+/**
+ * [P7-FIX] 문서 CRUD 훅 - projectId 필수
+ *
+ * @param projectId - 조회할 프로젝트 ID (없으면 조회하지 않음)
+ */
+export function useDocuments(projectId?: string | null): UseDocumentsReturn {
   const [documents, setDocuments] = useState<UserDocumentPreview[]>([])
   const [categories, setCategories] = useState<string[]>([])  // Phase 12
   const [loading, setLoading] = useState(false)
@@ -43,13 +49,22 @@ export function useDocuments(): UseDocumentsReturn {
 
   // ---------------------------------------------------------------------------
   // 문서 목록 조회
+  // [P7-FIX] projectId가 없으면 조회하지 않음
   // ---------------------------------------------------------------------------
   const fetchList = useCallback(async () => {
+    // [P7-FIX] projectId가 없으면 빈 목록 반환
+    if (!projectId) {
+      setDocuments([])
+      setCategories([])
+      return
+    }
+
     setLoading(true)
     setError(null)
-    
+
     try {
-      const res = await fetch('/api/documents/list')
+      // [P7-FIX] projectId 쿼리 파라미터 추가
+      const res = await fetch(`/api/documents/list?projectId=${projectId}`)
       
       if (!res.ok) {
         if (res.status === 401) {
@@ -77,12 +92,13 @@ export function useDocuments(): UseDocumentsReturn {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [projectId])  // [P7-FIX] projectId 의존성 추가
 
   // ---------------------------------------------------------------------------
   // 문서 저장 (생성 또는 수정)
+  // [P7-FIX] projectId를 요청에 포함
   // ---------------------------------------------------------------------------
-  const saveDocument = useCallback(async (doc: { 
+  const saveDocument = useCallback(async (doc: {
     id?: string
     title: string
     content: string
@@ -91,18 +107,21 @@ export function useDocuments(): UseDocumentsReturn {
     const res = await fetch('/api/documents/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(doc)
+      body: JSON.stringify({
+        ...doc,
+        projectId  // [P7-FIX] 프로젝트 ID 포함
+      })
     })
-    
+
     if (!res.ok) {
       if (res.status === 401) {
         throw new Error('로그인이 필요합니다.')
       }
       throw new Error('문서 저장에 실패했습니다.')
     }
-    
+
     return res.json()
-  }, [])
+  }, [projectId])  // [P7-FIX] projectId 의존성 추가
 
   // ---------------------------------------------------------------------------
   // 문서 삭제
@@ -146,6 +165,7 @@ export function useDocuments(): UseDocumentsReturn {
 
   // ---------------------------------------------------------------------------
   // 문서 순서 변경 (Phase 13)
+  // [P7-FIX] projectId 포함
   // ---------------------------------------------------------------------------
   const reorderDocuments = useCallback(async (items: { id: string; sort_order: number }[]) => {
     // 1. Optimistic Update (UI 즉시 반영)
@@ -170,7 +190,10 @@ export function useDocuments(): UseDocumentsReturn {
       const res = await fetch('/api/documents/reorder', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ documents: items })
+        body: JSON.stringify({
+          documents: items,
+          projectId  // [P7-FIX] 프로젝트 ID 포함
+        })
       })
       
       if (!res.ok) {
@@ -181,7 +204,7 @@ export function useDocuments(): UseDocumentsReturn {
       fetchList() // 실패 시 롤백 (목록 새로고침)
       throw e
     }
-  }, [fetchList])
+  }, [fetchList, projectId])  // [P7-FIX] projectId 의존성 추가
 
   // ---------------------------------------------------------------------------
   // 에러 초기화

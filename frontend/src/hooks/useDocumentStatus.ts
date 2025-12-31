@@ -1,3 +1,11 @@
+// =============================================================================
+// useDocumentStatus Hook
+// =============================================================================
+// 파일: frontend/src/hooks/useDocumentStatus.ts
+// 역할: 문서 처리 상태 실시간 조회 (SWR 기반 폴링)
+// [P7-FIX] projectId 파라미터 추가로 프로젝트별 문서 격리
+// =============================================================================
+
 import useSWR from 'swr'
 import { DocumentStatus } from '@/types/rag'
 
@@ -22,9 +30,17 @@ interface UseDocumentStatusResult {
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
-export function useDocumentStatus(): UseDocumentStatusResult {
+/**
+ * [P7-FIX] 문서 상태 조회 훅 - projectId 필수
+ *
+ * @param projectId - 조회할 프로젝트 ID (없으면 조회하지 않음)
+ */
+export function useDocumentStatus(projectId?: string | null): UseDocumentStatusResult {
+  // [P7-FIX] projectId가 있을 때만 API 호출, 없으면 null (SWR이 요청 안 함)
+  const apiUrl = projectId ? `/api/documents?projectId=${projectId}` : null
+
   const { data, error, mutate } = useSWR<{ success: boolean; documents: Document[] }>(
-    '/api/documents',
+    apiUrl,
     fetcher,
     {
       // 1. 기본적으로 3초마다 폴링 (실시간성 확보)
@@ -52,7 +68,7 @@ export function useDocumentStatus(): UseDocumentStatusResult {
 
   return {
     documents: data?.documents || [],
-    isLoading: !error && !data,
+    isLoading: !error && !data && !!projectId,  // [P7-FIX] projectId 없으면 로딩 아님
     isError: error,
     mutate,
   }

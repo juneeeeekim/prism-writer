@@ -5,6 +5,7 @@
 // 역할: 저장된 문서 목록 페이지 (카테고리별 그룹핑)
 // 생성일: 2025-12-28
 // 수정일: 2025-12-28 (Phase 12 - 카테고리 아코디언)
+// [P7-FIX] projectId 필터링 추가
 // =============================================================================
 
 'use client'
@@ -17,23 +18,42 @@ import { useEditorState } from '@/hooks/useEditorState'
 import { AuthHeader } from '@/components/auth'
 import CategoryAccordion from '@/components/documents/CategoryAccordion'  // Phase 12
 import type { UserDocumentPreview } from '@/types/document'
+// [P7-FIX] 프로젝트 Context 추가
+import { ProjectProvider, useProject } from '@/contexts/ProjectContext'
 
 // =============================================================================
-// Page Component
+// Page Component (ProjectProvider 래핑)
 // =============================================================================
 export default function DocumentsPage() {
-  const { documents, loading, error, fetchList, deleteDocument, reorderDocuments } = useDocuments() // Phase 13: reorderDocuments 추가
+  return (
+    <ProjectProvider>
+      <DocumentsContent />
+    </ProjectProvider>
+  )
+}
+
+// =============================================================================
+// Documents Content Component
+// =============================================================================
+function DocumentsContent() {
+  // [P7-FIX] 프로젝트 Context에서 현재 프로젝트 ID 가져오기
+  const { currentProject } = useProject()
+  const projectId = currentProject?.id ?? null
+
+  // [P7-FIX] projectId 전달하여 프로젝트별 문서만 조회
+  const { documents, loading, error, fetchList, deleteDocument, reorderDocuments } = useDocuments(projectId) // Phase 13: reorderDocuments 추가
   const { user, loading: authLoading } = useAuth()
   const { reset: resetEditor } = useEditorState()
 
   // ---------------------------------------------------------------------------
   // 문서 목록 로드
+  // [P7-FIX] projectId가 있을 때만 fetchList 호출
   // ---------------------------------------------------------------------------
   useEffect(() => {
-    if (user && !authLoading) {
+    if (user && !authLoading && projectId) {
       fetchList()
     }
-  }, [user, authLoading, fetchList])
+  }, [user, authLoading, projectId, fetchList])
 
   // ---------------------------------------------------------------------------
   // Phase 12: 카테고리별 그룹핑
