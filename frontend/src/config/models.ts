@@ -54,6 +54,21 @@ export const MODEL_REGISTRY: Record<string, ModelConfig> = {
   // ---------------------------------------------------------------------------
   // Google Gemini 모델
   // ---------------------------------------------------------------------------
+  "gemini-1.5-flash": {
+    provider: "gemini",
+    displayName: "Gemini 1.5 Flash",
+    capabilities: [
+      "text-generation",
+      "streaming",
+      "vision",
+    ],
+    costPerInputToken: 0.000000075,
+    costPerOutputToken: 0.0000003,
+    maxTokens: 8192,
+    inputContextWindow: 1048576,
+    tier: "free",
+    enabled: true,
+  },
   "gemini-3-flash-preview": {
     provider: "gemini",
     displayName: "Gemini 3.0 Flash Preview",

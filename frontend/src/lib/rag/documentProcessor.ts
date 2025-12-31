@@ -168,8 +168,9 @@ async function parsePDF(buffer: Buffer): Promise<string> {
           const text = extractedText.trim()
           
           // 스캔된 이미지 PDF 감지 (텍스트가 비어있는 경우)
+          // [P10-OCR] 사용자에게 OCR/Vision 옵션 안내
           if (!text || text.length === 0) {
-            reject(new Error('PDF에서 텍스트를 추출할 수 없습니다. 텍스트가 포함된 PDF 파일을 사용해 주세요.'))
+            reject(new Error('SCANNED_PDF:PDF에서 텍스트를 추출할 수 없습니다. 스캔된 이미지 PDF인 경우 OCR 또는 Vision 추출 기능을 사용해 주세요.'))
             return
           }
           
