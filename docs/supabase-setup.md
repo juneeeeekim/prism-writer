@@ -1,8 +1,8 @@
-# 🗄️ Supabase 설정 가이드
+# Supabase 설정 가이드
 
-**문서 버전:** 1.0  
-**작성 일자:** 2025-12-14  
-**대상:** PRISM Writer 개발팀
+> **문서 버전:** 1.1
+> **최종 업데이트:** 2026-01-01
+> **대상:** PRISM Writer 개발팀
 
 ---
 
@@ -81,8 +81,11 @@ vector  | 0.5.1
 
 ### 4.1 마이그레이션 파일 실행 순서
 
-1. `backend/migrations/001_initial_schema.sql` → 테이블 생성
-2. `backend/migrations/002_rls_policies.sql` → RLS 정책 설정
+마이그레이션 파일은 `supabase/migrations/` 디렉토리에 순서대로 위치합니다:
+
+1. 테이블 생성 SQL
+2. RLS 정책 SQL
+3. 프로젝트 관련 SQL (Phase 5+)
 
 ### 4.2 실행 방법
 
@@ -96,45 +99,36 @@ vector  | 0.5.1
 
 ## 5. 환경변수 설정
 
-### 5.1 Backend (.env)
+### 5.1 Frontend (.env.local)
 
 ```env
-SUPABASE_URL=https://[project-ref].supabase.co
-SUPABASE_KEY=[anon-key]
-SUPABASE_SERVICE_ROLE_KEY=[service-role-key]
-```
-
-### 5.2 Frontend (.env.local)
-
-```env
+# Supabase
 NEXT_PUBLIC_SUPABASE_URL=https://[project-ref].supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=[anon-key]
+
+# LLM API Keys (서버 전용)
+GOOGLE_API_KEY=[google-api-key]
+OPENAI_API_KEY=[openai-api-key]
 ```
 
 ---
 
 ## 6. 연결 테스트
 
-### 6.1 Python 테스트 코드
+### 6.1 브라우저 콘솔 테스트
 
-```python
-from supabase import create_client
-import os
+개발 서버 실행 후 브라우저 콘솔에서:
 
-url = os.getenv("SUPABASE_URL")
-key = os.getenv("SUPABASE_KEY")
-
-client = create_client(url, key)
-
-# 테스트 쿼리
-result = client.table("documents").select("*").limit(1).execute()
-print("Connection successful:", result)
+```javascript
+// Supabase 연결 확인
+const { data, error } = await supabase.from('projects').select('*').limit(1)
+console.log('Connection:', data, error)
 ```
 
 ### 6.2 예상 결과
 
 ```
-Connection successful: APIResponse(data=[], count=None)
+Connection: [] null  // 빈 배열 + 에러 없음 = 연결 성공
 ```
 
 ---
