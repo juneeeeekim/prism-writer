@@ -75,6 +75,57 @@ const DEFAULT_VECTOR_WEIGHT = 0.7
 const DEFAULT_KEYWORD_WEIGHT = 0.3
 
 // =============================================================================
+// [P7-02] Retry 상수 및 유틸리티 함수
+// =============================================================================
+// 목적: 외부 API 호출(embedText, supabase.rpc) 실패 시 재시도 로직
+// 전략: Exponential Backoff (200ms → 400ms → 800ms)
+// =============================================================================
+
+/** 최대 재시도 횟수 */
+const MAX_RETRY_COUNT = 3
+
+/** 초기 대기 시간 (ms) */
+const INITIAL_BACKOFF_MS = 200
+
+/** OpenAI text-embedding 차원 (text-embedding-3-small) */
+const EMBEDDING_DIMENSION = 1536
+
+/**
+ * [P7-02] 재시도 유틸리티 함수
+ *
+ * @description
+ * 외부 API 호출 실패 시 Exponential Backoff로 재시도합니다.
+ * 모든 시도 실패 시 마지막 에러를 throw합니다.
+ *
+ * @param operation - 재시도할 비동기 작업
+ * @param context - 로그 컨텍스트 (함수명)
+ * @returns 작업 결과
+ */
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  context: string
+): Promise<T> {
+  let lastError: Error | null = null
+
+  for (let attempt = 1; attempt <= MAX_RETRY_COUNT; attempt++) {
+    try {
+      return await operation()
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err))
+      console.warn(`[${context}] Attempt ${attempt}/${MAX_RETRY_COUNT} failed:`, lastError.message)
+
+      if (attempt < MAX_RETRY_COUNT) {
+        // Exponential Backoff: 200ms, 400ms, 800ms
+        const backoffMs = INITIAL_BACKOFF_MS * Math.pow(2, attempt - 1)
+        await new Promise(resolve => setTimeout(resolve, backoffMs))
+      }
+    }
+  }
+
+  throw lastError // 모든 시도 실패
+}
+
+// =============================================================================
 // Helper: 근거 품질 계산 (P1-C)
 // =============================================================================
 export function calculateEvidenceQuality(
@@ -176,9 +227,24 @@ export async function vectorSearch(
   }
 
   // ---------------------------------------------------------------------------
-  // 1. 쿼리 임베딩 생성
+  // 1. [P7-02] 쿼리 임베딩 생성 (Retry + 차원 검증 + Graceful Degradation)
   // ---------------------------------------------------------------------------
-  const queryEmbedding = await embedText(query.trim())
+  let queryEmbedding: number[]
+  try {
+    queryEmbedding = await withRetry(
+      () => embedText(query.trim()),
+      'vectorSearch:embedText'
+    )
+
+    // 차원 검증 (OpenAI text-embedding-3-small: 1536)
+    if (!queryEmbedding || queryEmbedding.length !== EMBEDDING_DIMENSION) {
+      console.error(`[vectorSearch] Invalid embedding dimension: ${queryEmbedding?.length}, expected: ${EMBEDDING_DIMENSION}`)
+      return [] // Graceful Degradation: 빈 결과 반환
+    }
+  } catch (err) {
+    console.error('[vectorSearch] Embedding failed after retries:', err)
+    return [] // Graceful Degradation: 500 에러 대신 빈 결과 반환
+  }
 
   // ---------------------------------------------------------------------------
   // 2. pgvector 검색 (Pipeline v4: search_similar_chunks_v2 함수 사용)
@@ -191,104 +257,141 @@ export async function vectorSearch(
   // 주석(시니어 개발자): ENABLE_PIPELINE_V4=false 시 v3 로직으로 즉시 롤백
   if (!PIPELINE_V4_FLAGS.useChunkTypeFilter) {
     console.log('[vectorSearch] Pipeline v4 disabled - using v3 search')
-    // Phase 14.5: Use match_document_chunks with category support
-    const { data: v3Data, error: v3Error } = await supabase.rpc('match_document_chunks', {
-      query_embedding: queryEmbedding,
-      match_threshold: minScore,
-      match_count: topK,
-      user_id_param: userId,
-      category_param: category || null  // null = all categories
-    })
-    
-    if (v3Error) {
-      throw new Error(`벡터 검색 실패: ${v3Error.message}`)
+
+    // -------------------------------------------------------------------------
+    // [P7-02] v3 RPC 호출 (Retry + Graceful Degradation)
+    // -------------------------------------------------------------------------
+    try {
+      const { data: v3Data, error: v3Error } = await withRetry(
+        async () => {
+          const result = await supabase.rpc('match_document_chunks', {
+            query_embedding: queryEmbedding,
+            match_threshold: minScore,
+            match_count: topK,
+            user_id_param: userId,
+            category_param: category || null  // null = all categories
+          })
+          return result
+        },
+        'vectorSearch:match_document_chunks'
+      )
+
+      if (v3Error) {
+        console.error('[vectorSearch] v3 RPC error:', v3Error.message)
+        return [] // Graceful Degradation
+      }
+
+      // v3 결과 반환 (클라이언트 사이드 필터링)
+      // [P0-01-D Fix] RPC returns 'id', not 'chunk_id' - mapped correctly
+      let v3Results: SearchResult[] = (v3Data || []).map((item: any) => ({
+        chunkId: item.id,  // Fixed: RPC returns 'id' not 'chunk_id'
+        documentId: item.document_id,
+        content: item.content,
+        score: item.similarity,
+        metadata: { ...item.metadata, chunkType: item.chunk_type },
+      }))
+
+      if (documentId) {
+        v3Results = v3Results.filter((result) => result.documentId === documentId)
+      }
+      v3Results = v3Results.filter((result) => result.score >= minScore)
+      if (chunkType) {
+        v3Results = v3Results.filter((result) => result.metadata.chunkType === chunkType)
+      }
+
+      return v3Results
+    } catch (err) {
+      console.error('[vectorSearch] v3 RPC failed after retries:', err)
+      return [] // Graceful Degradation: 500 에러 대신 빈 결과 반환
     }
-    
-    // v3 결과 반환 (클라이언트 사이드 필터링)
-    // [P0-01-D Fix] RPC returns 'id', not 'chunk_id' - mapped correctly
-    let v3Results: SearchResult[] = (v3Data || []).map((item: any) => ({
-      chunkId: item.id,  // Fixed: RPC returns 'id' not 'chunk_id'
-      documentId: item.document_id,
-      content: item.content,
-      score: item.similarity,
-      metadata: { ...item.metadata, chunkType: item.chunk_type },
-    }))
-    
-    if (documentId) {
-      v3Results = v3Results.filter((result) => result.documentId === documentId)
-    }
-    v3Results = v3Results.filter((result) => result.score >= minScore)
-    if (chunkType) {
-      v3Results = v3Results.filter((result) => result.metadata.chunkType === chunkType)
-    }
-    
-    return v3Results
   }
   
-  // Pipeline v4: chunk_type 필터를 DB 레벨에서 적용
-  const { data, error } = await supabase.rpc('search_similar_chunks_v2', {
-    query_embedding: queryEmbedding,
-    user_id_param: userId,
-    match_count: topK,
-    chunk_type_filter: chunkType || null,  // NULL이면 모든 타입 검색
-  })
+  // ---------------------------------------------------------------------------
+  // [P7-02] Pipeline v4: chunk_type 필터를 DB 레벨에서 적용 (Retry + Graceful Degradation)
+  // ---------------------------------------------------------------------------
+  try {
+    const { data, error } = await withRetry(
+      async () => {
+        const result = await supabase.rpc('search_similar_chunks_v2', {
+          query_embedding: queryEmbedding,
+          user_id_param: userId,
+          match_count: topK,
+          chunk_type_filter: chunkType || null,  // NULL이면 모든 타입 검색
+        })
+        return result
+      },
+      'vectorSearch:search_similar_chunks_v2'
+    )
 
-  if (error) {
-    // 주석(주니어 개발자): v2 함수 없으면 기존 함수로 폴백
-    console.warn('[vectorSearch] search_similar_chunks_v2 실패, 기존 함수로 폴백:', error.message)
-    const { data: fallbackData, error: fallbackError } = await supabase.rpc('search_similar_chunks', {
-      query_embedding: queryEmbedding,
-      user_id_param: userId,
-      match_count: topK,
-    })
-    
-    if (fallbackError) {
-      throw new Error(`벡터 검색 실패: ${fallbackError.message}`)
+    if (error) {
+      // 주석(주니어 개발자): v2 함수 없으면 기존 함수로 폴백
+      console.warn('[vectorSearch] search_similar_chunks_v2 실패, 기존 함수로 폴백:', error.message)
+
+      // [P7-02] Fallback RPC with Retry
+      const { data: fallbackData, error: fallbackError } = await withRetry(
+        async () => {
+          const result = await supabase.rpc('search_similar_chunks', {
+            query_embedding: queryEmbedding,
+            user_id_param: userId,
+            match_count: topK,
+          })
+          return result
+        },
+        'vectorSearch:search_similar_chunks_fallback'
+      )
+
+      if (fallbackError) {
+        console.error('[vectorSearch] Fallback RPC error:', fallbackError.message)
+        return [] // Graceful Degradation
+      }
+
+      // 폴백 시 클라이언트 사이드 필터링
+      // [P0-01-D Fix] RPC returns 'id', not 'chunk_id' - mapped correctly
+      let fallbackResults: SearchResult[] = (fallbackData || []).map((item: any) => ({
+        chunkId: item.id,  // Fixed: RPC returns 'id' not 'chunk_id'
+        documentId: item.document_id,
+        content: item.content,
+        score: item.similarity,
+        metadata: { ...item.metadata, chunkType: item.chunk_type },
+      }))
+
+      if (documentId) {
+        fallbackResults = fallbackResults.filter((result) => result.documentId === documentId)
+      }
+      fallbackResults = fallbackResults.filter((result) => result.score >= minScore)
+      if (chunkType) {
+        fallbackResults = fallbackResults.filter((result) => result.metadata.chunkType === chunkType)
+      }
+
+      return fallbackResults
     }
-    
-    // 폴백 시 클라이언트 사이드 필터링
+
+    // -------------------------------------------------------------------------
+    // 3. 결과 포맷팅 (Pipeline v4: DB에서 이미 필터링됨)
+    // -------------------------------------------------------------------------
     // [P0-01-D Fix] RPC returns 'id', not 'chunk_id' - mapped correctly
-    let fallbackResults: SearchResult[] = (fallbackData || []).map((item: any) => ({
+    let results: SearchResult[] = (data || []).map((item: any) => ({
       chunkId: item.id,  // Fixed: RPC returns 'id' not 'chunk_id'
       documentId: item.document_id,
       content: item.content,
       score: item.similarity,
-      metadata: { ...item.metadata, chunkType: item.chunk_type },
+      metadata: { ...item.metadata, chunkType: item.chunk_type },  // chunk_type을 metadata에 포함
+      quality: calculateEvidenceQuality(item.similarity, 'vector') // P1-C Quality
     }))
-    
+
+    // 문서 ID 필터 (DB 레벨에서 안 했으므로 여기서 처리)
     if (documentId) {
-      fallbackResults = fallbackResults.filter((result) => result.documentId === documentId)
+      results = results.filter((result) => result.documentId === documentId)
     }
-    fallbackResults = fallbackResults.filter((result) => result.score >= minScore)
-    if (chunkType) {
-      fallbackResults = fallbackResults.filter((result) => result.metadata.chunkType === chunkType)
-    }
-    
-    return fallbackResults
+
+    // 최소 점수 필터
+    results = results.filter((result) => result.score >= minScore)
+
+    return results
+  } catch (err) {
+    console.error('[vectorSearch] v4 RPC failed after retries:', err)
+    return [] // Graceful Degradation: 500 에러 대신 빈 결과 반환
   }
-
-  // ---------------------------------------------------------------------------
-  // 3. 결과 포맷팅 (Pipeline v4: DB에서 이미 필터링됨)
-  // ---------------------------------------------------------------------------
-  // [P0-01-D Fix] RPC returns 'id', not 'chunk_id' - mapped correctly
-  let results: SearchResult[] = (data || []).map((item: any) => ({
-    chunkId: item.id,  // Fixed: RPC returns 'id' not 'chunk_id'
-    documentId: item.document_id,
-    content: item.content,
-    score: item.similarity,
-    metadata: { ...item.metadata, chunkType: item.chunk_type },  // chunk_type을 metadata에 포함
-    quality: calculateEvidenceQuality(item.similarity, 'vector') // P1-C Quality
-  }))
-
-  // 문서 ID 필터 (DB 레벨에서 안 했으므로 여기서 처리)
-  if (documentId) {
-    results = results.filter((result) => result.documentId === documentId)
-  }
-
-  // 최소 점수 필터
-  results = results.filter((result) => result.score >= minScore)
-
-  return results
 }
 
 // =============================================================================

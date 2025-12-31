@@ -80,7 +80,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<HolisticE
     // 2. 요청 바디 파싱 및 유효성 검사
     // -------------------------------------------------------------------------
     const body: HolisticEvaluateRequest = await request.json()
-    const { userText, category, topK = DEFAULT_TOP_K, projectId } = body  // [P5-04-B] projectId 추가
+    let { userText, category, topK = DEFAULT_TOP_K, projectId } = body  // [P7-04] let으로 변경 (재할당 가능)
 
     // 필수 필드 검증
     if (!userText) {
@@ -100,12 +100,57 @@ export async function POST(request: NextRequest): Promise<NextResponse<HolisticE
     // 최소 글자 수 검증
     if (userText.trim().length < MIN_TEXT_LENGTH) {
       return NextResponse.json(
-        { 
-          success: false, 
-          message: `글이 너무 짧습니다. 최소 ${MIN_TEXT_LENGTH}자 이상 입력해주세요.` 
+        {
+          success: false,
+          message: `글이 너무 짧습니다. 최소 ${MIN_TEXT_LENGTH}자 이상 입력해주세요.`
         },
         { status: 400 }
       )
+    }
+
+    // =========================================================================
+    // [P7-04] projectId 처리: 기본 프로젝트 할당 및 소유권 검증
+    // =========================================================================
+
+    // -------------------------------------------------------------------------
+    // [P7-04] projectId 미제공 시 기본 프로젝트 할당
+    // -------------------------------------------------------------------------
+    if (!projectId) {
+      const { data: defaultProject, error: projectError } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .single()
+
+      if (projectError || !defaultProject) {
+        console.warn('[Holistic Evaluate API] No default project found, proceeding without projectId')
+        // projectId null로 진행 (하위 호환)
+      } else {
+        projectId = defaultProject.id
+        console.log(`[Holistic Evaluate API] Using default project: ${projectId}`)
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // [P7-04] projectId 소유권 검증 (보안 강화)
+    // -------------------------------------------------------------------------
+    if (projectId) {
+      const { data: projectOwnership, error: ownerError } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('id', projectId)
+        .eq('user_id', userId)
+        .single()
+
+      if (ownerError || !projectOwnership) {
+        console.warn(`[Holistic Evaluate API] Unauthorized project access: ${projectId}`)
+        return NextResponse.json(
+          { success: false, message: '해당 프로젝트에 대한 권한이 없습니다.' },
+          { status: 403 }
+        )
+      }
     }
 
     console.log(`[Holistic Evaluate API] Category: ${category}, Text length: ${userText.length}, ProjectId: ${projectId || 'none'}`)
@@ -183,8 +228,37 @@ export async function POST(request: NextRequest): Promise<NextResponse<HolisticE
 
     console.log(`[Holistic Evaluate API] Evaluation complete - Score: ${result.scoreC.overall}`)
 
+    // =========================================================================
+    // [P7-04] 평가 결과 저장 (evaluation_logs 테이블)
+    // =========================================================================
+    try {
+      const { data: savedLog, error: saveError } = await supabase
+        .from('evaluation_logs')
+        .insert({
+          user_id: userId,
+          project_id: projectId || null,  // [P7-04] 명시적 null 처리
+          category: category,
+          user_text: userText.substring(0, 1000),  // 최대 1000자
+          result_json: result,
+          overall_score: result.scoreC.overall,
+          created_at: new Date().toISOString()
+        })
+        .select('id')
+        .single()
+
+      if (saveError) {
+        console.error('[Holistic Evaluate API] Save failed:', saveError)
+        // 저장 실패해도 평가 결과는 반환 (Graceful Degradation)
+      } else {
+        console.log(`[Holistic Evaluate API] Saved log: ${savedLog?.id}`)
+      }
+    } catch (saveErr) {
+      console.warn('[Holistic Evaluate API] Save exception:', saveErr)
+      // 저장 예외 발생해도 평가 결과는 반환 (Graceful Degradation)
+    }
+
     // -------------------------------------------------------------------------
-    // 5. 결과 반환
+    // 6. 결과 반환
     // -------------------------------------------------------------------------
     return NextResponse.json({
       success: true,

@@ -29,6 +29,23 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
  * ```
  */
 export const createClient = () => {
+  // ---------------------------------------------------------------------------
+  // [P7-01] Supabase 406 (Not Acceptable) 에러 방지를 위한 클라이언트 옵션
+  // - Accept-Profile: 'public' → 스키마 명시적 지정
+  // - Content-Profile: 'public' → POST/PATCH 요청 시 스키마 명시
+  // - Accept: 'application/json' → 응답 형식 명시
+  // ---------------------------------------------------------------------------
+  const clientOptions = {
+    db: { schema: 'public' as const },
+    global: {
+      headers: {
+        'Accept': 'application/json',
+        'Accept-Profile': 'public',
+        'Content-Profile': 'public'
+      }
+    }
+  }
+
   // 빌드 시점 또는 환경 변수 누락 시 빈 값으로 처리
   // 실제 런타임에서만 Supabase가 동작함
   if (!supabaseUrl || !supabaseAnonKey) {
@@ -36,10 +53,11 @@ export const createClient = () => {
     // 타입 호환을 위해 빈 URL로 클라이언트 생성 (실제 호출 시 에러 발생)
     return createBrowserClient(
       'https://placeholder.supabase.co',
-      'placeholder-key'
+      'placeholder-key',
+      clientOptions
     )
   }
-  
-  return createBrowserClient(supabaseUrl, supabaseAnonKey)
+
+  return createBrowserClient(supabaseUrl, supabaseAnonKey, clientOptions)
 }
 

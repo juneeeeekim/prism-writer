@@ -52,6 +52,11 @@ async function saveMessageWithRetry(
 
 export async function POST(req: NextRequest) {
   try {
+    // =========================================================================
+    // [P7-03] 성능 측정 시작
+    // =========================================================================
+    const startTime = performance.now()
+
     // -------------------------------------------------------------------------
     // 요청 본문 파싱
     // -------------------------------------------------------------------------
@@ -80,12 +85,17 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    // =========================================================================
+    // [P7-03] 병렬 처리: Memory, Template, RAG 동시 실행
+    // =========================================================================
+    // 기존: Memory → Template → RAG (순차)
+    // 개선: Memory + Template + RAG (병렬)
+    // =========================================================================
+
     // -------------------------------------------------------------------------
-    // 1.8. User Preferences Search (P14-04 Feedback-to-Memory)
+    // [P7-03] Promise 1: Memory Search (P14-04 Feedback-to-Memory)
     // -------------------------------------------------------------------------
-    // [JeDebug Optimized] Start memory search early in parallel with RAG
-    // [Phase 14.5] Apply category filter
-    const memoryPromise = userId 
+    const memoryPromise = userId
       ? MemoryService.searchPreferences(userId, query, 3, 0.72, categoryFilter)
           .catch(err => {
             console.warn('[Chat API] Memory search failed:', err)
@@ -94,10 +104,10 @@ export async function POST(req: NextRequest) {
       : Promise.resolve([])
 
     // -------------------------------------------------------------------------
-    // 2.7. Template Context Search (P3-07)
+    // [P7-03] Promise 2: Template Context Search (P3-07)
     // -------------------------------------------------------------------------
-    let templateContext = ''
-    if (FEATURE_FLAGS.USE_TEMPLATE_FOR_CHAT && userId) {
+    const templatePromise = (async (): Promise<string> => {
+      if (!FEATURE_FLAGS.USE_TEMPLATE_FOR_CHAT || !userId) return ''
       try {
         const { data: templateData } = await supabase
           .from('rag_templates')
@@ -107,92 +117,94 @@ export async function POST(req: NextRequest) {
           .limit(1)
           .single()
 
-        if (templateData?.criteria_json) {
-          const templates = templateData.criteria_json as TemplateSchema[]
-          // 관련된 기준 2개까지 추출
-          const relevantTemplates = templates.filter(t =>
-            query.includes(t.category) ||
-            t.rationale.toLowerCase().includes(query.toLowerCase().split(' ')[0])
-          ).slice(0, 2)
+        if (!templateData?.criteria_json) return ''
 
-          if (relevantTemplates.length > 0) {
-            templateContext = relevantTemplates.map(t => {
-              let ctx = `[평가 기준: ${t.rationale}]`
-              if (t.positive_examples.length > 0)
-                ctx += `\n좋은 예: ${t.positive_examples[0]}`
-              if (t.negative_examples.length > 0)
-                ctx += `\n나쁜 예: ${t.negative_examples[0]}`
-              return ctx
-            }).join('\n\n')
-            console.log(`[Chat API] Applied ${relevantTemplates.length} template criteria from "${templateData.name}"`)
-          }
-        }
+        const templates = templateData.criteria_json as TemplateSchema[]
+        // 관련된 기준 2개까지 추출
+        const relevantTemplates = templates.filter(t =>
+          query.includes(t.category) ||
+          t.rationale.toLowerCase().includes(query.toLowerCase().split(' ')[0])
+        ).slice(0, 2)
+
+        if (relevantTemplates.length === 0) return ''
+
+        console.log(`[Chat API] Applied ${relevantTemplates.length} template criteria from "${templateData.name}"`)
+        return relevantTemplates.map(t => {
+          let ctx = `[평가 기준: ${t.rationale}]`
+          if (t.positive_examples.length > 0)
+            ctx += `\n좋은 예: ${t.positive_examples[0]}`
+          if (t.negative_examples.length > 0)
+            ctx += `\n나쁜 예: ${t.negative_examples[0]}`
+          return ctx
+        }).join('\n\n')
       } catch (err) {
         console.warn('[Chat API] Template fetch failed:', err)
+        return ''
       }
-    }
+    })()
 
     // -------------------------------------------------------------------------
-    // 2. RAG 검색 (Hybrid Search + Query Expansion)
+    // [P7-03] Promise 3: RAG Search (Hybrid Search + Query Expansion)
     // -------------------------------------------------------------------------
-    let context = ''
-    let hasRetrievedDocs = false
-    let uniqueResults: SearchResult[] = []
-    
-    try {
-      const enableQueryExpansion = process.env.ENABLE_QUERY_EXPANSION === 'true'
-      
-      if (enableQueryExpansion) {
-        // [Query Expansion Mode]
-        const { expandQuery } = await import('@/lib/rag/queryExpansion')
-        const { calculateDynamicThreshold } = await import('@/lib/rag/dynamicThreshold')
-        
-        // Step 1: 쿼리 확장
-        const expandedQueries = expandQuery(query)
-        console.log(`[Chat API] Query Expansion: ${expandedQueries.length} queries`)
-        
-        // Step 2: 동적 임계값
-        const dynamicThreshold = calculateDynamicThreshold(query)
-        
-        // Step 3: 병렬 검색 (Phase 14.5: with category filter)
-        const searchPromises = expandedQueries.map(q => 
-          hybridSearch(q, {
-            userId: userId || 'demo-user',
-            topK: 3,
-            minScore: dynamicThreshold,
-            vectorWeight: 0.6,
-            keywordWeight: 0.4,
-            category: categoryFilter  // Phase 14.5
-          }).catch(err => {
-            console.warn(`[Chat API] Search failed for "${q}":`, err)
-            return []
-          })
-        )
-        
-        const searchResultsArray = await Promise.all(searchPromises)
-        const allResults = searchResultsArray.flat()
-        
-        // Step 4: 중복 제거 및 정렬
-        const seen = new Set<string>()
-        uniqueResults = allResults
-          .sort((a, b) => b.score - a.score)
-          .filter(result => {
-            if (seen.has(result.chunkId)) return false
-            seen.add(result.chunkId)
-            return true
-          })
-          .slice(0, 5)
-        
-        if (uniqueResults.length > 0) {
-          hasRetrievedDocs = true
-          context = uniqueResults
-            .map((result) => `[참고 문서: ${result.metadata?.title || 'Untitled'}]\n${result.content}`)
-            .join('\n\n')
+    const ragPromise = (async (): Promise<{ context: string; hasRetrievedDocs: boolean; uniqueResults: SearchResult[] }> => {
+      try {
+        const enableQueryExpansion = process.env.ENABLE_QUERY_EXPANSION === 'true'
+
+        if (enableQueryExpansion) {
+          // [Query Expansion Mode]
+          const { expandQuery } = await import('@/lib/rag/queryExpansion')
+          const { calculateDynamicThreshold } = await import('@/lib/rag/dynamicThreshold')
+
+          // Step 1: 쿼리 확장
+          const expandedQueries = expandQuery(query)
+          console.log(`[Chat API] Query Expansion: ${expandedQueries.length} queries`)
+
+          // Step 2: 동적 임계값
+          const dynamicThreshold = calculateDynamicThreshold(query)
+
+          // Step 3: 병렬 검색 (Phase 14.5: with category filter)
+          const searchPromises = expandedQueries.map(q =>
+            hybridSearch(q, {
+              userId: userId || 'demo-user',
+              topK: 3,
+              minScore: dynamicThreshold,
+              vectorWeight: 0.6,
+              keywordWeight: 0.4,
+              category: categoryFilter  // Phase 14.5
+            }).catch(err => {
+              console.warn(`[Chat API] Search failed for "${q}":`, err)
+              return []
+            })
+          )
+
+          const searchResultsArray = await Promise.all(searchPromises)
+          const allResults = searchResultsArray.flat()
+
+          // Step 4: 중복 제거 및 정렬
+          const seen = new Set<string>()
+          const uniqueResults = allResults
+            .sort((a, b) => b.score - a.score)
+            .filter(result => {
+              if (seen.has(result.chunkId)) return false
+              seen.add(result.chunkId)
+              return true
+            })
+            .slice(0, 5)
+
+          if (uniqueResults.length > 0) {
+            return {
+              context: uniqueResults
+                .map((result) => `[참고 문서: ${result.metadata?.title || 'Untitled'}]\n${result.content}`)
+                .join('\n\n'),
+              hasRetrievedDocs: true,
+              uniqueResults
+            }
+          }
         }
-        
+
         // [Legacy Mode] (Phase 14.5: with category filter)
         console.log(`[Chat API] Query Expansion: DISABLED, category: ${categoryFilter || 'all'}`)
-        
+
         const searchResults = await hybridSearch(query, {
           userId: userId || 'demo-user',
           topK: 5,
@@ -203,22 +215,37 @@ export async function POST(req: NextRequest) {
         })
 
         if (searchResults.length > 0) {
-          hasRetrievedDocs = true
-          uniqueResults = searchResults
-          context = searchResults
-            .map((result) => `[참고 문서: ${result.metadata?.title || 'Untitled'}]\n${result.content}`)
-            .join('\n\n')
+          return {
+            context: searchResults
+              .map((result) => `[참고 문서: ${result.metadata?.title || 'Untitled'}]\n${result.content}`)
+              .join('\n\n'),
+            hasRetrievedDocs: true,
+            uniqueResults: searchResults
+          }
         }
-      }
-      
-    } catch (error) {
-      console.warn('RAG search failed:', error)
-    }
 
-    // -------------------------------------------------------------------------
-    // 2.5. Resolve Memory Search (P14-04 Integration)
-    // -------------------------------------------------------------------------
-    const userPreferences = await memoryPromise
+        return { context: '', hasRetrievedDocs: false, uniqueResults: [] }
+      } catch (error) {
+        console.warn('RAG search failed:', error)
+        return { context: '', hasRetrievedDocs: false, uniqueResults: [] }
+      }
+    })()
+
+    // =========================================================================
+    // [P7-03] Promise.all 병렬 실행
+    // =========================================================================
+    const [userPreferences, templateContext, ragResult] = await Promise.all([
+      memoryPromise,
+      templatePromise,
+      ragPromise
+    ])
+
+    // [P7-03] 병렬 처리 완료 시간 로깅
+    const parallelTime = performance.now() - startTime
+    console.log(`[Chat API] Parallel fetch completed in ${parallelTime.toFixed(0)}ms`)
+
+    // RAG 결과 추출
+    const { context, hasRetrievedDocs, uniqueResults } = ragResult
     let userPreferencesContext = ''
     
     if (userPreferences && userPreferences.length > 0) {
@@ -302,12 +329,22 @@ ${context ? context : '관련된 참고 자료가 없습니다.'}
     const modelId = requestedModel || getDefaultModel()
     console.log(`[Chat API] Using model: ${modelId}`)
 
+    // =========================================================================
+    // [P7-03] TTFT 측정을 위한 스트리밍 응답
+    // =========================================================================
     const stream = new ReadableStream({
       async start(controller) {
         let fullResponse = ''
+        let firstTokenLogged = false  // [P7-03] 첫 토큰 로깅 플래그
         try {
           for await (const chunk of generateTextStream(fullPrompt, { model: modelId })) {
             if (chunk.text) {
+              // [P7-03] 첫 토큰 수신 시 TTFT 로깅
+              if (!firstTokenLogged) {
+                const ttft = performance.now() - startTime
+                console.log(`[Chat API] TTFT: ${ttft.toFixed(0)}ms (target: <2000ms)`)
+                firstTokenLogged = true
+              }
               fullResponse += chunk.text
               controller.enqueue(new TextEncoder().encode(chunk.text))
             }
