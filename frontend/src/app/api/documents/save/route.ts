@@ -71,11 +71,13 @@ export async function POST(req: NextRequest) {
         user_id: string
         title: string
         content: string
+        source: string  // [FIX] 에디터 저장 구분
         project_id?: string
       } = {
         user_id: user.id,
         title: title || '제목 없음',
-        content: content || ''
+        content: content || '',
+        source: 'editor'  // [FIX] 참고자료(upload)와 구분하기 위해 editor로 설정
       }
 
       // [P7-FIX] projectId가 있으면 추가
