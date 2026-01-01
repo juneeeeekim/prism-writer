@@ -40,7 +40,7 @@ export async function GET(
     // -------------------------------------------------------------------------
     const { data, error } = await supabase
       .from('user_documents')
-      .select('id, title, content, created_at, updated_at')
+      .select('id, title, content, status, error_message, created_at, updated_at')
       .eq('id', documentId)
       .eq('user_id', user.id)
       .single()
@@ -53,7 +53,7 @@ export async function GET(
       )
     }
 
-    return NextResponse.json(data as UserDocument)
+    return NextResponse.json(data)
   } catch (error) {
     console.error('[DocumentGet] Unexpected error:', error)
     return NextResponse.json(
