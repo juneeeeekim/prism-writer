@@ -41,9 +41,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '10')
     const documentId = searchParams.get('documentId')
+    const projectId = searchParams.get('projectId')
 
     // ---------------------------------------------------------------------------
-    // Phase 15: 문서별 평가 조회
+    // [P7-FIX] 프로젝트별 평가 조회 (프로젝트 격리)
     // ---------------------------------------------------------------------------
     let query = supabase
       .from('evaluation_logs')
@@ -51,6 +52,12 @@ export async function GET(request: NextRequest) {
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(limit)
+
+    // [P7-FIX] projectId로 필터링 (프로젝트 격리 - 최우선)
+    if (projectId && projectId !== 'null') {
+      query = query.eq('project_id', projectId)
+      console.log(`[Evaluations API] GET with projectId filter: ${projectId}`)
+    }
 
     // documentId가 있고, 'null' 문자열이 아니면 필터 적용
     if (documentId && documentId !== 'null') {
@@ -102,8 +109,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    // Phase 15: documentId 추가
-    const { documentText, resultData, overallScore, documentId } = body
+    // [P7-FIX] projectId + documentId 추가 (프로젝트 격리)
+    const { documentText, resultData, overallScore, documentId, projectId } = body
 
     // 필수 파라미터 검증
     if (!resultData) {
@@ -117,12 +124,13 @@ export async function POST(request: NextRequest) {
     const textHash = documentText ? hashText(documentText) : null
 
     // ---------------------------------------------------------------------------
-    // Phase 15: document_id 포함하여 저장
+    // [P7-FIX] project_id + document_id 포함하여 저장 (프로젝트 격리)
     // ---------------------------------------------------------------------------
     const { data, error } = await supabase
       .from('evaluation_logs')
       .insert({
         user_id: user.id,
+        project_id: projectId || null,    // [P7-FIX] 프로젝트 ID 연결
         document_id: documentId || null,  // Phase 15: 문서 ID 연결
         document_text_hash: textHash,
         result_data: resultData,

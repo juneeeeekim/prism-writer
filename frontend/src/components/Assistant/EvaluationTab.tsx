@@ -14,6 +14,7 @@ import HolisticFeedbackPanel from '@/components/Editor/HolisticFeedbackPanel'
 import type { EvaluationResult as V5EvaluationResult, HolisticEvaluationResult } from '@/lib/judge/types'
 import { getApiHeaders } from '@/lib/api/utils'
 import { useEditorState } from '@/hooks/useEditorState'
+import { useProject } from '@/contexts/ProjectContext'
 import type { UpgradePlan } from '@/lib/judge/types'
 import type { ChangePlan, Patch } from '@/lib/rag/types/patch'
 import { clsx } from 'clsx'
@@ -95,19 +96,32 @@ export default function EvaluationTab() {
   // Phase 15: documentId 추가
   const { content, setContent, documentId } = useEditorState()
 
+  // [P7-FIX] 프로젝트 격리: 현재 프로젝트 ID 가져오기
+  const { currentProject } = useProject()
+  const projectId = currentProject?.id ?? null
+
   // ---------------------------------------------------------------------------
   // Load Saved Evaluations on Mount or Document Change
   // ---------------------------------------------------------------------------
-  // Phase 15: documentId별로 평가 로드 + Race Condition 방지
-  // [Fix] document_id가 null인 평가도 조회하도록 수정
+  // [P7-FIX] 프로젝트별 평가 로드 + Race Condition 방지
+  // 프로젝트 격리: projectId가 있어야만 평가 조회
   useEffect(() => {
     let cancelled = false
 
     const loadEvaluations = async () => {
+      // [P7-FIX] projectId가 없으면 조회하지 않음 (프로젝트 격리)
+      if (!projectId) {
+        setSavedEvaluations([])
+        setResult(null)
+        setHolisticResult(null)
+        setIsSaved(false)
+        setIsLoadingHistory(false)
+        return
+      }
+
       try {
-        // [Fix] 항상 전체 평가를 먼저 조회하고, documentId가 있으면 해당 문서 평가 우선 표시
-        // document_id가 null인 기존 평가도 보이도록 함
-        const res = await fetch('/api/evaluations?limit=10')
+        // [P7-FIX] projectId로 필터링하여 해당 프로젝트의 평가만 조회
+        const res = await fetch(`/api/evaluations?projectId=${projectId}&limit=10`)
         if (!res.ok) {
           console.warn('[EvaluationTab] Failed to load evaluations')
           return
@@ -118,19 +132,10 @@ export default function EvaluationTab() {
         if (cancelled) return
 
         if (data.success && data.evaluations?.length > 0) {
-          // [Fix] documentId가 있으면 해당 문서 평가를 우선, 없으면 전체
-          let evaluationsToShow = data.evaluations
-          if (documentId) {
-            // 현재 문서의 평가 + document_id가 null인 평가 모두 포함
-            evaluationsToShow = data.evaluations.filter((e: any) =>
-              e.document_id === documentId || e.document_id === null
-            )
-          }
-
-          setSavedEvaluations(evaluationsToShow)
+          setSavedEvaluations(data.evaluations)
 
           // 가장 최근 평가 결과를 자동 로드
-          const latest = evaluationsToShow[0]
+          const latest = data.evaluations[0]
           if (latest?.result_data) {
             setResult(latest.result_data)
 
@@ -144,7 +149,7 @@ export default function EvaluationTab() {
             setIsSaved(true)
           }
         } else {
-          // Phase 15: 평가 없으면 빈 상태로 초기화
+          // 평가 없으면 빈 상태로 초기화
           setSavedEvaluations([])
           setResult(null)
           setHolisticResult(null)
@@ -162,22 +167,23 @@ export default function EvaluationTab() {
     setIsLoadingHistory(true)
     loadEvaluations()
 
-    // Cleanup: 문서 전환 시 이전 요청 취소
+    // Cleanup: 프로젝트 전환 시 이전 요청 취소
     return () => {
       cancelled = true
     }
-  }, [documentId])
+  }, [projectId])
 
   // ---------------------------------------------------------------------------
   // Save Evaluation to DB
   // ---------------------------------------------------------------------------
-  // Phase 15: documentId 포함하여 저장
+  // [P7-FIX] projectId + documentId 포함하여 저장 (프로젝트 격리)
   const saveEvaluation = async (resultData: V5EvaluationResult, documentText: string) => {
     try {
       const res = await fetch('/api/evaluations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          projectId,   // [P7-FIX] 프로젝트 ID 연결
           documentId,  // Phase 15: 문서 ID 연결
           documentText,
           resultData: {
@@ -190,7 +196,7 @@ export default function EvaluationTab() {
       })
       if (res.ok) {
         setIsSaved(true)
-        console.log(`[EvaluationTab] Evaluation saved for document: ${documentId || 'none'}`)
+        console.log(`[EvaluationTab] Evaluation saved for project: ${projectId || 'none'}, document: ${documentId || 'none'}`)
         
         // Phase 15: 저장 후 히스토리 새로고침
         const newEvalRes = await res.json()
