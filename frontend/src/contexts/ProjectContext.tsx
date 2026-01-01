@@ -143,14 +143,21 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
 
   /**
    * 프로젝트 선택 (전환)
+   * [FIX] 에디터 상태 초기화 - 프로젝트간 데이터 격리
    */
   const selectProject = useCallback((projectId: string) => {
     const project = projects.find((p) => p.id === projectId)
     
     if (project) {
+      // [FIX] 프로젝트 전환 시 에디터 상태 초기화
+      // localStorage의 prism-editor-storage 삭제
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('prism-editor-storage')
+      }
+      
       setCurrentProject(project)
       localStorage.setItem('lastProjectId', projectId)
-      console.log(`[ProjectContext] Selected project: ${project.name}`)
+      console.log(`[ProjectContext] Selected project: ${project.name} (editor reset)`)
     } else {
       console.warn(`[ProjectContext] Project not found: ${projectId}`)
     }
