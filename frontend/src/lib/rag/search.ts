@@ -229,6 +229,8 @@ export async function vectorSearch(
   query: string,
   options: SearchOptions
 ): Promise<SearchResult[]> {
+  console.log('[vectorSearch] CALLED with query:', query.substring(0, 50), 'userId:', options.userId)
+  
   const { userId, topK = DEFAULT_TOP_K, documentId, minScore = 0, chunkType, category } = options
 
   // [FIX] Supabase 클라이언트를 먼저 생성하여 ACL 검증에 전달
@@ -239,14 +241,17 @@ export async function vectorSearch(
   // ---------------------------------------------------------------------------
   const aclResult = await validateACL({ userId }, supabase)
   if (!aclResult.valid) {
+    console.log('[vectorSearch] ACL FAILED:', aclResult.error)
     throw new Error(aclResult.error || '접근 권한이 없습니다.')
   }
+  console.log('[vectorSearch] ACL PASSED, docs:', aclResult.allowedDocumentIds.length)
 
   // ---------------------------------------------------------------------------
   // 1. [P7-02] 쿼리 임베딩 생성 (Retry + 차원 검증 + Graceful Degradation)
   // ---------------------------------------------------------------------------
   let queryEmbedding: number[]
   try {
+    console.log('[vectorSearch] Generating embedding...')
     queryEmbedding = await withRetry(
       () => embedText(query.trim()),
       'vectorSearch:embedText'
@@ -257,8 +262,9 @@ export async function vectorSearch(
       console.error(`[vectorSearch] Invalid embedding dimension: ${queryEmbedding?.length}, expected: ${EMBEDDING_DIMENSION}`)
       return [] // Graceful Degradation: 빈 결과 반환
     }
+    console.log('[vectorSearch] Embedding generated, dim:', queryEmbedding.length)
   } catch (err) {
-    console.error('[vectorSearch] Embedding failed after retries:', err)
+    console.error('[vectorSearch] Embedding FAILED:', err)
     return [] // Graceful Degradation: 500 에러 대신 빈 결과 반환
   }
 
