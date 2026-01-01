@@ -5,7 +5,7 @@
 // 역할: 임베딩 생성 비용 제한 및 사용량 추적
 // =============================================================================
 
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/server'
 import { estimateTokenCount } from './embedding'
 
 // =============================================================================
