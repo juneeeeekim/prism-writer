@@ -99,40 +99,48 @@ export default function EvaluationTab() {
   // Load Saved Evaluations on Mount or Document Change
   // ---------------------------------------------------------------------------
   // Phase 15: documentId별로 평가 로드 + Race Condition 방지
+  // [Fix] document_id가 null인 평가도 조회하도록 수정
   useEffect(() => {
     let cancelled = false
-    
+
     const loadEvaluations = async () => {
       try {
-        // Phase 15: documentId가 있으면 해당 문서의 평가만 조회
-        const url = documentId 
-          ? `/api/evaluations?documentId=${documentId}&limit=10`
-          : '/api/evaluations?limit=5'
-        
-        const res = await fetch(url)
+        // [Fix] 항상 전체 평가를 먼저 조회하고, documentId가 있으면 해당 문서 평가 우선 표시
+        // document_id가 null인 기존 평가도 보이도록 함
+        const res = await fetch('/api/evaluations?limit=10')
         if (!res.ok) {
           console.warn('[EvaluationTab] Failed to load evaluations')
           return
         }
         const data = await res.json()
-        
+
         // Race Condition 방지: 취소된 요청은 무시
         if (cancelled) return
-        
+
         if (data.success && data.evaluations?.length > 0) {
-          setSavedEvaluations(data.evaluations)
+          // [Fix] documentId가 있으면 해당 문서 평가를 우선, 없으면 전체
+          let evaluationsToShow = data.evaluations
+          if (documentId) {
+            // 현재 문서의 평가 + document_id가 null인 평가 모두 포함
+            evaluationsToShow = data.evaluations.filter((e: any) =>
+              e.document_id === documentId || e.document_id === null
+            )
+          }
+
+          setSavedEvaluations(evaluationsToShow)
+
           // 가장 최근 평가 결과를 자동 로드
-          const latest = data.evaluations[0]
-          if (latest.result_data) {
+          const latest = evaluationsToShow[0]
+          if (latest?.result_data) {
             setResult(latest.result_data)
-            
+
             // [P4] Holistic Result 복원
             if (latest.result_data.holistic_result) {
               setHolisticResult(latest.result_data.holistic_result)
             } else {
               setHolisticResult(null)
             }
-            
+
             setIsSaved(true)
           }
         } else {
@@ -150,10 +158,10 @@ export default function EvaluationTab() {
         }
       }
     }
-    
+
     setIsLoadingHistory(true)
     loadEvaluations()
-    
+
     // Cleanup: 문서 전환 시 이전 요청 취소
     return () => {
       cancelled = true
