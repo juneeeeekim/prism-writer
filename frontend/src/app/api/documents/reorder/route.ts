@@ -16,9 +16,9 @@ export async function POST(req: NextRequest) {
     // 1. 인증 확인
     // -------------------------------------------------------------------------
     const supabase = await createClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()  // [FIX] getSession -> getUser
     
-    if (!session) {
+    if (authError || !user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
         .from('user_documents')
         .update({ sort_order: doc.sort_order })
         .eq('id', doc.id)
-        .eq('user_id', session.user.id) // RLS: 본인 문서만 수정 가능
+        .eq('user_id', user.id) // RLS: 본인 문서만 수정 가능
     )
 
     await Promise.all(updatePromises)

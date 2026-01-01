@@ -17,16 +17,14 @@ export async function GET(req: NextRequest) {
     // 1. 인증 확인
     // -------------------------------------------------------------------------
     const supabase = await createClient()
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()  // [FIX] getSession -> getUser
     
-    if (!session) {
+    if (authError || !user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       )
     }
-    
-    const user = session.user
 
     // -------------------------------------------------------------------------
     // 2. 페이지네이션 파라미터 + [P7-FIX] projectId 추출
