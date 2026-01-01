@@ -307,16 +307,25 @@ export async function processDocument(
   options: ProcessDocumentOptions = {}
 ): Promise<ProcessingResult> {
   try {
+    console.log('[ProcessDocument] === STARTING DOCUMENT PROCESSING ===')
+    console.log('[ProcessDocument] Document ID:', documentId)
+    console.log('[ProcessDocument] File Path:', filePath)
+    console.log('[ProcessDocument] File Type:', fileType)
+    console.log('[ProcessDocument] User ID:', userId)
+
     // ---------------------------------------------------------------------------
     // 1. 상태를 'PARSING'으로 변경 (시작)
     // ---------------------------------------------------------------------------
+    console.log('[ProcessDocument] Step 1: Updating status to PARSING')
     await updateDocumentStatus(documentId, DocumentStatus.PARSING)
 
     // ---------------------------------------------------------------------------
     // 2. Storage에서 문서 내용 가져오기 (파일 타입별 파싱)
     // [Phase 2] PDF, TXT, MD 파일 타입별 분기 처리
     // ---------------------------------------------------------------------------
+    console.log('[ProcessDocument] Step 2: Parsing document content')
     const content = await parseDocumentContent(filePath, fileType)
+    console.log('[ProcessDocument] Parsed content length:', content?.length || 0)
 
     if (!content || content.trim().length === 0) {
       throw new Error('문서 내용이 비어있습니다.')
@@ -325,6 +334,7 @@ export async function processDocument(
     // ---------------------------------------------------------------------------
     // 3. 문서 청킹
     // ---------------------------------------------------------------------------
+    console.log('[ProcessDocument] Step 3: Chunking document')
     await updateDocumentStatus(documentId, DocumentStatus.CHUNKING)
     
     const chunks = chunkDocument(content, {
@@ -332,6 +342,7 @@ export async function processDocument(
       overlap: options.overlap,
       preserveHeaders: options.preserveHeaders,
     })
+    console.log('[ProcessDocument] Chunks created:', chunks.length)
 
     if (chunks.length === 0) {
       throw new Error('청크가 생성되지 않았습니다.')
