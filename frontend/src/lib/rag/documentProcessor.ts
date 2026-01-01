@@ -255,7 +255,6 @@ async function parseDocumentContent(filePath: string, fileType?: string): Promis
  */
 async function saveChunks(
   documentId: string,
-  userId: string,  // [Fix] user_id 추가
   chunks: DocumentChunk[],
   embeddings?: number[][]
 ): Promise<void> {
@@ -266,7 +265,6 @@ async function saveChunks(
   // ---------------------------------------------------------------------------
   const chunksData = chunks.map((chunk, index) => ({
     document_id: documentId,
-    user_id: userId,  // [Fix] user_id 추가 (RLS 및 검색용)
     chunk_index: chunk.index,
     content: chunk.content,
     embedding: embeddings ? embeddings[index] : null,
@@ -277,9 +275,9 @@ async function saveChunks(
     embedded_at: new Date().toISOString(),
   }))
 
-  // [Fix] rag_chunks -> document_chunks 테이블로 변경
+  // [Fix] 기존 rag_chunks 테이블 사용 (기존 데이터와 일관성 유지)
   const { error } = await supabase
-    .from('document_chunks')
+    .from('rag_chunks')
     .insert(chunksData)
 
   if (error) {
@@ -374,7 +372,7 @@ export async function processDocument(
     // ---------------------------------------------------------------------------
     // 6. 청크 저장 (임베딩 포함)
     // ---------------------------------------------------------------------------
-    await saveChunks(documentId, userId, chunks, embeddings)
+    await saveChunks(documentId, chunks, embeddings)
 
     // ---------------------------------------------------------------------------
     // 7. 상태를 'COMPLETED'로 변경
