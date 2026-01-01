@@ -3,9 +3,11 @@
 // =============================================================================
 // 파일: frontend/src/lib/rag/embedding.ts
 // 역할: OpenAI API를 사용한 텍스트 임베딩 생성
+// Pipeline v5 업그레이드: tiktoken 기반 정확한 토큰 계산 통합
 // =============================================================================
 
 import OpenAI from 'openai'
+import { getTokenCount } from './tokenizer'
 
 // =============================================================================
 // 상수 및 설정
@@ -81,15 +83,18 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * 텍스트의 토큰 수 추정 (대략적)
- * 
+ * 텍스트의 토큰 수 계산 (Pipeline v5: tiktoken 기반 정확한 계산)
+ *
+ * @description
+ * 주석(시니어 개발자): Pipeline v5에서 tiktoken 통합으로 정확도 향상
+ * - 기존: 문자 수 / 3 (±30% 오차)
+ * - 개선: tiktoken cl100k_base 인코딩 (OpenAI 모델 호환)
+ *
  * @param text - 텍스트
- * @returns 예상 토큰 수
+ * @returns 정확한 토큰 수
  */
 export function estimateTokenCount(text: string): number {
-  // 영어: ~4 chars/token, 한글: ~2 chars/token
-  // 보수적으로 3으로 계산
-  return Math.ceil(text.length / 3)
+  return getTokenCount(text)
 }
 
 // =============================================================================

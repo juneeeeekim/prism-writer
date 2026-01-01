@@ -5,6 +5,7 @@
 // 역할: LLM 기반 검색 결과 리랭킹 (선택 기능)
 // Pipeline v3 업그레이드: Example-Specific Re-ranking 추가
 // Pipeline v4: Gemini 3 Flash로 업그레이드 (2025-12-25)
+// Pipeline v5: 모델 동적 로딩 및 캐시 갱신 구현 (설정 변경 시 재시작 불필요)
 // =============================================================================
 
 import { GoogleGenerativeAI, type GenerativeModel } from '@google/generative-ai'
@@ -68,41 +69,100 @@ const DEFAULT_TOP_K = 5
 const DEFAULT_BATCH_SIZE = 10
 
 // =============================================================================
-// Gemini 클라이언트 초기화 (Pipeline v4)
+// Gemini 클라이언트 초기화 (Pipeline v5: 동적 모델 로딩)
 // =============================================================================
 
-// ⚠️ 중앙화 주의: 모듈 레벨 캐싱으로 인해 최초 호출 시점의 모델 ID가 유지됨
-// 현재는 'rag.reranker' context가 단일 모델을 사용하므로 문제 없음
-// 향후 다중 모델 지원 시 캐시 무효화 로직 검토 필요
-let geminiModel: GenerativeModel | null = null
+// ---------------------------------------------------------------------------
+// 주석(시니어 개발자): Pipeline v5 - 모델 동적 로딩 및 캐시 갱신 구현
+// - 기존 문제: 모듈 레벨 캐싱으로 설정 변경 시 앱 재시작 필요
+// - 해결책: 모델 ID 기반 캐시 키로 설정 변경 감지 + 수동 캐시 무효화 함수 제공
+// ---------------------------------------------------------------------------
+
+/** 캐시된 모델 정보 */
+interface CachedModel {
+  model: GenerativeModel
+  modelId: string
+  createdAt: number
+}
+
+let cachedModelInfo: CachedModel | null = null
+
+/** 캐시 TTL (기본: 5분) - 설정 변경 감지 주기 */
+const MODEL_CACHE_TTL_MS = 5 * 60 * 1000
 
 /**
- * Gemini 모델 가져오기 (지연 초기화)
- * 주석(LLM 전문 개발자): Gemini 3 Flash로 업그레이드 (2025-12-25)
- * 주석(중앙화 마이그레이션): getModelForUsage 적용 (2025-12-28)
+ * Gemini 모델 가져오기 (동적 캐시 관리)
+ *
+ * @description
+ * Pipeline v5 개선:
+ * - 모델 ID 변경 시 자동으로 새 인스턴스 생성
+ * - 캐시 TTL로 주기적 설정 변경 감지
+ * - invalidateRerankerCache()로 수동 캐시 무효화 가능
+ *
+ * 주석(LLM 전문 개발자): Gemini 3 Flash 기본 사용
+ * 주석(중앙화 마이그레이션): getModelForUsage 적용
  */
 function getGeminiModel(): GenerativeModel {
-  if (!geminiModel) {
-    const apiKey = process.env.GOOGLE_API_KEY
+  const currentModelId = getModelForUsage('rag.reranker')
+  const now = Date.now()
 
-    if (!apiKey) {
-      throw new Error(
-        'GOOGLE_API_KEY 환경 변수가 설정되지 않았습니다. ' +
-        '.env.local 파일에 GOOGLE_API_KEY를 추가해주세요.'
-      )
-    }
+  // 캐시 유효성 검사: 모델 ID 변경 또는 TTL 초과 시 재생성
+  const isCacheValid = cachedModelInfo &&
+    cachedModelInfo.modelId === currentModelId &&
+    (now - cachedModelInfo.createdAt) < MODEL_CACHE_TTL_MS
 
-    const genAI = new GoogleGenerativeAI(apiKey)
-    geminiModel = genAI.getGenerativeModel({
-      model: getModelForUsage('rag.reranker'),
-      generationConfig: {
-        temperature: 1.0,  // Gemini 3 권장 (Gemini_3_Flash_Reference.md)
-        maxOutputTokens: 10,
-      },
-    })
+  if (isCacheValid && cachedModelInfo) {
+    return cachedModelInfo.model
   }
 
-  return geminiModel
+  // 새 모델 인스턴스 생성
+  const apiKey = process.env.GOOGLE_API_KEY
+
+  if (!apiKey) {
+    throw new Error(
+      'GOOGLE_API_KEY 환경 변수가 설정되지 않았습니다. ' +
+      '.env.local 파일에 GOOGLE_API_KEY를 추가해주세요.'
+    )
+  }
+
+  const genAI = new GoogleGenerativeAI(apiKey)
+  const model = genAI.getGenerativeModel({
+    model: currentModelId,
+    generationConfig: {
+      temperature: 1.0,  // Gemini 3 권장 (Gemini_3_Flash_Reference.md)
+      maxOutputTokens: 10,
+    },
+  })
+
+  // 캐시 업데이트
+  cachedModelInfo = {
+    model,
+    modelId: currentModelId,
+    createdAt: now,
+  }
+
+  console.log(`[Reranker] 모델 초기화: ${currentModelId}`)
+
+  return model
+}
+
+/**
+ * Reranker 모델 캐시 무효화
+ *
+ * @description
+ * 설정 변경 후 즉시 새 모델을 사용해야 할 때 호출합니다.
+ * 다음 getGeminiModel() 호출 시 새 인스턴스가 생성됩니다.
+ *
+ * @example
+ * ```typescript
+ * // 설정 변경 후
+ * invalidateRerankerCache()
+ * // 다음 rerank() 호출 시 새 모델 사용
+ * ```
+ */
+export function invalidateRerankerCache(): void {
+  cachedModelInfo = null
+  console.log('[Reranker] 모델 캐시 무효화됨')
 }
 
 // =============================================================================

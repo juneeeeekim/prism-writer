@@ -5,6 +5,7 @@
 // 역할: RAG 기반 AI 채팅 API (LLM Gateway 사용)
 // 수정: 2025-12-23 - OpenAI 하드코딩 제거, Gateway 연동으로 Gemini 기본 사용
 // 수정: 2025-12-28 - Phase 14 Feedback-to-Memory 통합 (MemoryService, Prompt Injection)
+// 수정: Pipeline v5 - 비로그인 사용자 명시적 차단 + 메시지 저장 실패 시 클라이언트 알림
 // =============================================================================
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -66,12 +67,23 @@ export async function POST(req: NextRequest) {
     const query = lastMessage.content
     const categoryFilter = category || null  // null = all categories
 
-    // -------------------------------------------------------------------------
-    // 1. 사용자 ID 확인
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // [Pipeline v5] 1. 사용자 인증 확인 (비로그인 명시적 차단)
+    // =========================================================================
+    // 주석(시니어 개발자): 기존 'demo-user' fallback 패턴 제거
+    // - API 레벨에서 명시적으로 401 반환
+    // - RLS만으로 보호하던 것을 이중 검증으로 강화
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     const userId = user?.id
+
+    if (!userId) {
+      console.warn('[Chat API] Unauthorized access attempt - no user ID')
+      return NextResponse.json(
+        { error: 'Unauthorized', message: '로그인이 필요합니다.' },
+        { status: 401 }
+      )
+    }
 
     // -------------------------------------------------------------------------
     // 1.5. 사용자 메시지 저장 (세션 ID가 있는 경우)
@@ -165,7 +177,7 @@ export async function POST(req: NextRequest) {
           // Step 3: 병렬 검색 (Phase 14.5: with category filter)
           const searchPromises = expandedQueries.map(q =>
             hybridSearch(q, {
-              userId: userId || 'demo-user',
+              userId,  // [Pipeline v5] 인증 확인 완료, demo-user fallback 제거
               topK: 3,
               minScore: dynamicThreshold,
               vectorWeight: 0.6,
@@ -206,7 +218,7 @@ export async function POST(req: NextRequest) {
         console.log(`[Chat API] Query Expansion: DISABLED, category: ${categoryFilter || 'all'}`)
 
         const searchResults = await hybridSearch(query, {
-          userId: userId || 'demo-user',
+          userId,  // [Pipeline v5] 인증 확인 완료, demo-user fallback 제거
           topK: 5,
           minScore: 0.35,
           vectorWeight: 0.6,
@@ -351,6 +363,9 @@ ${context ? context : '관련된 참고 자료가 없습니다.'}
             if (chunk.done) break
           }
           
+          // =====================================================================
+          // [Pipeline v5] 메시지 저장 및 실패 시 클라이언트 알림
+          // =====================================================================
           if (userId && sessionId && fullResponse) {
             let citationMetadata = {}
             if (hasRetrievedDocs && uniqueResults && uniqueResults.length > 0) {
@@ -361,15 +376,23 @@ ${context ? context : '관련된 참고 자료가 없습니다.'}
                   source_count: uniqueResults.length
                 }
             }
-            
-            await saveMessageWithRetry(supabase, {
+
+            // 주석(주니어 개발자): 메시지 저장 시도 및 실패 시 알림
+            const saveSuccess = await saveMessageWithRetry(supabase, {
               session_id: sessionId,
               role: 'assistant',
               content: fullResponse,
               model_id: modelId,
               metadata: citationMetadata
             })
-            
+
+            // [Pipeline v5] 저장 실패 시 스트림 끝에 경고 메시지 추가
+            if (!saveSuccess) {
+              const warningMsg = '\n\n⚠️ _메시지가 서버에 저장되지 않았습니다. 로컬에 백업됩니다._'
+              controller.enqueue(new TextEncoder().encode(warningMsg))
+              console.error('[Chat API] Message save failed, client notified')
+            }
+
             try {
               await supabase.from('chat_sessions')
                 .update({ updated_at: new Date().toISOString() })

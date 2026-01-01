@@ -58,6 +58,10 @@ interface EditorState {
   loadFromServer: (doc: { id: string; title: string; content: string; category?: string }) => void
   // Phase 12: 카테고리 액션
   setCategory: (category: string) => void
+  
+  // Phase 8: Chat Draft Interaction
+  chatDraft: string | null
+  setChatDraft: (draft: string | null) => void
 }
 
 // -----------------------------------------------------------------------------
@@ -151,8 +155,12 @@ export const useEditorState = create<EditorState>()(
         lastSavedAt: new Date(),
       }),
       
-      // Phase 12: 카테고리 액션
+  // Phase 14.5: 카테고리 액션
       setCategory: (category) => set({ category, isDirty: true }),
+      
+      // Phase 8: Chat Draft Interaction
+      chatDraft: null,
+      setChatDraft: (chatDraft) => set({ chatDraft }),
     }),
     {
       name: 'prism-editor-storage', // localStorage key

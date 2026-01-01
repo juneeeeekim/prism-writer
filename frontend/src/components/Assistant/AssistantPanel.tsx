@@ -89,6 +89,17 @@ export default function AssistantPanel({ defaultTab = 'reference' }: AssistantPa
     }
   }, [isSetupCompleted, activeTab])
 
+  // ===========================================================================
+  // [Phase 8] Chat Draft Interaction
+  // ===========================================================================
+  const chatDraft = useEditorState((state) => state.chatDraft)
+  
+  useEffect(() => {
+    if (chatDraft) {
+      setActiveTab('chat')
+    }
+  }, [chatDraft])
+
 
 
   return (

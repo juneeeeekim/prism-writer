@@ -4,7 +4,10 @@
 // 파일: frontend/src/lib/rag/chunking.ts
 // 역할: 문서를 검색 가능한 청크로 분할
 // Pipeline v3 업그레이드: Semantic Chunking 및 chunk_type 메타데이터 추가
+// Pipeline v5 업그레이드: tiktoken 기반 정확한 토큰 계산 + 문장 경계 분할
 // =============================================================================
+
+import { getTokenCount, truncateToTokenLimit } from './tokenizer'
 
 // =============================================================================
 // 타입 정의 (확장됨 - Pipeline v3)
@@ -54,7 +57,14 @@ export interface ChunkMetadata {
 
 const DEFAULT_CHUNK_SIZE = 512
 const DEFAULT_OVERLAP = 50
-const CHARS_PER_TOKEN = 4 // 대략적인 추정치 (한글 기준)
+
+/**
+ * Fallback 문자/토큰 비율 (tiktoken 사용 불가 시)
+ *
+ * 주석(시니어 개발자): Pipeline v5에서 tiktoken 도입으로 기본 정확한 계산 사용
+ * 이 값은 tokensToChars fallback에서만 사용됨
+ */
+const FALLBACK_CHARS_PER_TOKEN = 2.5
 
 // =============================================================================
 // Pipeline v4: 패턴 감지 상수 (개선됨)
@@ -126,23 +136,32 @@ const EXAMPLE_PATTERNS = [
 // =============================================================================
 
 /**
- * 텍스트의 토큰 수 추정
- * 
+ * 텍스트의 토큰 수 계산 (Pipeline v5: tiktoken 기반 정확한 계산)
+ *
+ * @description
+ * 주석(시니어 개발자): Pipeline v5에서 tiktoken 기반 정확한 토큰 계산 도입
+ * - 기존: 한글 3-4문자/토큰 고정값 사용 (±30% 오차)
+ * - 개선: tiktoken cl100k_base 인코딩으로 정확한 계산
+ *
  * @param text - 텍스트
- * @returns 예상 토큰 수
+ * @returns 정확한 토큰 수
  */
 function estimateTokenCount(text: string): number {
-  return Math.ceil(text.length / CHARS_PER_TOKEN)
+  return getTokenCount(text)
 }
 
 /**
- * 토큰 수를 문자 수로 변환
- * 
+ * 토큰 수를 대략적인 문자 수로 변환 (청크 크기 추정용)
+ *
+ * @description
+ * 주석(주니어 개발자): 이 함수는 청크 분할 시 대략적인 문자 수를 추정할 때 사용
+ * 실제 토큰 계산은 getTokenCount()를 사용해야 정확함
+ *
  * @param tokens - 토큰 수
- * @returns 문자 수
+ * @returns 예상 문자 수
  */
 function tokensToChars(tokens: number): number {
-  return tokens * CHARS_PER_TOKEN
+  return Math.floor(tokens * FALLBACK_CHARS_PER_TOKEN)
 }
 
 /**
@@ -288,12 +307,13 @@ export function semanticChunk(
   }
 
   // ---------------------------------------------------------------------------
-  // [Critical Fix] 임베딩 모델 토큰 제한 대응
+  // [Critical Fix] 임베딩 모델 토큰 제한 대응 (Pipeline v5 업데이트)
   // OpenAI text-embedding-3-small 모델의 최대 컨텍스트: 8192 토큰
-  // 안전 마진을 위해 6000 토큰(24000자)을 하드 리밋으로 설정
+  // 안전 마진을 위해 6000 토큰을 하드 리밋으로 설정
+  // 주석(시니어 개발자): Pipeline v5에서 토큰 기반 계산 사용, CHARS 추정은 fallback용
   // ---------------------------------------------------------------------------
   const MAX_CHUNK_TOKENS = 6000
-  const MAX_CHUNK_CHARS = MAX_CHUNK_TOKENS * CHARS_PER_TOKEN
+  const MAX_CHUNK_CHARS = Math.floor(MAX_CHUNK_TOKENS * FALLBACK_CHARS_PER_TOKEN)
 
   const chunkSizeChars = tokensToChars(chunkSize)
   const overlapChars = tokensToChars(overlap)
@@ -311,13 +331,76 @@ export function semanticChunk(
   let currentSectionTitle: string | undefined = undefined
 
   // ---------------------------------------------------------------------------
-  // [Helper] 거대 텍스트 강제 분할 함수
+  // [Helper] 문장 경계 기반 텍스트 분할 함수 (Pipeline v5 개선)
   // ---------------------------------------------------------------------------
+  // 주석(시니어 개발자): 기존 문자 수 기반 강제 분할 대신 문장 경계 인식
+  // - 한글/영어 문장 종결 패턴 인식 (. ! ? 。 등)
+  // - 최대 토큰 제한 내에서 문장 단위 분할
+  // - 문장이 너무 길면 truncateToTokenLimit으로 안전하게 자르기
   const forceSplitText = (oversizedText: string): string[] => {
     const result: string[] = []
-    for (let i = 0; i < oversizedText.length; i += MAX_CHUNK_CHARS - overlapChars) {
-      result.push(oversizedText.slice(i, i + MAX_CHUNK_CHARS))
+
+    // 문장 분리 정규식 (한글/영어 문장 종결 패턴)
+    // - . ! ? 뒤에 공백 또는 줄바꿈이 오는 경우
+    // - 한국어 마침표(。), 느낌표, 물음표 포함
+    const sentencePattern = /(?<=[.!?。])\s+/g
+
+    const sentences = oversizedText.split(sentencePattern).filter(s => s.trim())
+
+    let currentPart = ''
+    let currentTokens = 0
+
+    for (const sentence of sentences) {
+      const sentenceTokens = getTokenCount(sentence)
+
+      // 단일 문장이 최대 토큰을 초과하는 경우
+      if (sentenceTokens > MAX_CHUNK_TOKENS) {
+        // 현재 누적된 부분 먼저 저장
+        if (currentPart.trim()) {
+          result.push(currentPart.trim())
+        }
+        // 긴 문장을 토큰 단위로 안전하게 분할
+        const truncatedSentence = truncateToTokenLimit(sentence, MAX_CHUNK_TOKENS - 100) // 안전 마진
+        result.push(truncatedSentence.trim())
+
+        // 남은 부분이 있으면 다음 청크로
+        if (sentence.length > truncatedSentence.length) {
+          const remaining = sentence.slice(truncatedSentence.length)
+          currentPart = remaining + ' '
+          currentTokens = getTokenCount(remaining)
+        } else {
+          currentPart = ''
+          currentTokens = 0
+        }
+        continue
+      }
+
+      // 현재 청크에 추가 시 토큰 초과 여부 확인
+      if (currentTokens + sentenceTokens > MAX_CHUNK_TOKENS - 100) { // 안전 마진
+        // 현재 청크 저장
+        if (currentPart.trim()) {
+          result.push(currentPart.trim())
+        }
+        // 새 청크 시작
+        currentPart = sentence + ' '
+        currentTokens = sentenceTokens
+      } else {
+        // 현재 청크에 추가
+        currentPart += sentence + ' '
+        currentTokens += sentenceTokens
+      }
     }
+
+    // 마지막 청크 저장
+    if (currentPart.trim()) {
+      result.push(currentPart.trim())
+    }
+
+    // 결과가 없으면 fallback (문장 분리 실패 시)
+    if (result.length === 0) {
+      result.push(truncateToTokenLimit(oversizedText, MAX_CHUNK_TOKENS - 100))
+    }
+
     return result
   }
 

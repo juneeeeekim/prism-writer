@@ -4,10 +4,12 @@
 // 파일: frontend/src/lib/ai/embedding.ts
 // 역할: Google Gemini text-embedding-004 모델을 사용한 텍스트 임베딩 생성
 // 차원: 768 (Gemini 임베딩 기본)
+// Pipeline v5: LRU 캐시 추가 (Section 5.2 - 예상 히트율 70%+)
 // =============================================================================
 
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { EMBEDDING_REGISTRY } from '@/config/embedding-models'
+import { LRUCache, hashText } from '@/lib/cache/lruCache'
 
 // =============================================================================
 // 상수 및 설정
@@ -40,6 +42,20 @@ const MAX_RETRIES = 3
 
 /** 재시도 대기 시간 (ms) */
 const RETRY_DELAY = 1000
+
+// =============================================================================
+// [Pipeline v5] 임베딩 캐시 (Section 5.2)
+// =============================================================================
+// 주석(시니어 개발자): 동일 텍스트 반복 임베딩 방지
+// - 최대 5000개 항목 (약 768*5000*8 = 30MB 메모리)
+// - 30분 TTL (임베딩은 변하지 않으므로 길게 설정)
+// - 예상 히트율: 70%+ (문서 재처리, 유사 쿼리 등)
+
+const embeddingCache = new LRUCache<number[]>({
+  maxSize: 5000,
+  ttlMs: 30 * 60 * 1000, // 30분
+  name: 'EmbeddingCache',
+})
 
 // =============================================================================
 // Gemini 클라이언트 초기화
@@ -133,21 +149,33 @@ export async function generateEmbedding(text: string): Promise<number[]> {
   // 1. 입력 검증 및 전처리
   // ---------------------------------------------------------------------------
   const processedText = preprocessText(text)
-  
+
   if (!processedText || processedText.length === 0) {
     throw new Error('임베딩할 텍스트가 비어있습니다.')
   }
 
   // ---------------------------------------------------------------------------
-  // 2. Gemini 임베딩 모델 초기화
+  // [Pipeline v5] 2. 캐시 확인 (Section 5.2)
+  // ---------------------------------------------------------------------------
+  // 주석(시니어 개발자): 해시 기반 캐시 키로 동일 텍스트 중복 임베딩 방지
+  const cacheKey = hashText(processedText)
+  const cached = embeddingCache.get(cacheKey)
+
+  if (cached) {
+    // 캐시 히트 - API 호출 없이 즉시 반환
+    return cached
+  }
+
+  // ---------------------------------------------------------------------------
+  // 3. Gemini 임베딩 모델 초기화
   // ---------------------------------------------------------------------------
   const client = getGenAIClient()
   const model = client.getGenerativeModel({ model: GEMINI_EMBEDDING_CONFIG.modelId })
-  
+
   let lastError: Error | null = null
 
   // ---------------------------------------------------------------------------
-  // 3. 재시도 로직이 포함된 임베딩 생성
+  // 4. 재시도 로직이 포함된 임베딩 생성
   // ---------------------------------------------------------------------------
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
@@ -167,6 +195,9 @@ export async function generateEmbedding(text: string): Promise<number[]> {
         )
       }
 
+      // [Pipeline v5] 캐시에 저장
+      embeddingCache.set(cacheKey, embedding)
+
       return embedding
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error))
@@ -180,7 +211,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
   }
 
   // ---------------------------------------------------------------------------
-  // 4. 모든 재시도 실패
+  // 5. 모든 재시도 실패
   // ---------------------------------------------------------------------------
   throw new Error(`임베딩 생성 실패: ${lastError?.message}`)
 }
@@ -274,12 +305,35 @@ export async function generateLargeBatchEmbedding(texts: string[]): Promise<numb
 
 /**
  * Gemini 임베딩 API 사용 가능 여부 확인
- * 
+ *
  * @description
  * API 키가 설정되어 있는지 확인합니다.
- * 
+ *
  * @returns API 키 설정 여부
  */
 export function isGeminiEmbeddingAvailable(): boolean {
   return !!process.env.GOOGLE_API_KEY
+}
+
+// =============================================================================
+// [Pipeline v5] 캐시 관리 함수
+// =============================================================================
+
+/**
+ * 임베딩 캐시 통계 조회
+ *
+ * @returns 캐시 통계 (hits, misses, hitRate 등)
+ */
+export function getEmbeddingCacheStats() {
+  return embeddingCache.getStats()
+}
+
+/**
+ * 임베딩 캐시 초기화
+ *
+ * @description
+ * 테스트나 메모리 관리를 위해 캐시를 비웁니다.
+ */
+export function clearEmbeddingCache(): void {
+  embeddingCache.clear()
 }

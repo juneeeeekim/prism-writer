@@ -1,12 +1,26 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { useEditorState } from '@/hooks/useEditorState'
 
-// -----------------------------------------------------------------------------
+// =============================================================================
+// Constants (Pipeline v5 업그레이드)
+// =============================================================================
+
+/** 채팅 API 타임아웃 (30초) */
+const CHAT_TIMEOUT_MS = 30_000
+
+/** 로컬 백업 저장 키 */
+const LOCAL_BACKUP_KEY = 'prism_chat_backup'
+
+/** 최대 로컬 백업 메시지 수 */
+const MAX_BACKUP_MESSAGES = 50
+
+// =============================================================================
 // Types
-// -----------------------------------------------------------------------------
+// =============================================================================
 interface Message {
   id: string
   role: 'user' | 'assistant'
@@ -27,9 +41,109 @@ interface ChatTabProps {
   category?: string | null
 }
 
-// -----------------------------------------------------------------------------
+/** 로컬 백업 데이터 구조 */
+interface BackupData {
+  messages: Array<{
+    sessionId: string | null
+    role: 'user' | 'assistant'
+    content: string
+    timestamp: string
+    syncStatus: 'pending' | 'failed' | 'synced'
+  }>
+  lastUpdated: string
+}
+
+// =============================================================================
+// Local Backup Utilities (Pipeline v5: 메시지 저장 실패 시 로컬 백업)
+// =============================================================================
+
+/**
+ * 로컬 백업에 메시지 추가
+ *
+ * @description
+ * 주석(시니어 개발자): 메시지 저장 실패 시 localStorage에 백업
+ * - 최대 50개까지 보관
+ * - 동기화 상태 추적 (pending/failed/synced)
+ */
+function addToLocalBackup(
+  sessionId: string | null,
+  role: 'user' | 'assistant',
+  content: string,
+  syncStatus: 'pending' | 'failed' = 'pending'
+): void {
+  if (typeof window === 'undefined') return
+
+  try {
+    const existing = localStorage.getItem(LOCAL_BACKUP_KEY)
+    const backup: BackupData = existing
+      ? JSON.parse(existing)
+      : { messages: [], lastUpdated: '' }
+
+    backup.messages.push({
+      sessionId,
+      role,
+      content,
+      timestamp: new Date().toISOString(),
+      syncStatus,
+    })
+
+    // 최대 개수 초과 시 오래된 것부터 삭제
+    if (backup.messages.length > MAX_BACKUP_MESSAGES) {
+      backup.messages = backup.messages.slice(-MAX_BACKUP_MESSAGES)
+    }
+
+    backup.lastUpdated = new Date().toISOString()
+    localStorage.setItem(LOCAL_BACKUP_KEY, JSON.stringify(backup))
+  } catch (error) {
+    console.warn('[LocalBackup] Failed to save backup:', error)
+  }
+}
+
+/**
+ * 로컬 백업에서 실패한 메시지 가져오기
+ */
+function getFailedBackups(): BackupData['messages'] {
+  if (typeof window === 'undefined') return []
+
+  try {
+    const existing = localStorage.getItem(LOCAL_BACKUP_KEY)
+    if (!existing) return []
+
+    const backup: BackupData = JSON.parse(existing)
+    return backup.messages.filter(m => m.syncStatus === 'failed')
+  } catch {
+    return []
+  }
+}
+
+/**
+ * 로컬 백업 메시지 상태 업데이트
+ */
+function updateBackupStatus(
+  timestamp: string,
+  newStatus: 'pending' | 'failed' | 'synced'
+): void {
+  if (typeof window === 'undefined') return
+
+  try {
+    const existing = localStorage.getItem(LOCAL_BACKUP_KEY)
+    if (!existing) return
+
+    const backup: BackupData = JSON.parse(existing)
+    const msg = backup.messages.find(m => m.timestamp === timestamp)
+    if (msg) {
+      msg.syncStatus = newStatus
+      // synced 메시지는 일정 시간 후 삭제 가능
+      localStorage.setItem(LOCAL_BACKUP_KEY, JSON.stringify(backup))
+    }
+  } catch {
+    // ignore
+  }
+}
+
+// =============================================================================
 // Component
-// -----------------------------------------------------------------------------
+// =============================================================================
 export default function ChatTab({ sessionId, onSessionChange, category }: ChatTabProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -46,6 +160,21 @@ export default function ChatTab({ sessionId, onSessionChange, category }: ChatTa
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  // ===========================================================================
+  // [Phase 8] Chat Draft Consumption
+  // ===========================================================================
+  const chatDraft = useEditorState((state) => state.chatDraft)
+  const setChatDraft = useEditorState((state) => state.setChatDraft)
+
+  useEffect(() => {
+    if (chatDraft) {
+      setInput(chatDraft)
+      // Consume the draft (reset to null) so it doesn't trigger again
+      setChatDraft(null)
+      // Auto focus logic (optional)
+    }
+  }, [chatDraft, setChatDraft])
 
   // ---------------------------------------------------------------------------
   // Load Messages when Session Changes
@@ -112,7 +241,7 @@ export default function ChatTab({ sessionId, onSessionChange, category }: ChatTa
   }
 
   // ---------------------------------------------------------------------------
-  // Send Message Handler
+  // Send Message Handler (Pipeline v5: 타임아웃 + 로컬 백업 추가)
   // ---------------------------------------------------------------------------
   const handleSend = async () => {
     if (!input.trim() || isLoading) return
@@ -128,12 +257,27 @@ export default function ChatTab({ sessionId, onSessionChange, category }: ChatTa
     setInput('')
     setIsLoading(true)
 
+    // =========================================================================
+    // [Pipeline v5] AbortController 설정 (30초 타임아웃)
+    // =========================================================================
+    // 주석(시니어 개발자): 스트리밍 응답의 전체 타임아웃 설정
+    // - 첫 토큰 수신 전 30초 초과 시 취소
+    // - 스트리밍 중에는 타임아웃 연장
+    const abortController = new AbortController()
+    let timeoutId: NodeJS.Timeout | null = null
+
+    // 초기 타임아웃 설정
+    timeoutId = setTimeout(() => {
+      abortController.abort()
+      console.warn('[ChatTab] Request timeout after 30s')
+    }, CHAT_TIMEOUT_MS)
+
     // -----------------------------------------------------------------------
     // Feature Flag OFF (sessionId === undefined): 세션 생성 안 함
     // Feature Flag ON + 세션 없음 (sessionId === null): 새 세션 생성
     // -----------------------------------------------------------------------
     let currentSessionId = sessionId
-    
+
     try {
       if (sessionId === null) {
         // Feature Flag ON이지만 세션이 없으면 새로 생성
@@ -142,6 +286,7 @@ export default function ChatTab({ sessionId, onSessionChange, category }: ChatTa
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ title: input.slice(0, 30) }), // 첫 메시지로 제목 설정
+            signal: abortController.signal,
           })
           const sessionData = await sessionRes.json()
           if (sessionData.session) {
@@ -158,33 +303,41 @@ export default function ChatTab({ sessionId, onSessionChange, category }: ChatTa
       // -----------------------------------------------------------------------
       // Admin Mode에서 선택한 모델 가져오기 (localStorage)
       // -----------------------------------------------------------------------
-      const selectedModel = typeof window !== 'undefined' 
-        ? localStorage.getItem('prism_selected_model') 
+      const selectedModel = typeof window !== 'undefined'
+        ? localStorage.getItem('prism_selected_model')
         : null
+
+      // =========================================================================
+      // [Pipeline v5] 로컬 백업: 전송 전 pending 상태로 저장
+      // =========================================================================
+      const backupTimestamp = new Date().toISOString()
+      addToLocalBackup(currentSessionId ?? null, 'user', userMessage.content, 'pending')
 
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })),
           model: selectedModel || undefined,
           sessionId: currentSessionId,
           category: category || null  // Phase 14.5: Category-Scoped
         }),
+        signal: abortController.signal,  // [Pipeline v5] 타임아웃 signal 추가
       })
 
       if (!response.ok) throw new Error('Network response was not ok')
       if (!response.body) throw new Error('No response body')
 
       // -----------------------------------------------------------------------
-      // Stream Response Handling
+      // Stream Response Handling (Pipeline v5: 타임아웃 관리 개선)
       // -----------------------------------------------------------------------
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let aiMessageContent = ''
-      
+      let firstTokenReceived = false
+
       // AI 메시지 플레이스홀더 추가
       const aiMessageId = (Date.now() + 1).toString()
       setMessages((prev) => [
@@ -201,6 +354,18 @@ export default function ChatTab({ sessionId, onSessionChange, category }: ChatTa
         const { done, value } = await reader.read()
         if (done) break
 
+        // =====================================================================
+        // [Pipeline v5] 첫 토큰 수신 시 타임아웃 클리어
+        // =====================================================================
+        // 주석(주니어 개발자): 스트리밍이 시작되면 타임아웃 해제
+        // AI 응답 생성이 오래 걸릴 수 있으므로 첫 토큰 수신 후에는 타임아웃 적용 안 함
+        if (!firstTokenReceived && timeoutId) {
+          clearTimeout(timeoutId)
+          timeoutId = null
+          firstTokenReceived = true
+          console.log('[ChatTab] First token received, timeout cleared')
+        }
+
         const chunk = decoder.decode(value, { stream: true })
         aiMessageContent += chunk
 
@@ -212,18 +377,49 @@ export default function ChatTab({ sessionId, onSessionChange, category }: ChatTa
           )
         )
       }
-    } catch (error) {
+
+      // =========================================================================
+      // [Pipeline v5] 로컬 백업: 성공 시 synced로 업데이트
+      // =========================================================================
+      updateBackupStatus(backupTimestamp, 'synced')
+
+    } catch (error: any) {
       console.error('Error:', error)
+
+      // =========================================================================
+      // [Pipeline v5] 에러 유형별 처리 (타임아웃 vs 기타)
+      // =========================================================================
+      let errorMessage = '죄송합니다. 오류가 발생했습니다. 다시 시도해주세요.'
+
+      if (error?.name === 'AbortError') {
+        // 타임아웃 에러
+        errorMessage = '⏱️ 응답 시간이 초과되었습니다. 네트워크 상태를 확인하고 다시 시도해주세요.'
+        console.warn('[ChatTab] Request aborted due to timeout')
+      } else if (error?.message?.includes('401') || error?.message?.includes('Unauthorized')) {
+        // 인증 에러
+        errorMessage = '🔒 로그인이 필요합니다. 로그인 후 다시 시도해주세요.'
+      }
+
+      // [Pipeline v5] 로컬 백업: 실패 시 failed로 업데이트
+      addToLocalBackup(currentSessionId ?? null, 'user', userMessage.content, 'failed')
+
       setMessages((prev) => [
         ...prev,
         {
           id: (Date.now() + 2).toString(),
           role: 'assistant',
-          content: '죄송합니다. 오류가 발생했습니다. 다시 시도해주세요.',
+          content: errorMessage,
           timestamp: new Date(),
         },
       ])
     } finally {
+      // =========================================================================
+      // [Pipeline v5] 타임아웃 클리어 (finally에서 안전하게)
+      // =========================================================================
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+
       setIsLoading(false)
       // 스트림 완료 후 메타데이터(검증 결과) 동기화를 위해 메시지 목록 갱신
       if (currentSessionId) {

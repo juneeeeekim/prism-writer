@@ -40,6 +40,7 @@ export default function SearchTestPage() {
   // ---------------------------------------------------------------------------
   const [query, setQuery] = useState('')
   const [topK, setTopK] = useState(5)
+  const [category, setCategory] = useState('미분류')  // [보안] 카테고리 격리 필터
   const [results, setResults] = useState<SearchResultItem[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -70,6 +71,7 @@ export default function SearchTestPage() {
         body: JSON.stringify({
           query: query.trim(),
           topK,
+          category,  // [보안] 카테고리 격리 필터
         }),
       })
 
@@ -100,7 +102,7 @@ export default function SearchTestPage() {
     } finally {
       setLoading(false)
     }
-  }, [query, topK])
+  }, [query, topK, category])
 
   // ---------------------------------------------------------------------------
   // 렌더링
@@ -146,10 +148,30 @@ export default function SearchTestPage() {
               />
             </div>
 
+            {/* [보안] 카테고리 필터 */}
+            <div>
+              <label
+                htmlFor="category-filter"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+              >
+                카테고리 (격리 검색)
+              </label>
+              <input
+                id="category-filter"
+                type="text"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                placeholder="카테고리 입력"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
+                           bg-white dark:bg-gray-700 text-gray-900 dark:text-white
+                           focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
             {/* Top-K 설정 */}
             <div>
-              <label 
-                htmlFor="top-k" 
+              <label
+                htmlFor="top-k"
                 className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
               >
                 결과 개수 (Top-K): {topK}

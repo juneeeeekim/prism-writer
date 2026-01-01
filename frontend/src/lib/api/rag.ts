@@ -18,6 +18,8 @@ export interface SearchOptions {
   topK?: number
   /** 최소 유사도 임계값 (기본: 0.5) */
   threshold?: number
+  /** [보안] 카테고리 필터 (필수 - 격리 모드) */
+  category: string
 }
 
 /** 검색 API 응답 */
@@ -83,9 +85,9 @@ export class RAGSearchError extends Error {
  */
 export async function searchDocuments(
   query: string,
-  options: SearchOptions = {}
+  options: SearchOptions
 ): Promise<SearchResult> {
-  const { topK = 5, threshold = 0.5 } = options
+  const { topK = 5, threshold = 0.5, category } = options
 
   // ---------------------------------------------------------------------------
   // 입력 검증
@@ -105,6 +107,7 @@ export async function searchDocuments(
         query: query.trim(),
         topK,
         threshold,
+        category,  // [보안] 카테고리 격리 필터
       }),
     })
 

@@ -3,6 +3,7 @@
 // =============================================================================
 // 파일: frontend/src/lib/rag/search.ts
 // 역할: 하이브리드 검색 (벡터 + 키워드) 유틸리티
+// Pipeline v5: 검색 결과 캐싱 추가 (Section 5.2)
 // =============================================================================
 
 import { createClient } from '@/lib/supabase/server'
@@ -11,6 +12,7 @@ import { validateACL } from './aclGate'
 import { type ChunkType } from './chunking'
 import { PIPELINE_V4_FLAGS } from './featureFlags'
 import { type EvidenceQuality, EvidenceQualityGrade } from '@/types/rag' // P1-C types
+import { LRUCache, hashText, createCacheKey } from '@/lib/cache/lruCache'
 
 // =============================================================================
 // 타입 정의
@@ -73,6 +75,20 @@ const DEFAULT_VECTOR_WEIGHT = 0.7
 
 /** 기본 키워드 가중치 */
 const DEFAULT_KEYWORD_WEIGHT = 0.3
+
+// =============================================================================
+// [Pipeline v5] 검색 결과 캐시 (Section 5.2)
+// =============================================================================
+// 주석(시니어 개발자): 동일 쿼리 반복 검색 최적화
+// - 최대 1000개 항목
+// - 1시간 TTL (문서 변경 시 영향 고려하여 24시간에서 축소)
+// - 사용자별 + 카테고리별 + 쿼리별 캐시 키
+
+const searchCache = new LRUCache<SearchResult[]>({
+  maxSize: 1000,
+  ttlMs: 60 * 60 * 1000, // 1시간
+  name: 'SearchCache',
+})
 
 // =============================================================================
 // [P7-02] Retry 상수 및 유틸리티 함수
@@ -591,6 +607,28 @@ export async function hybridSearch(
   } = options
 
   // ---------------------------------------------------------------------------
+  // [Pipeline v5] 0. 검색 캐시 확인
+  // ---------------------------------------------------------------------------
+  const cacheKey = createCacheKey(
+    'hybrid',
+    query,
+    baseOptions.userId,
+    baseOptions.category || 'all',
+    topK,
+    vectorWeight,
+    keywordWeight
+  )
+
+  // 캐시 적중 시 반환
+  const cachedResult = searchCache.get(cacheKey)
+  if (cachedResult) {
+    console.log(`[Search] Cache HIT for "${query}" (Category: ${baseOptions.category || 'all'})`)
+    return cachedResult
+  }
+
+  console.log(`[Search] Cache MISS for "${query}" - Executing Hybrid Search...`)
+
+  // ---------------------------------------------------------------------------
   // 1. 병렬로 벡터 검색과 키워드 검색 실행
   // ---------------------------------------------------------------------------
   const [vectorResults, keywordResults] = await Promise.all([
@@ -618,6 +656,11 @@ export async function hybridSearch(
     [weightedVectorResults, weightedKeywordResults],
     topK
   )
+
+  // ---------------------------------------------------------------------------
+  // [Pipeline v5] 4. 결과 캐싱
+  // ---------------------------------------------------------------------------
+  searchCache.set(cacheKey, mergedResults)
 
   return mergedResults
 }

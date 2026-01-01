@@ -130,10 +130,12 @@ export async function POST(request: Request): Promise<NextResponse<SearchRespons
       )
     }
 
-    // [Phase C] C-01: 카테고리 필수 검증 (격리 모드는 선택적)
-    // 주석: 증분 검증 - undefined/null이면 전체 검색 허용
-    // 향후 격육 필요 시: 아래 주석 해제
-    /*
+    // =========================================================================
+    // [Phase C] C-01: 카테고리 필수 검증 (보안 격리 모드)
+    // =========================================================================
+    // 주석(시니어 개발자): 카테고리 격리를 통해 문서 간 정보 유출 방지
+    // - 카테고리 미지정 시 검색 차단 (보안 강화)
+    // - 전체 검색이 필요한 경우 명시적으로 category: '*' 전달 필요
     if (!category) {
       return NextResponse.json(
         {
@@ -144,7 +146,6 @@ export async function POST(request: Request): Promise<NextResponse<SearchRespons
         { status: 400 }
       )
     }
-    */
 
     // Top-K 값 검증 및 제한
     const validTopK = Math.min(Math.max(topK, 1), MAX_TOP_K)
