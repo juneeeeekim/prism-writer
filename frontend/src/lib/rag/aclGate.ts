@@ -81,7 +81,7 @@ export async function validateACL(
     const supabase = supabaseClient || createClient()
 
     let query = supabase
-      .from('rag_documents')
+      .from('user_documents')  // [Fix] rag_documents → user_documents
       .select('id')
       .eq('user_id', userId)
 
