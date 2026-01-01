@@ -52,14 +52,24 @@ export async function POST(req: NextRequest) {
         .update({ title, content })
         .eq('id', id)
         .eq('user_id', user.id)
+        .is('deleted_at', null)  // [FIX] 휴지통에 있는 문서는 업데이트 불가
         .select('id, title, updated_at')
-        .single()
+        .maybeSingle()  // [FIX] single() → maybeSingle()로 변경하여 PGRST116 방지
 
       if (error) {
         console.error('[DocumentSave] Update error:', error)
         return NextResponse.json(
           { error: 'Failed to update document' },
           { status: 500 }
+        )
+      }
+
+      // [FIX] 문서를 찾지 못한 경우 404 반환
+      if (!data) {
+        console.warn('[DocumentSave] Document not found:', id)
+        return NextResponse.json(
+          { error: 'Document not found or you do not have permission to edit it' },
+          { status: 404 }
         )
       }
 
