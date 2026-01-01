@@ -251,6 +251,10 @@ export default function OnboardingGuide({
       setIsCompleting(true)
       await completeSetup()
       console.log('[OnboardingGuide] Setup completed!')
+      
+      // [Fix] 페이지 새로고침하여 setup_completed 상태 반영
+      // ProjectContext 상태가 업데이트되어도 조건부 렌더링이 제대로 동작하지 않는 경우 대비
+      window.location.reload()
     } catch (error) {
       console.error('[OnboardingGuide] Complete setup error:', error)
       alert('설정 완료 처리 중 오류가 발생했습니다.')
