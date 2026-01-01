@@ -58,7 +58,7 @@ async function getUserTier(userId: string): Promise<UserTier> {
   const supabase = createClient()
 
   const { data, error } = await supabase
-    .from('users')
+    .from('profiles')
     .select('role')
     .eq('id', userId)
     .single()
@@ -68,10 +68,10 @@ async function getUserTier(userId: string): Promise<UserTier> {
     return 'free'
   }
 
-  // role을 tier로 매핑
+  // role을 tier로 매핑 (profiles 테이블의 role 값 사용)
   const role = data.role as string
-  if (role === 'premium' || role === 'enterprise') {
-    return role as UserTier
+  if (role === 'premium' || role === 'special' || role === 'admin') {
+    return role === 'special' || role === 'admin' ? 'enterprise' : 'premium'
   }
 
   return 'free'
