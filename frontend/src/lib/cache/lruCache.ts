@@ -195,7 +195,8 @@ export class LRUCache<T> {
     const now = Date.now()
     let pruned = 0
 
-    for (const [key, entry] of this.cache.entries()) {
+    // [FIX] Array.from()으로 감싸서 TypeScript 호환성 확보
+    for (const [key, entry] of Array.from(this.cache.entries())) {
       if (now > entry.expireAt) {
         this.cache.delete(key)
         pruned++
