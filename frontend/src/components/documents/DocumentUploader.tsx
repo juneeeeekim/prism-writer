@@ -9,6 +9,7 @@
 
 import { useState, useRef, DragEvent, ChangeEvent } from 'react'
 import { useToast } from '@/hooks/useToast'
+import { useProject } from '@/contexts/ProjectContext'
 
 // =============================================================================
 // 타입 정의
@@ -17,6 +18,7 @@ import { useToast } from '@/hooks/useToast'
 interface DocumentUploaderProps {
   onUploadSuccess?: (documentId: string) => void
   className?: string
+  projectId?: string  // [Fix] 프로젝트 ID 전달
 }
 
 // =============================================================================
@@ -34,7 +36,13 @@ const PDF_WARNING_SIZE = 5 * 1024 * 1024 // 5MB
 // Component
 // =============================================================================
 
-export default function DocumentUploader({ onUploadSuccess, className = '' }: DocumentUploaderProps) {
+export default function DocumentUploader({ onUploadSuccess, className = '', projectId: propProjectId }: DocumentUploaderProps) {
+  // ---------------------------------------------------------------------------
+  // Context
+  // ---------------------------------------------------------------------------
+  const { currentProject } = useProject()
+  const projectId = propProjectId || currentProject?.id  // props 우선, 없으면 context에서
+
   // ---------------------------------------------------------------------------
   // State
   // ---------------------------------------------------------------------------
@@ -99,6 +107,11 @@ export default function DocumentUploader({ onUploadSuccess, className = '' }: Do
       // FormData 생성
       const formData = new FormData()
       formData.append('file', file)
+      
+      // [Fix] 프로젝트 ID 추가
+      if (projectId) {
+        formData.append('projectId', projectId)
+      }
 
       // API 호출
       const response = await fetch('/api/documents/upload', {
