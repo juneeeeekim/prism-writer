@@ -24,6 +24,8 @@ export interface SessionListProps {
   sessionType: 'chat' | 'outline' | 'evaluation'
   selectedSessionId: string | null
   onSelectSession: (sessionId: string) => void
+  // [FIX] 프로젝트 격리
+  projectId?: string | null
   // 커스터마이징 옵션
   newButtonText?: string
   emptyMessage?: string
@@ -52,6 +54,7 @@ export default function SessionList({
   sessionType,
   selectedSessionId, 
   onSelectSession,
+  projectId,  // [FIX] 프로젝트 격리
   newButtonText = '+ 새 세션',
   emptyMessage = '세션이 없습니다.',
   apiEndpoint,
@@ -118,11 +121,16 @@ export default function SessionList({
 
   // ---------------------------------------------------------------------------
   // Load Sessions
+  // [FIX] projectId로 필터링
   // ---------------------------------------------------------------------------
   const fetchSessions = async () => {
     try {
       setIsLoading(true)
-      const res = await fetch(endpoint)
+      // [FIX] projectId가 있으면 쿼리 파라미터로 전달
+      const url = projectId 
+        ? `${endpoint}?projectId=${projectId}`
+        : endpoint
+      const res = await fetch(url)
       if (!res.ok) throw new Error('Failed to fetch sessions')
       const data = await res.json()
       setSessions(data.sessions || [])
@@ -135,10 +143,11 @@ export default function SessionList({
 
   useEffect(() => {
     fetchSessions()
-  }, [endpoint])
+  }, [endpoint, projectId])  // [FIX] projectId 변경 시에도 재로드
 
   // ---------------------------------------------------------------------------
   // Create New Session
+  // [FIX] projectId 포함
   // ---------------------------------------------------------------------------
   const handleCreateNew = async () => {
     if (isCreating) return
@@ -147,7 +156,10 @@ export default function SessionList({
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: newButtonText.replace('+ ', '') }),
+        body: JSON.stringify({ 
+          title: newButtonText.replace('+ ', ''),
+          projectId  // [FIX] 프로젝트에 세션 연결
+        }),
       })
       
       if (!res.ok) throw new Error('Failed to create session')

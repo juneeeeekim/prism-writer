@@ -9,6 +9,7 @@
 'use client'
 
 import SessionList from './SessionList'
+import { useProject } from '@/contexts/ProjectContext'  // [FIX] 프로젝트 컨텍스트
 
 // =============================================================================
 // Types - 기존 인터페이스 100% 유지 (Breaking Change 방지)
@@ -25,11 +26,16 @@ export default function ChatSessionList({
   selectedSessionId, 
   onSelectSession 
 }: ChatSessionListProps) {
+  // [FIX] 프로젝트 컨텍스트에서 현재 프로젝트 ID 가져오기
+  const { currentProject } = useProject()
+  const projectId = currentProject?.id ?? null
+
   return (
     <SessionList
       sessionType="chat"
       selectedSessionId={selectedSessionId}
       onSelectSession={onSelectSession}
+      projectId={projectId}  // [FIX] 프로젝트 필터링
       newButtonText="+ 새 대화"
       emptyMessage="대화 내역이 없습니다."
     />
