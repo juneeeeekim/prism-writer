@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useEditorState } from '@/hooks/useEditorState'
+import { useProject } from '@/contexts/ProjectContext'  // [FIX] 프로젝트 격리
 
 // =============================================================================
 // Constants (Pipeline v5 업그레이드)
@@ -143,6 +144,12 @@ function updateBackupStatus(
 // Component
 // =============================================================================
 export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
+  // ===========================================================================
+  // [FIX] 프로젝트 Context에서 현재 프로젝트 ID 가져오기
+  // ===========================================================================
+  const { currentProject } = useProject()
+  const projectId = currentProject?.id ?? null
+
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -283,7 +290,10 @@ export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
           const sessionRes = await fetch('/api/chat/sessions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title: input.slice(0, 30) }), // 첫 메시지로 제목 설정
+            body: JSON.stringify({
+              title: input.slice(0, 30),  // 첫 메시지로 제목 설정
+              projectId  // [FIX] 프로젝트 격리: 현재 프로젝트에 세션 연결
+            }),
             signal: abortController.signal,
           })
           const sessionData = await sessionRes.json()
