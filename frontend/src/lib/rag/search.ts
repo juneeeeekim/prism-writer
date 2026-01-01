@@ -50,6 +50,8 @@ export interface SearchOptions {
   chunkType?: ChunkType
   /** 카테고리 필터 (Phase 14.5: null = 전체) */
   category?: string | null
+  /** [RAG-ISOLATION] 프로젝트 ID 필터 (null = 전체) */
+  projectId?: string | null
 }
 
 /** 하이브리드 검색 옵션 */
@@ -299,7 +301,8 @@ export async function vectorSearch(
             match_threshold: minScore,
             match_count: topK,
             user_id_param: userId,
-            category_param: category || null  // null = all categories
+            category_param: category || null,  // null = all categories
+            project_id_param: options.projectId || null,  // [RAG-ISOLATION] 프로젝트 필터
           })
           return result
         },

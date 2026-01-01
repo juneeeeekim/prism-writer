@@ -330,6 +330,7 @@ export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
           messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })),
           model: selectedModel || undefined,
           sessionId: currentSessionId,
+          projectId,  // [RAG-ISOLATION] 프로젝트별 RAG 검색
         }),
         signal: abortController.signal,  // [Pipeline v5] 타임아웃 signal 추가
       })

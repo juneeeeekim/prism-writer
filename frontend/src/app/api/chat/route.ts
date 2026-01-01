@@ -62,7 +62,8 @@ export async function POST(req: NextRequest) {
     // 요청 본문 파싱
     // -------------------------------------------------------------------------
     // [Phase 14.5] Category-Scoped Personalization
-    const { messages, model: requestedModel, sessionId } = await req.json()
+    // [RAG-ISOLATION] projectId 추가 - 프로젝트별 RAG 검색
+    const { messages, model: requestedModel, sessionId, projectId } = await req.json()
     const lastMessage = messages[messages.length - 1]
     const query = lastMessage.content
 
@@ -181,6 +182,7 @@ export async function POST(req: NextRequest) {
               minScore: dynamicThreshold,
               vectorWeight: 0.6,
               keywordWeight: 0.4,
+              projectId,  // [RAG-ISOLATION] 프로젝트 필터
             }).catch(err => {
               console.warn(`[Chat API] Search failed for "${q}":`, err)
               return []
@@ -221,6 +223,7 @@ export async function POST(req: NextRequest) {
           minScore: 0.35,
           vectorWeight: 0.6,
           keywordWeight: 0.4,
+          projectId,  // [RAG-ISOLATION] 프로젝트 필터
         })
 
         if (searchResults.length > 0) {
