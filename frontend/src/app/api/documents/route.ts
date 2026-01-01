@@ -80,6 +80,7 @@ export async function GET(request: Request): Promise<NextResponse<GetDocumentsRe
       .from('user_documents')
       .select('id, title, file_path, file_type, file_size, status, error_message, created_at, updated_at, project_id')
       .eq('user_id', userId)
+      .eq('source', 'upload')  // [FIX] 업로드된 참고자료만 표시 (에디터 작성글 제외)
       .is('deleted_at', null) // [P7-FIX] 휴지통에 있는 문서 제외 (보안/정합성)
     
     // [P5-04-A] projectId가 있으면 해당 프로젝트의 문서만 조회
