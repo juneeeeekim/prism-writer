@@ -278,6 +278,14 @@ export async function vectorSearch(
     // [P7-02] v3 RPC 호출 (Retry + Graceful Degradation)
     // -------------------------------------------------------------------------
     try {
+      console.log('[vectorSearch] Calling match_document_chunks RPC with:', {
+        user_id_param: userId,
+        match_threshold: minScore,
+        match_count: topK,
+        category_param: category || null,
+        embedding_length: queryEmbedding.length,
+      })
+
       const { data: v3Data, error: v3Error } = await withRetry(
         async () => {
           const result = await supabase.rpc('match_document_chunks', {
@@ -291,6 +299,12 @@ export async function vectorSearch(
         },
         'vectorSearch:match_document_chunks'
       )
+
+      console.log('[vectorSearch] RPC result:', {
+        hasError: !!v3Error,
+        error: v3Error?.message,
+        resultCount: v3Data?.length || 0,
+      })
 
       if (v3Error) {
         console.error('[vectorSearch] v3 RPC error:', v3Error.message)
