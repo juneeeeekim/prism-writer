@@ -18,7 +18,7 @@ export async function GET() {
     // -------------------------------------------------------------------------
     // 개발 모드에서 인증 우회 허용
     const isDevMode = process.env.SKIP_RAFT_AUTH === 'true'
-    const supabase = createClient()
+    const supabase = await createClient()
 
     if (!isDevMode) {
       const { data: { user }, error: authError } = await supabase.auth.getUser()

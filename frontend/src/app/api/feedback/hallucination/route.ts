@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
     // -------------------------------------------------------------------------
     // 3. 사용자 인증 확인
     // -------------------------------------------------------------------------
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     
     if (!user) {

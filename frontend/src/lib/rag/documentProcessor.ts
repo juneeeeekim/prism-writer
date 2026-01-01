@@ -55,7 +55,7 @@ async function updateDocumentStatus(
   status: DocumentStatus,
   errorMessage?: string
 ): Promise<void> {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const updateData: {
     status: DocumentStatus
@@ -202,7 +202,7 @@ async function parsePDF(buffer: Buffer): Promise<string> {
  * @returns 문서 텍스트
  */
 async function parseDocumentContent(filePath: string, fileType?: string): Promise<string> {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const { data, error } = await supabase.storage
     .from('rag-documents')
@@ -258,7 +258,7 @@ async function saveChunks(
   chunks: DocumentChunk[],
   embeddings?: number[][]
 ): Promise<void> {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // ---------------------------------------------------------------------------
   // 청크 데이터 변환 (임베딩 버전 메타데이터 포함)
@@ -361,7 +361,7 @@ export async function processDocument(
       embeddingsGenerated = true
 
       // 사용량 기록
-      const supabase = createClient()
+      const supabase = await createClient()
       await trackUsage(userId, totalTokens, documentId, supabase)
     } catch (embeddingError) {
       console.error('Failed to generate embeddings:', embeddingError)

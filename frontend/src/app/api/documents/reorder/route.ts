@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     // -------------------------------------------------------------------------
     // 1. 인증 확인
     // -------------------------------------------------------------------------
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: { session } } = await supabase.auth.getSession()
     
     if (!session) {

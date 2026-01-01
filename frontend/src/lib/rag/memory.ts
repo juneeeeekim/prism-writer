@@ -44,7 +44,7 @@ export class MemoryService {
     category: string = '미분류',
     embedding?: number[]
   ): Promise<void> {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     // 임베딩이 없으면 생성
     const vector = embedding || await embedText(question)
@@ -84,7 +84,7 @@ export class MemoryService {
     threshold: number = 0.75,
     category: string | null = null
   ): Promise<UserPreference[]> {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     // 쿼리 임베딩
     const queryEmbedding = await embedText(query)
@@ -126,7 +126,7 @@ export class MemoryService {
     threshold: number = 0.75,
     category: string | null = null
   ): Promise<UserPreference[]> {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     const { data, error } = await supabase.rpc('match_user_preferences', {
       query_embedding: queryEmbedding,

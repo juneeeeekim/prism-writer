@@ -78,7 +78,7 @@ export async function POST(request: Request): Promise<NextResponse<SearchRespons
     // ---------------------------------------------------------------------------
     // 1. 사용자 인증 확인
     // ---------------------------------------------------------------------------
-    const supabase = createClient()
+    const supabase = await createClient()
     const {
       data: { session },
     } = await supabase.auth.getSession()

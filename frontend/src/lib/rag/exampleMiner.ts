@@ -175,7 +175,7 @@ async function generateExamplesForRule(rule: Rule, sourceChunks: string[]): Prom
 export async function saveExamplesToDatabase(examples: Example[]) {
   if (examples.length === 0) return
 
-  const supabase = createClient()
+  const supabase = await createClient()
   const { error } = await supabase.from('rag_examples').insert(examples)
 
   if (error) {

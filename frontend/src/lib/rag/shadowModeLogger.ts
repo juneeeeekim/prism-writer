@@ -37,7 +37,7 @@ export async function logShadowModeComparison(
   // Supabase 저장 (추후 구현)
   // try {
   //   const { createClient } = await import('@/lib/supabase/client')
-  //   const supabase = createClient()
+  //   const supabase = await createClient()
   //   await supabase.from('shadow_mode_logs').insert({
   //     user_id: context.userId,
   //     template_id: context.templateId,

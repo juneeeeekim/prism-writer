@@ -127,7 +127,7 @@ export class TemplateBuilder {
   }
 
   private async saveFinalTemplate(documentId: string, schemas: TemplateSchema[]): Promise<Template> {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     // 문서 정보 조회 (이름 생성을 위해)
     const { data: doc } = await supabase.from('rag_documents').select('title').eq('id', documentId).single()
@@ -190,7 +190,7 @@ export class TemplateBuilder {
    */
   private async generateValidationSamples(templateId: string, schemas: TemplateSchema[]): Promise<void> {
     const MIN_VALIDATION_SAMPLES = 3
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // 모든 스키마에서 positive_examples 수집
     const allExamples: Array<{ input: string; category: string; score: number }> = []

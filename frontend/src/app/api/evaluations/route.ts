@@ -26,7 +26,7 @@ function hashText(text: string): string {
 // =============================================================================
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     // 인증 확인
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -96,12 +96,17 @@ export async function GET(request: NextRequest) {
 // Phase 15: documentId 필드 추가 - 문서와 평가 연결
 // =============================================================================
 export async function POST(request: NextRequest) {
+  console.log('[Evaluations API] POST request received')
+
   try {
-    const supabase = createClient()
-    
+    const supabase = await createClient()
+
     // 인증 확인
     const { data: { user }, error: authError } = await supabase.auth.getUser()
+    console.log('[Evaluations API] Auth check:', { userId: user?.id, authError: authError?.message })
+
     if (authError || !user) {
+      console.error('[Evaluations API] Auth failed:', authError)
       return NextResponse.json(
         { error: 'Unauthorized', message: '로그인이 필요합니다.' },
         { status: 401 }
@@ -112,8 +117,17 @@ export async function POST(request: NextRequest) {
     // [P7-FIX] projectId + documentId 추가 (프로젝트 격리)
     const { documentText, resultData, overallScore, documentId, projectId } = body
 
+    console.log('[Evaluations API] Request body:', {
+      projectId,
+      documentId,
+      overallScore,
+      hasResultData: !!resultData,
+      textLength: documentText?.length
+    })
+
     // 필수 파라미터 검증
     if (!resultData) {
+      console.error('[Evaluations API] Missing resultData')
       return NextResponse.json(
         { error: 'Bad request', message: 'resultData가 필요합니다.' },
         { status: 400 }
@@ -126,6 +140,7 @@ export async function POST(request: NextRequest) {
     // ---------------------------------------------------------------------------
     // [P7-FIX] project_id + document_id 포함하여 저장 (프로젝트 격리)
     // ---------------------------------------------------------------------------
+    console.log('[Evaluations API] Inserting to DB...')
     const { data, error } = await supabase
       .from('evaluation_logs')
       .insert({
@@ -140,14 +155,18 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      console.error('[Evaluations API] POST error:', error)
+      console.error('[Evaluations API] DB INSERT error:', error)
       return NextResponse.json(
         { error: 'Database error', message: error.message },
         { status: 500 }
       )
     }
 
-    console.log(`[Evaluations API] Evaluation saved for document: ${documentId || 'none'}`)
+    console.log('[Evaluations API] SUCCESS - Evaluation saved:', {
+      id: data?.id,
+      projectId: data?.project_id,
+      documentId: data?.document_id
+    })
 
     return NextResponse.json({
       success: true,
@@ -172,7 +191,7 @@ export async function POST(request: NextRequest) {
 // =============================================================================
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     // 인증 확인
     const { data: { user }, error: authError } = await supabase.auth.getUser()

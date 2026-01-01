@@ -48,7 +48,7 @@ export async function GET(
     // -------------------------------------------------------------------------
     // 1. 사용자 인증 확인
     // -------------------------------------------------------------------------
-    const supabase = createClient()
+    const supabase = await createClient()
     const {
       data: { user },
       error: authError,
@@ -194,7 +194,7 @@ export async function POST(
     // -------------------------------------------------------------------------
     // 1. 사용자 인증 확인
     // -------------------------------------------------------------------------
-    const supabase = createClient()
+    const supabase = await createClient()
     const {
       data: { user },
       error: authError,

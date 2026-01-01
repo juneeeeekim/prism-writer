@@ -95,7 +95,7 @@ export async function trackUsage(record: UsageRecord): Promise<void> {
   console.log(`[UsageTracker] ${record.usageType}: ${record.tokensUsed} tokens, $${record.estimatedCost.toFixed(4)}`)
 
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     await supabase.from('usage_records').insert({
       user_id: record.userId,
@@ -179,7 +179,7 @@ async function getUsageStats(
   period: 'daily' | 'monthly'
 ): Promise<UsageStats | null> {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     const now = new Date()
     let startDate: Date

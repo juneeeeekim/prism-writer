@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Missing documentId' }, { status: 400 })
   }
 
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // 1. Auth Check
   const { data: { user }, error: authError } = await supabase.auth.getUser()

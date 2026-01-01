@@ -14,27 +14,27 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
 /**
- * 서버 컴포넌트용 Supabase 클라이언트 생성
- * 
- * @returns Supabase 클라이언트 인스턴스
- * 
+ * 서버 컴포넌트용 Supabase 클라이언트 생성 (Async 버전 - Next.js 15+)
+ *
+ * @returns Promise<Supabase 클라이언트 인스턴스>
+ *
  * @example
  * ```tsx
  * import { createClient } from '@/lib/supabase/server'
- * 
+ *
  * export default async function ServerComponent() {
- *   const supabase = createClient()
+ *   const supabase = await createClient()
  *   const { data } = await supabase.auth.getSession()
  *   // ... 사용
  * }
  * ```
- * 
+ *
  * @note
- * - Next.js의 cookies()를 사용하여 세션 쿠키 접근
+ * - Next.js 15에서 cookies()가 async로 변경됨
  * - 서버 사이드에서만 실행 가능
  */
-export const createClient = () => {
-  const cookieStore = cookies()
+export const createClient = async () => {
+  const cookieStore = await cookies()
 
   // 빌드 시점 또는 환경 변수 누락 시 처리
   const url = supabaseUrl || 'https://placeholder.supabase.co'

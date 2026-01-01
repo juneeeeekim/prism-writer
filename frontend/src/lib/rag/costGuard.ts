@@ -55,7 +55,7 @@ const TIER_LIMITS: Record<UserTier, UsageLimits> = {
  * @returns 사용자 등급
  */
 async function getUserTier(userId: string): Promise<UserTier> {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('profiles')
@@ -84,7 +84,7 @@ async function getUserTier(userId: string): Promise<UserTier> {
  * @returns 오늘 사용한 토큰 수
  */
 async function getTodayUsage(userId: string): Promise<number> {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // 오늘 자정
   const today = new Date()

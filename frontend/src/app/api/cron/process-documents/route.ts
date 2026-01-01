@@ -93,7 +93,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // -------------------------------------------------------------------------
     // 2. Supabase 클라이언트 (서비스 롤 권한 필요)
     // -------------------------------------------------------------------------
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // -------------------------------------------------------------------------
     // 3. Pending 문서 조회 (가장 오래된 것부터, BATCH_SIZE개)

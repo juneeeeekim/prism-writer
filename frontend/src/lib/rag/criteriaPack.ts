@@ -183,7 +183,7 @@ export async function pinItem(
   // Step 2: 서버 동기화
   // -------------------------------------------------------------------------
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     const { error } = await supabase
       .from('criteria_pack_pins')
@@ -248,7 +248,7 @@ export async function unpinItem(
   // Step 2: 서버 동기화
   // -------------------------------------------------------------------------
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     let query = supabase
       .from('criteria_pack_pins')
@@ -313,7 +313,7 @@ async function fetchPinnedItems(
   templateId?: string
 ): Promise<string[]> {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     let query = supabase
       .from('criteria_pack_pins')
@@ -385,7 +385,7 @@ export async function unpinAll(
   }
 
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     let query = supabase
       .from('criteria_pack_pins')

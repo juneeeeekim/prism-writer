@@ -89,7 +89,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // -------------------------------------------------------------------------
     // 2. Supabase 클라이언트
     // -------------------------------------------------------------------------
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // -------------------------------------------------------------------------
     // 3. 고아 문서 조회 (7일 이상 pending 또는 failed 상태)

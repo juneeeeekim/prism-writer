@@ -74,7 +74,7 @@ export async function logEvaluationEvent(log: Omit<EvaluationLog, 'id' | 'create
 
   // Supabase 로그 저장 시도
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     await supabase.from('evaluation_logs').insert({
       user_id: log.userId,
@@ -174,7 +174,7 @@ export async function getEvaluationStats(
   days: number = 30
 ): Promise<EvaluationStats | null> {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     const startDate = new Date()
     startDate.setDate(startDate.getDate() - days)
 

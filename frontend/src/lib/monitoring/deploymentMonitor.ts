@@ -286,7 +286,7 @@ export function printMonitoringReport(): void {
  */
 export async function saveMetricsToSupabase(): Promise<boolean> {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     const summary = getMonitoringSummary()
     
     // 참고: monitoring_logs 테이블이 필요합니다

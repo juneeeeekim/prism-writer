@@ -139,7 +139,7 @@ async function extractRulesFromChunks(chunks: string[], category: string): Promi
 export async function saveRulesToDatabase(rules: Rule[]) {
   if (rules.length === 0) return
 
-  const supabase = createClient()
+  const supabase = await createClient()
   
   // keywords 생성 (간단히 content를 토큰화하거나 그대로 저장 - DB 트리거가 tsvector 변환 처리 가정)
   // 여기서는 텍스트 그대로 저장하고 DB 측에서 처리하도록 함

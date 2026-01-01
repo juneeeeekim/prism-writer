@@ -12,7 +12,7 @@ export async function POST(
 ) {
   try {
     const { id } = params
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // 1. 관리자 권한 확인
     const { data: { session } } = await supabase.auth.getSession()

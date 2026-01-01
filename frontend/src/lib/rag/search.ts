@@ -234,7 +234,7 @@ export async function vectorSearch(
   const { userId, topK = DEFAULT_TOP_K, documentId, minScore = 0, chunkType, category } = options
 
   // [FIX] Supabase 클라이언트를 먼저 생성하여 ACL 검증에 전달
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // ---------------------------------------------------------------------------
   // 0. ACL 검증 (Phase 2: ACL 게이트)
@@ -457,7 +457,7 @@ export async function fullTextSearch(
   const { userId, topK = DEFAULT_TOP_K, documentId, minScore = 0, chunkType } = options
 
   // [FIX] Supabase 클라이언트를 먼저 생성하여 ACL 검증에 전달
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // ---------------------------------------------------------------------------
   // 0. ACL 검증 (Phase 2: ACL 게이트)

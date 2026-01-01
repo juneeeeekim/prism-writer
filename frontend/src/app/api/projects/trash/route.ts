@@ -71,7 +71,7 @@ export async function GET(
     // -------------------------------------------------------------------------
     // [Step 1] 사용자 인증 확인
     // -------------------------------------------------------------------------
-    const supabase = createClient()
+    const supabase = await createClient()
     const {
       data: { user },
       error: authError,

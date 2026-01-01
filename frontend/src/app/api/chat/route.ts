@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     // 주석(시니어 개발자): 기존 'demo-user' fallback 패턴 제거
     // - API 레벨에서 명시적으로 401 반환
     // - RLS만으로 보호하던 것을 이중 검증으로 강화
-    const supabase = createClient()
+    const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     const userId = user?.id
 

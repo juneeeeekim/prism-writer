@@ -68,7 +68,7 @@ export async function extractCategoryChunks(
   category: string,
   maxChunks: number = MAX_CHUNKS
 ): Promise<ChunkExtractionResult> {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // ---------------------------------------------------------------------------
   // Step 1: user_documents에서 해당 카테고리 문서 ID 조회
@@ -184,7 +184,7 @@ export async function extractCategoryChunks(
 export async function getCategoryChunkStats(
   category: string
 ): Promise<{ count: number; estimatedTokens: number; warning: string | null }> {
-  const supabase = createClient()
+  const supabase = await createClient()
 
   // user_documents에서 문서 ID 조회
   const { data: docs } = await supabase

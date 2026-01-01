@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // ---------------------------------------------------------------------------
     // Step 1: user_documents에서 해당 카테고리 문서 ID 조회

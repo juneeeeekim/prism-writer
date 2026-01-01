@@ -48,7 +48,7 @@ export async function GET(request: Request): Promise<NextResponse<GetDocumentsRe
     // ---------------------------------------------------------------------------
     // 1. 사용자 인증 확인
     // ---------------------------------------------------------------------------
-    const supabase = createClient()
+    const supabase = await createClient()
     const {
       data: { user },
       error: authError,
@@ -133,7 +133,7 @@ export async function GET(request: Request): Promise<NextResponse<GetDocumentsRe
 export async function DELETE(request: Request): Promise<NextResponse> {
   try {
     // 1. 사용자 인증 확인
-    const supabase = createClient()
+    const supabase = await createClient()
     const {
       data: { user },
       error: authError,

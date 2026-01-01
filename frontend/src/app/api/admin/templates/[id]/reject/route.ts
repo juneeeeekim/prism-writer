@@ -18,7 +18,7 @@ export async function POST(
       return NextResponse.json({ success: false, message: '반려 사유를 입력해주세요.' }, { status: 400 })
     }
 
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // 1. 관리자 권한 확인
     const { data: { session } } = await supabase.auth.getSession()

@@ -222,7 +222,7 @@ export async function logTelemetry(record: TelemetryRecord): Promise<void> {
   // ---------------------------------------------------------------------------
   // try {
   //   const { createClient } = await import('@/lib/supabase/client')
-  //   const supabase = createClient()
+  //   const supabase = await createClient()
   //   
   //   await supabase.from('telemetry_logs').insert({
   //     run_id: record.runId,
@@ -278,7 +278,7 @@ export async function logTemplateBuildEvent(event: {
   // Supabase 저장 (추후 구현)
   // try {
   //   const { createClient } = await import('@/lib/supabase/client')
-  //   const supabase = createClient()
+  //   const supabase = await createClient()
   //   await supabase.from('template_build_logs').insert({
   //     template_id: event.template_id,
   //     document_id: event.document_id,

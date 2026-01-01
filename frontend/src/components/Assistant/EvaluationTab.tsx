@@ -111,6 +111,7 @@ export default function EvaluationTab() {
     const loadEvaluations = async () => {
       // [P7-FIX] projectId가 없으면 조회하지 않음 (프로젝트 격리)
       if (!projectId) {
+        console.log('[EvaluationTab] No projectId, clearing evaluations')
         setSavedEvaluations([])
         setResult(null)
         setHolisticResult(null)
@@ -121,12 +122,14 @@ export default function EvaluationTab() {
 
       try {
         // [P7-FIX] projectId로 필터링하여 해당 프로젝트의 평가만 조회
+        console.log('[EvaluationTab] Loading evaluations for project:', projectId)
         const res = await fetch(`/api/evaluations?projectId=${projectId}&limit=10`)
         if (!res.ok) {
-          console.warn('[EvaluationTab] Failed to load evaluations')
+          console.warn('[EvaluationTab] Failed to load evaluations:', res.status)
           return
         }
         const data = await res.json()
+        console.log('[EvaluationTab] Loaded evaluations:', data.count)
 
         // Race Condition 방지: 취소된 요청은 무시
         if (cancelled) return
@@ -179,6 +182,12 @@ export default function EvaluationTab() {
   // [P7-FIX] projectId + documentId 포함하여 저장 (프로젝트 격리)
   const saveEvaluation = async (resultData: V5EvaluationResult, documentText: string) => {
     try {
+      console.log('[EvaluationTab] Saving evaluation with:', {
+        projectId,
+        documentId,
+        overallScore: resultData.overall_score
+      })
+
       const res = await fetch('/api/evaluations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -194,15 +203,22 @@ export default function EvaluationTab() {
           overallScore: resultData.overall_score
         })
       })
+
+      console.log('[EvaluationTab] Save response:', res.status, res.ok)
+
       if (res.ok) {
         setIsSaved(true)
         console.log(`[EvaluationTab] Evaluation saved for project: ${projectId || 'none'}, document: ${documentId || 'none'}`)
-        
+
         // Phase 15: 저장 후 히스토리 새로고침
         const newEvalRes = await res.json()
+        console.log('[EvaluationTab] New evaluation:', newEvalRes.evaluation?.id)
         if (newEvalRes.evaluation) {
           setSavedEvaluations(prev => [newEvalRes.evaluation, ...prev])
         }
+      } else {
+        const errorData = await res.json()
+        console.error('[EvaluationTab] Save failed:', errorData)
       }
     } catch (err) {
       console.error('[EvaluationTab] Failed to save evaluation:', err)
