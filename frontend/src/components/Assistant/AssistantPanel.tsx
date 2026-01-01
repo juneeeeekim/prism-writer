@@ -68,8 +68,7 @@ export default function AssistantPanel({ defaultTab = 'reference' }: AssistantPa
     setShowSessionList(FEATURES.CHAT_SESSION_LIST)
   }, [])
 
-  // Phase 14.5: Get category from Editor for category-scoped RAG/Memory
-  const editorCategory = useEditorState((state) => state.category)
+
 
   // ===========================================================================
   // [P6-03] 온보딩 상태 기반 탭 필터링
@@ -183,7 +182,6 @@ export default function AssistantPanel({ defaultTab = 'reference' }: AssistantPa
             <ChatTab 
               sessionId={showSessionList ? selectedSessionId : undefined} 
               onSessionChange={setSelectedSessionId}
-              category={editorCategory || null}
             />
           </div>
         </div>

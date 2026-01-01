@@ -32,7 +32,6 @@ interface BackupData {
   documentId: string | null
   title: string
   content: string
-  category: string
   timestamp: string
   syncStatus: 'pending' | 'failed'
 }
@@ -152,7 +151,6 @@ export function useAutosave(): UseAutosaveReturn {
   const {
     content,
     title,
-    category,
     documentId,
     isDirty,
     markAsSaved,
@@ -192,7 +190,6 @@ export function useAutosave(): UseAutosaveReturn {
           id: documentId,
           title: title || '제목 없음',
           content,
-          category: category || '미분류',
           projectId,
         }),
       })
@@ -232,7 +229,6 @@ export function useAutosave(): UseAutosaveReturn {
         documentId,
         title,
         content,
-        category,
         timestamp: new Date().toISOString(),
         syncStatus: 'failed',
       })
@@ -240,7 +236,7 @@ export function useAutosave(): UseAutosaveReturn {
 
       return false
     }
-  }, [content, title, category, documentId, projectId, markAsSaved, setDocumentId])
+  }, [content, title, documentId, projectId, markAsSaved, setDocumentId])
 
   // ---------------------------------------------------------------------------
   // Manual Save (for Ctrl+S)
@@ -302,7 +298,6 @@ export function useAutosave(): UseAutosaveReturn {
       useEditorState.setState({
         content: backup.content,
         title: backup.title,
-        category: backup.category,
         documentId: backup.documentId,
         isDirty: true,
       })

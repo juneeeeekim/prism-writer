@@ -3,7 +3,6 @@
 import { useEffect, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import { useEditorState } from '@/hooks/useEditorState'
-import { useDocuments } from '@/hooks/useDocuments'  // Phase 12: 카테고리 목록
 import { useAutosave, type SaveStatus } from '@/hooks/useAutosave'  // Pipeline v5: Autosave
 // [P7-FIX] 프로젝트 Context 추가
 import { useProject } from '@/contexts/ProjectContext'
@@ -39,9 +38,7 @@ export default function MarkdownEditor() {
   const { currentProject } = useProject()
   const projectId = currentProject?.id ?? null
 
-  const { content, setContent, title, setTitle, category, setCategory } = useEditorState()
-  // [P7-FIX] projectId 전달
-  const { categories } = useDocuments(projectId)  // Phase 12: 기존 카테고리 목록
+  const { content, setContent, title, setTitle } = useEditorState()
 
   // =========================================================================
   // [Pipeline v5] Autosave 훅 통합
@@ -97,40 +94,6 @@ export default function MarkdownEditor() {
                      text-gray-900 dark:text-white placeholder-gray-400"
           aria-label="글 제목"
         />
-      </div>
-
-      {/* -----------------------------------------------------------------------
-          Phase 12: Category Input
-          ----------------------------------------------------------------------- */}
-      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-        <div className="flex items-center gap-3">
-          <label 
-            htmlFor="category-input" 
-            className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-1.5"
-          >
-            <span className="text-base">📁</span>
-            카테고리
-          </label>
-          <input
-            id="category-input"
-            type="text"
-            list="category-suggestions"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            placeholder="미분류"
-            className="flex-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 
-                       rounded-lg bg-white dark:bg-gray-700 
-                       text-gray-900 dark:text-white placeholder-gray-400
-                       focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400
-                       transition-colors"
-            aria-label="글 카테고리"
-          />
-          <datalist id="category-suggestions">
-            {categories.map((cat) => (
-              <option key={cat} value={cat} />
-            ))}
-          </datalist>
-        </div>
       </div>
 
       {/* -----------------------------------------------------------------------

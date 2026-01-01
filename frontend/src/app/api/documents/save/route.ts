@@ -33,10 +33,7 @@ export async function POST(req: NextRequest) {
     // [P7-FIX] projectId 추출
     // -------------------------------------------------------------------------
     const body = await req.json()
-    const { id, title, content, category, projectId } = body as SaveDocumentRequest & { projectId?: string }
-
-    // JeDebug: 카테고리 정규화 (빈 문자열/공백 처리)
-    const normalizedCategory = (category?.trim()) || '미분류'
+    const { id, title, content, projectId } = body as SaveDocumentRequest & { projectId?: string }
 
     if (!title && !content) {
       return NextResponse.json(
@@ -52,10 +49,10 @@ export async function POST(req: NextRequest) {
       // UPDATE 기존 문서
       const { data, error } = await supabase
         .from('user_documents')
-        .update({ title, content, category: normalizedCategory })
+        .update({ title, content })
         .eq('id', id)
-        .eq('user_id', user.id) // RLS 방어 + 명시적 확인
-        .select('id, title, category, updated_at')
+        .eq('user_id', user.id)
+        .select('id, title, updated_at')
         .single()
 
       if (error) {
@@ -74,13 +71,11 @@ export async function POST(req: NextRequest) {
         user_id: string
         title: string
         content: string
-        category: string
         project_id?: string
       } = {
         user_id: user.id,
         title: title || '제목 없음',
-        content: content || '',
-        category: normalizedCategory
+        content: content || ''
       }
 
       // [P7-FIX] projectId가 있으면 추가
@@ -91,7 +86,7 @@ export async function POST(req: NextRequest) {
       const { data, error } = await supabase
         .from('user_documents')
         .insert(insertData)
-        .select('id, title, category, updated_at')
+        .select('id, title, updated_at')
         .single()
 
       if (error) {

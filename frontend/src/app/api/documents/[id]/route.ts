@@ -40,7 +40,7 @@ export async function GET(
     // -------------------------------------------------------------------------
     const { data, error } = await supabase
       .from('user_documents')
-      .select('id, title, content, category, created_at, updated_at')
+      .select('id, title, content, created_at, updated_at')
       .eq('id', documentId)
       .eq('user_id', user.id)
       .single()

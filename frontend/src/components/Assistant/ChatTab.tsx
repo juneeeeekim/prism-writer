@@ -37,8 +37,6 @@ interface Message {
 interface ChatTabProps {
   sessionId?: string | null  // undefined = Feature Flag OFF (legacy mode)
   onSessionChange: (sessionId: string) => void
-  /** Phase 14.5: Category for scoped RAG and Memory (null = all) */
-  category?: string | null
 }
 
 /** 로컬 백업 데이터 구조 */
@@ -144,7 +142,7 @@ function updateBackupStatus(
 // =============================================================================
 // Component
 // =============================================================================
-export default function ChatTab({ sessionId, onSessionChange, category }: ChatTabProps) {
+export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -322,7 +320,6 @@ export default function ChatTab({ sessionId, onSessionChange, category }: ChatTa
           messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })),
           model: selectedModel || undefined,
           sessionId: currentSessionId,
-          category: category || null  // Phase 14.5: Category-Scoped
         }),
         signal: abortController.signal,  // [Pipeline v5] 타임아웃 signal 추가
       })

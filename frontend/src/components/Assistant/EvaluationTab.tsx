@@ -93,8 +93,7 @@ export default function EvaluationTab() {
   
   // [FIX] useEditorState 훅으로 에디터 내용 직접 가져오기
   // Phase 15: documentId 추가
-  // [P1-03] 카테고리 격리: category 추가
-  const { content, setContent, documentId, category } = useEditorState()
+  const { content, setContent, documentId } = useEditorState()
 
   // ---------------------------------------------------------------------------
   // Load Saved Evaluations on Mount or Document Change
@@ -253,7 +252,6 @@ export default function EvaluationTab() {
         headers: getApiHeaders(),
         body: JSON.stringify({
           userText: textToEvaluate,
-          category: category || '미분류',
           topK: 5,
         }),
       })
@@ -296,7 +294,7 @@ export default function EvaluationTab() {
     } finally {
       setIsHolisticLoading(false)
     }
-  }, [content, category, result, documentId, saveEvaluation, holisticResult])
+  }, [content, result, documentId, saveEvaluation, holisticResult])
 
   // ---------------------------------------------------------------------------
   // 평가 실행 핸들러
@@ -325,7 +323,6 @@ export default function EvaluationTab() {
         body: JSON.stringify({
           userText: textToEvaluate,
           topK: 5,
-          category: category || null,  // [P1-04] 카테고리 격리 적용
         }),
       })
 

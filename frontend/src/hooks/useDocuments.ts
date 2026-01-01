@@ -22,11 +22,10 @@ import type {
 // =============================================================================
 interface UseDocumentsReturn {
   documents: UserDocumentPreview[]
-  categories: string[]  // Phase 12: 유니크 카테고리 목록
   loading: boolean
   error: string | null
   fetchList: () => Promise<void>
-  saveDocument: (doc: { id?: string; title: string; content: string; category?: string }) => Promise<SaveDocumentResponse>
+  saveDocument: (doc: { id?: string; title: string; content: string }) => Promise<SaveDocumentResponse>
   deleteDocument: (id: string) => Promise<{ success: boolean }>
   loadDocument: (id: string) => Promise<UserDocument>
   reorderDocuments: (items: { id: string; sort_order: number }[]) => Promise<void>
@@ -43,7 +42,6 @@ interface UseDocumentsReturn {
  */
 export function useDocuments(projectId?: string | null): UseDocumentsReturn {
   const [documents, setDocuments] = useState<UserDocumentPreview[]>([])
-  const [categories, setCategories] = useState<string[]>([])  // Phase 12
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -55,7 +53,6 @@ export function useDocuments(projectId?: string | null): UseDocumentsReturn {
     // [P7-FIX] projectId가 없으면 빈 목록 반환
     if (!projectId) {
       setDocuments([])
-      setCategories([])
       return
     }
 
@@ -75,16 +72,6 @@ export function useDocuments(projectId?: string | null): UseDocumentsReturn {
       
       const data: DocumentListResponse = await res.json()
       setDocuments(data.documents)
-      
-      // Phase 12: 유니크 카테고리 추출
-      const uniqueCategories = Array.from(new Set(
-        data.documents.map(d => d.category ?? '미분류')
-      )).sort((a, b) => {
-        if (a === '미분류') return 1
-        if (b === '미분류') return -1
-        return a.localeCompare(b)
-      })
-      setCategories(uniqueCategories)
     } catch (e) {
       const message = e instanceof Error ? e.message : '알 수 없는 오류가 발생했습니다.'
       setError(message)
@@ -102,7 +89,6 @@ export function useDocuments(projectId?: string | null): UseDocumentsReturn {
     id?: string
     title: string
     content: string
-    category?: string  // Phase 12 추가
   }): Promise<SaveDocumentResponse> => {
     const res = await fetch('/api/documents/save', {
       method: 'POST',
@@ -215,7 +201,6 @@ export function useDocuments(projectId?: string | null): UseDocumentsReturn {
 
   return {
     documents,
-    categories,  // Phase 12
     loading,
     error,
     fetchList,

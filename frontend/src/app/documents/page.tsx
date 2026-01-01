@@ -1,23 +1,21 @@
 // =============================================================================
-// Phase 11: Documents List Page (Phase 12: Category Accordion)
+// Phase 11: Documents List Page
 // =============================================================================
 // 파일: frontend/src/app/documents/page.tsx
-// 역할: 저장된 문서 목록 페이지 (카테고리별 그룹핑)
+// 역할: 저장된 문서 목록 페이지
 // 생성일: 2025-12-28
-// 수정일: 2025-12-28 (Phase 12 - 카테고리 아코디언)
+// 수정일: 2026-01-01 (카테고리 제거, 플랫 리스트로 변경)
 // [P7-FIX] projectId 필터링 추가
 // =============================================================================
 
 'use client'
 
-import { useEffect, useMemo } from 'react'
+import { useEffect } from 'react'
 import Link from 'next/link'
 import { useDocuments } from '@/hooks/useDocuments'
 import { useAuth } from '@/hooks/useAuth'
 import { useEditorState } from '@/hooks/useEditorState'
 import { AuthHeader } from '@/components/auth'
-import CategoryAccordion from '@/components/documents/CategoryAccordion'  // Phase 12
-import type { UserDocumentPreview } from '@/types/document'
 // [P7-FIX] 프로젝트 Context 추가
 import { ProjectProvider, useProject } from '@/contexts/ProjectContext'
 
@@ -41,7 +39,7 @@ function DocumentsContent() {
   const projectId = currentProject?.id ?? null
 
   // [P7-FIX] projectId 전달하여 프로젝트별 문서만 조회
-  const { documents, loading, error, fetchList, deleteDocument, reorderDocuments } = useDocuments(projectId) // Phase 13: reorderDocuments 추가
+  const { documents, loading, error, fetchList, deleteDocument } = useDocuments(projectId)
   const { user, loading: authLoading } = useAuth()
   const { reset: resetEditor } = useEditorState()
 
@@ -56,31 +54,11 @@ function DocumentsContent() {
   }, [user, authLoading, projectId, fetchList])
 
   // ---------------------------------------------------------------------------
-  // Phase 12: 카테고리별 그룹핑
-  // ---------------------------------------------------------------------------
-  const groupedDocuments = useMemo(() => {
-    const groups: Record<string, UserDocumentPreview[]> = {}
-    
-    documents.forEach((doc) => {
-      const cat = doc.category ?? '미분류'  // JeDebug: null 안전 처리
-      if (!groups[cat]) groups[cat] = []
-      groups[cat].push(doc)
-    })
-    
-    // 카테고리 정렬 (미분류는 항상 마지막)
-    return Object.entries(groups).sort((a, b) => {
-      if (a[0] === '미분류') return 1
-      if (b[0] === '미분류') return -1
-      return a[0].localeCompare(b[0])
-    })
-  }, [documents])
-
-  // ---------------------------------------------------------------------------
   // 삭제 핸들러
   // ---------------------------------------------------------------------------
   const handleDelete = async (id: string) => {
+    if (!confirm('이 문서를 삭제하시겠습니까?')) return
     await deleteDocument(id)
-    // 목록 새로고침
     await fetchList()
   }
 
@@ -109,7 +87,7 @@ function DocumentsContent() {
             </h1>
             <p className="text-gray-500 dark:text-gray-400 mt-1">
               {documents.length > 0 
-                ? `총 ${documents.length}개의 문서 · ${groupedDocuments.length}개의 카테고리`
+                ? `총 ${documents.length}개의 문서`
                 : '저장된 문서가 없습니다'}
             </p>
           </div>
@@ -204,18 +182,45 @@ function DocumentsContent() {
           </div>
         )}
 
-        {/* Phase 12: Documents Accordion (카테고리별 그룹) */}
+        {/* Documents List (플랫 리스트) */}
         {!loading && !authLoading && user && documents.length > 0 && (
-          <div className="space-y-2">
-            {groupedDocuments.map(([category, docs]) => (
-              <CategoryAccordion
-                key={category}
-                category={category}
-                documents={docs}
-                onDelete={handleDelete}
-                onReorder={reorderDocuments} // Phase 13: 순서 변경 핸들러
-                defaultOpen={true}
-              />
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
+            {documents.map((doc) => (
+              <div
+                key={doc.id}
+                className="flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
+              >
+                <Link
+                  href={`/editor?id=${doc.id}`}
+                  className="flex-1 min-w-0"
+                >
+                  <h3 className="font-medium text-gray-900 dark:text-white truncate">
+                    {doc.title || '제목 없음'}
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                    {doc.preview || '내용 없음'}
+                  </p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                    {new Date(doc.updated_at).toLocaleDateString('ko-KR', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </p>
+                </Link>
+                <button
+                  onClick={() => handleDelete(doc.id)}
+                  className="ml-4 p-2 text-gray-400 hover:text-red-500 transition-colors"
+                  aria-label="문서 삭제"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
             ))}
           </div>
         )}
@@ -223,4 +228,3 @@ function DocumentsContent() {
     </div>
   )
 }
-

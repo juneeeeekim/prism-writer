@@ -68,10 +68,8 @@ function EditorContent() {
   const { 
     content, 
     title,
-    category,  // Phase 12
     documentId,
     setDocumentId,
-    setCategory,  // Phase 12
     markAsSaved,
     loadFromServer,
     evaluationResult, 
@@ -82,7 +80,7 @@ function EditorContent() {
   
   // Phase 11: 문서 저장 관련 훅
   // [P7-FIX] projectId 전달하여 프로젝트별 문서만 조회/저장
-  const { saveDocument, loadDocument, categories, fetchList } = useDocuments(projectId)  // Phase 12: categories 추가
+  const { saveDocument, loadDocument, fetchList } = useDocuments(projectId)
   const { user } = useAuth()
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -107,8 +105,7 @@ function EditorContent() {
           loadFromServer({
             id: doc.id,
             title: doc.title,
-            content: doc.content,
-            category: doc.category  // Phase 12
+            content: doc.content
           })
         } catch (error) {
           console.error('[EditorPage] Load document error:', error)
@@ -161,8 +158,7 @@ function EditorContent() {
       const result = await saveDocument({
         id: documentId || undefined,
         title: title || '제목 없음',
-        content: content || '',
-        category: category || '미분류'  // Phase 12
+        content: content || ''
       })
       
       // 새 문서면 ID 세팅

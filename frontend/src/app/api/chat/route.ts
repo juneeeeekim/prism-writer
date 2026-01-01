@@ -62,10 +62,9 @@ export async function POST(req: NextRequest) {
     // 요청 본문 파싱
     // -------------------------------------------------------------------------
     // [Phase 14.5] Category-Scoped Personalization
-    const { messages, model: requestedModel, sessionId, category } = await req.json()
+    const { messages, model: requestedModel, sessionId } = await req.json()
     const lastMessage = messages[messages.length - 1]
     const query = lastMessage.content
-    const categoryFilter = category || null  // null = all categories
 
     // =========================================================================
     // [Pipeline v5] 1. 사용자 인증 확인 (비로그인 명시적 차단)
@@ -108,7 +107,7 @@ export async function POST(req: NextRequest) {
     // [P7-03] Promise 1: Memory Search (P14-04 Feedback-to-Memory)
     // -------------------------------------------------------------------------
     const memoryPromise = userId
-      ? MemoryService.searchPreferences(userId, query, 3, 0.72, categoryFilter)
+      ? MemoryService.searchPreferences(userId, query, 3, 0.72)
           .catch(err => {
             console.warn('[Chat API] Memory search failed:', err)
             return []
@@ -177,12 +176,11 @@ export async function POST(req: NextRequest) {
           // Step 3: 병렬 검색 (Phase 14.5: with category filter)
           const searchPromises = expandedQueries.map(q =>
             hybridSearch(q, {
-              userId,  // [Pipeline v5] 인증 확인 완료, demo-user fallback 제거
+              userId,
               topK: 3,
               minScore: dynamicThreshold,
               vectorWeight: 0.6,
               keywordWeight: 0.4,
-              category: categoryFilter  // Phase 14.5
             }).catch(err => {
               console.warn(`[Chat API] Search failed for "${q}":`, err)
               return []
@@ -214,16 +212,15 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // [Legacy Mode] (Phase 14.5: with category filter)
-        console.log(`[Chat API] Query Expansion: DISABLED, category: ${categoryFilter || 'all'}`)
+        // [Legacy Mode]
+        console.log(`[Chat API] Query Expansion: DISABLED`)
 
         const searchResults = await hybridSearch(query, {
-          userId,  // [Pipeline v5] 인증 확인 완료, demo-user fallback 제거
+          userId,
           topK: 5,
           minScore: 0.35,
           vectorWeight: 0.6,
           keywordWeight: 0.4,
-          category: categoryFilter  // Phase 14.5
         })
 
         if (searchResults.length > 0) {
