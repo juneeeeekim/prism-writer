@@ -28,8 +28,6 @@ import { FEATURE_FLAGS } from '@/config/featureFlags'
 interface HolisticEvaluateRequest {
   /** 평가할 사용자 글 */
   userText: string
-  /** 글의 카테고리 */
-  category: string
   /** 검색 결과 개수 (기본값: 5) */
   topK?: number
   /** [P5-04-B] 프로젝트 ID (멀티 프로젝트 시스템) */
@@ -80,19 +78,12 @@ export async function POST(request: NextRequest): Promise<NextResponse<HolisticE
     // 2. 요청 바디 파싱 및 유효성 검사
     // -------------------------------------------------------------------------
     const body: HolisticEvaluateRequest = await request.json()
-    let { userText, category, topK = DEFAULT_TOP_K, projectId } = body  // [P7-04] let으로 변경 (재할당 가능)
+    let { userText, topK = DEFAULT_TOP_K, projectId } = body
 
     // 필수 필드 검증
     if (!userText) {
       return NextResponse.json(
         { success: false, message: '평가할 글(userText)이 필요합니다.' },
-        { status: 400 }
-      )
-    }
-
-    if (!category) {
-      return NextResponse.json(
-        { success: false, message: '카테고리(category)가 필요합니다.' },
         { status: 400 }
       )
     }
@@ -153,7 +144,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<HolisticE
       }
     }
 
-    console.log(`[Holistic Evaluate API] Category: ${category}, Text length: ${userText.length}, ProjectId: ${projectId || 'none'}`)
+    console.log(`[Holistic Evaluate API] Text length: ${userText.length}, ProjectId: ${projectId || 'none'}`)
 
     // -------------------------------------------------------------------------
     // 3. 참고자료 검색 (카테고리 격리 적용)
@@ -165,8 +156,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<HolisticE
       const evidenceResults = await vectorSearch(searchQuery, {
         userId,
         topK,
-        minScore: 0.5,
-        category: category || null  // 카테고리 격리 적용
+        minScore: 0.5
       })
 
       if (evidenceResults.length > 0) {
@@ -222,8 +212,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<HolisticE
     const result = await runHolisticEvaluation(
       userText,
       evidenceContext,
-      category,
-      templateExamplesContext  // [P3-05] Template 예시 컨텍스트
+      '일반',  // 기본 카테고리
+      templateExamplesContext
     )
 
     console.log(`[Holistic Evaluate API] Evaluation complete - Score: ${result.scoreC.overall}`)
@@ -236,9 +226,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<HolisticE
         .from('evaluation_logs')
         .insert({
           user_id: userId,
-          project_id: projectId || null,  // [P7-04] 명시적 null 처리
-          category: category,
-          user_text: userText.substring(0, 1000),  // 최대 1000자
+          project_id: projectId || null,
+          user_text: userText.substring(0, 1000),
           result_json: result,
           overall_score: result.scoreC.overall,
           created_at: new Date().toISOString()
