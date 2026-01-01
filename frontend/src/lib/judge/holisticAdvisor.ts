@@ -191,7 +191,7 @@ export async function runHolisticEvaluation(
   // 2. Gemini 모델 초기화
   // ---------------------------------------------------------------------------
   const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+  const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' })
 
   // ---------------------------------------------------------------------------
   // 3. 프롬프트 생성 및 LLM 호출
