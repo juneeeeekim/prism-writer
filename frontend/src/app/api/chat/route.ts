@@ -67,6 +67,9 @@ export async function POST(req: NextRequest) {
     const lastMessage = messages[messages.length - 1]
     const query = lastMessage.content
 
+    // [DEBUG] 프로젝트 ID 추적용 (문제 해결 후 삭제)
+    console.log('[Chat API] Received projectId:', projectId, '| sessionId:', sessionId)
+
     // =========================================================================
     // [Pipeline v5] 1. 사용자 인증 확인 (비로그인 명시적 차단)
     // =========================================================================
