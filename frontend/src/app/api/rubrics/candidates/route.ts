@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { extractPatterns, type ChunkData, type RuleCandidate } from '@/lib/rag/patternExtractor'
+import { getTierForPattern } from '@/lib/rag/rubrics'
 import { FEATURE_FLAGS } from '@/config/featureFlags'
 
 // =============================================================================
@@ -144,7 +145,8 @@ export async function POST(req: NextRequest) {
       query_hints: c.query_hints,
       evidence_quote: c.evidence_quote,
       evidence_chunk_ids: c.evidence_chunk_id ? [c.evidence_chunk_id] : [],
-      status: 'draft'
+      status: 'draft',
+      tier: getTierForPattern(c.pattern_type) // [NEW] 티어 자동 분류 (P4-03)
     }))
 
     const { data: savedData, error: insertError } = await supabase

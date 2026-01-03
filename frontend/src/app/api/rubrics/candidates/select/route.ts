@@ -15,8 +15,15 @@ import { createClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
-/** 최대 선택 가능 개수 */
+// =============================================================================
+// [P2-01] 루브릭 개수 제한 상수
+// - MAX_SELECT_COUNT: 하드 리밋 (절대 초과 불가)
+// - RECOMMENDED_COUNT: 권장 개수 (Soft Limit - 초과 시 경고)
+// =============================================================================
+/** 최대 선택 가능 개수 (하드 리밋) */
 const MAX_SELECT_COUNT = 20
+/** 권장 선택 개수 (Soft Limit) */
+const RECOMMENDED_COUNT = 12
 
 export async function POST(req: NextRequest) {
   try {
@@ -81,13 +88,41 @@ export async function POST(req: NextRequest) {
 
     console.log(`[RubricCandidates] ${action}: ${updatedCount} candidates -> ${newStatus}`)
 
+    // =========================================================================
+    // [P2-02] 권장 초과 경고 정보 계산
+    // - action이 'select'인 경우에만 현재 선택된 총 개수 조회
+    // - 권장 개수(12개) 초과 시 exceedsRecommended = true
+    // =========================================================================
+    let totalSelected = 0
+    let exceedsRecommended = false
+
+    if (action === 'select') {
+      const { count } = await supabase
+        .from('rag_rule_candidates')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('status', 'selected')
+
+      totalSelected = count ?? 0
+      exceedsRecommended = totalSelected > RECOMMENDED_COUNT
+    }
+
+    // =========================================================================
+    // [P2-02] 응답 - 권장 초과 정보 포함
+    // =========================================================================
     return NextResponse.json({
       success: true,
       action,
       status: newStatus,
       updated: updatedCount,
       requested: candidateIds.length,
-      message: `Successfully ${action}ed ${updatedCount} candidates`
+      // [P2-02] 권장 초과 정보 (하위 호환성 유지 - 새 필드 추가)
+      totalSelected,
+      exceedsRecommended,
+      recommendedCount: RECOMMENDED_COUNT,
+      message: exceedsRecommended
+        ? `⚠️ 선택된 기준이 ${totalSelected}개입니다. ${RECOMMENDED_COUNT}개 이하 권장.`
+        : `Successfully ${action}ed ${updatedCount} candidates`
     })
 
   } catch (error) {

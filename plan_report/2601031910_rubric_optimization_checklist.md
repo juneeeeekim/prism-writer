@@ -116,7 +116,7 @@
 
 **Implementation Items:**
 
-- [ ] **P2-01**: [상수 정의 - API 레벨 권장값]
+- [x] **P2-01**: [상수 정의 - API 레벨 권장값] ✅ 완료 (2026-01-03 19:35)
     - `Target`: `api/rubrics/candidates/select/route.ts` > 상수 영역 (Line 18~19)
     - `Logic (Pseudo)`:
       ```ts
@@ -128,7 +128,7 @@
 
 ---
 
-- [ ] **P2-02**: [응답에 권장 초과 경고 플래그 추가]
+- [x] **P2-02**: [응답에 권장 초과 경고 플래그 추가] ✅ 완료 (2026-01-03 19:40)
     - `Target`: `api/rubrics/candidates/select/route.ts` > POST 핸들러 응답 (Line 84~91)
     - `Logic (Pseudo)`:
       ```ts
@@ -167,7 +167,7 @@
 
 ---
 
-- [ ] **P2-03**: [클라이언트에서 경고 메시지 처리]
+- [x] **P2-03**: [클라이언트에서 경고 메시지 처리] ✅ 완료 (2026-01-03 19:45)
     - `Target`: `PatternAnalysisSection.tsx` > `handleSelectCandidate()` (Line 151~180)
     - `Logic (Pseudo)`:
       ```ts
@@ -206,7 +206,7 @@
 
 **Implementation Items:**
 
-- [ ] **P3-01**: [푸터 선택 현황 개선]
+- [x] **P3-01**: [푸터 선택 현황 개선] ✅ 완료 (2026-01-03 19:50)
     - `Target`: `PatternAnalysisSection.tsx` > 푸터 영역 (Line 418~429)
     - `Logic (Pseudo)`:
       ```tsx
@@ -253,7 +253,7 @@
 
 **Implementation Items:**
 
-- [ ] **P4-01**: [RubricTier 타입 정의]
+- [x] **P4-01**: [RubricTier 타입 정의] ✅ 완료 (2026-01-03 19:55)
     - `Target`: `lib/rag/rubrics.ts` > 타입 정의 영역 (Line 33 이후)
     - `Logic (Pseudo)`:
       ```ts
@@ -274,7 +274,7 @@
 
 ---
 
-- [ ] **P4-02**: [RuleCandidate 인터페이스에 tier 필드 추가]
+- [x] **P4-02**: [RuleCandidate 인터페이스에 tier 필드 추가] ✅ 완료 (2026-01-03 20:00)
     - `Target`: `PatternAnalysisSection.tsx` > `RuleCandidate` 인터페이스 (Line 19~28)
     - `Logic (Pseudo)`:
       ```ts
@@ -288,7 +288,10 @@
 
 ---
 
-- [ ] **P4-03**: [DB 마이그레이션 - tier 컬럼 추가]
+- [x] **P4-03**: [DB 마이그레이션 - tier 컬럼 추가] ✅ 마이그레이션 완료 (2026-01-03 20:15)
+    - 📄 마이그레이션 문서: `plan_report/2601032000_tier_migration.md`
+    - ✅ **P4-03-A**: Supabase SQL 실행 완료 (tier 컬럼, CHECK, INDEX)
+    - ✅ **P4-03-B**: 기존 데이터 마이그레이션 완료 (Core:25, Style:14, Detail:14)
     - `Target`: Supabase SQL Editor (또는 migration 파일)
     - `Logic (Pseudo)`:
       ```sql
@@ -303,7 +306,7 @@
 
 ---
 
-- [ ] **P4-04**: [UI에 티어별 필터 추가]
+- [x] **P4-04**: [UI에 티어별 필터 추가] ✅ 완료 (2026-01-03 20:10)
     - `Target`: `PatternAnalysisSection.tsx` > 헤더 영역 (필터 드롭다운 추가)
     - `Logic (Pseudo)`:
       ```tsx
@@ -327,8 +330,8 @@
 ---
 
 **Definition of Done (검증):**
-- [ ] Test: tier 컬럼 NULL인 기존 데이터 정상 조회
-- [ ] Test: tier='core' 필터 시 해당 항목만 표시
+- [x] Test: tier 컬럼 데이터 분류 완료 (NULL 0개)
+- [ ] Test: tier='core' 필터 시 해당 항목만 표시 (브라우저 테스트 필요)
 - [ ] Review: 5+4+3 조합 가이드 UI 추가 여부 결정 (Phase 5)
 
 ---

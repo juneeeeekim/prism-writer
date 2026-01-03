@@ -25,6 +25,13 @@ interface RuleCandidate {
   evidence_quote: string
   status: 'draft' | 'selected' | 'rejected'
   created_at: string
+  // ---------------------------------------------------------------------------
+  // [P4-02] 티어 필드 (마이그레이션 기간 동안 옵셔널)
+  // - 'core': 핵심 기준 (5개 권장)
+  // - 'style': 스타일 기준 (4개 권장)
+  // - 'detail': 세부 기준 (3개 권장)
+  // ---------------------------------------------------------------------------
+  tier?: 'core' | 'style' | 'detail'
 }
 
 interface PatternAnalysisSectionProps {
@@ -75,6 +82,8 @@ export default function PatternAnalysisSection({ documentId }: PatternAnalysisSe
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  // [P4-04] 티어별 필터 상태
+  const [tierFilter, setTierFilter] = useState<'all' | 'core' | 'style' | 'detail'>('all')
 
   const { currentProject } = useProject()
   const projectId = currentProject?.id ?? null
@@ -177,6 +186,15 @@ export default function PatternAnalysisSection({ documentId }: PatternAnalysisSe
         throw new Error(data.error || 'Action failed')
       }
 
+      // -----------------------------------------------------------------------
+      // [P2-03] 권장 초과 시 경고 메시지 표시
+      // - API 응답의 exceedsRecommended 플래그 확인
+      // - 구버전 API 대응: exceedsRecommended가 없으면 무시
+      // -----------------------------------------------------------------------
+      if (data.exceedsRecommended) {
+        setSuccessMessage(data.message) // 기존 successMessage 재활용
+      }
+
       // 로컬 상태 업데이트
       setCandidates(prev =>
         prev.map(c =>
@@ -250,6 +268,24 @@ export default function PatternAnalysisSection({ documentId }: PatternAnalysisSe
   const isAtHardLimit = selectedCount >= RUBRIC_LIMITS.POOL_MAX
 
   // ---------------------------------------------------------------------------
+  // [P3-01] 푸터 현황 표시를 위한 파생 변수
+  // - rejectedCount: 거부된 후보 개수
+  // - progressPercent: 권장 개수 대비 진행률 (0~100+)
+  // ---------------------------------------------------------------------------
+  const rejectedCount = candidates.filter(c => c.status === 'rejected').length
+  const progressPercent = Math.round((selectedCount / RUBRIC_LIMITS.ACTIVE_RECOMMENDED) * 100)
+
+  // ---------------------------------------------------------------------------
+  // [P4-04] 티어별 필터링된 후보 목록
+  // - 'all': 전체 표시
+  // - 'core'/'style'/'detail': 해당 티어만 표시
+  // - tier가 NULL인 항목도 'all'에서는 표시
+  // ---------------------------------------------------------------------------
+  const filteredCandidates = tierFilter === 'all'
+    ? candidates
+    : candidates.filter(c => c.tier === tierFilter)
+
+  // ---------------------------------------------------------------------------
   // [NEW] 전체 초기화
   // ---------------------------------------------------------------------------
   const handleResetAll = async () => {
@@ -308,6 +344,22 @@ export default function PatternAnalysisSection({ documentId }: PatternAnalysisSe
         </div>
 
         <div className="flex items-center gap-2">
+          {/* [P4-04] 티어별 필터 드롭다운 */}
+          {candidates.length > 0 && (
+            <select
+              value={tierFilter}
+              onChange={(e) => setTierFilter(e.target.value as typeof tierFilter)}
+              className="px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md
+                         bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200
+                         focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">전체 ({candidates.length})</option>
+              <option value="core">🟢 Core ({candidates.filter(c => c.tier === 'core').length})</option>
+              <option value="style">🔵 Style ({candidates.filter(c => c.tier === 'style').length})</option>
+              <option value="detail">⚪ Detail ({candidates.filter(c => c.tier === 'detail').length})</option>
+            </select>
+          )}
+
           {/* [NEW] 전체 초기화 버튼 */}
           {(selectedCount > 0 || candidates.some(c => c.status === 'rejected')) && (
             <button
@@ -376,10 +428,22 @@ export default function PatternAnalysisSection({ documentId }: PatternAnalysisSe
         </div>
       )}
 
-      {/* 후보 목록 */}
+      {/* [P4-04] 후보 목록 - 티어 필터 적용 */}
       {candidates.length > 0 && (
         <div className="space-y-3 max-h-80 overflow-y-auto">
-          {candidates.map(candidate => (
+          {/* 필터 결과가 없을 때 안내 */}
+          {filteredCandidates.length === 0 && tierFilter !== 'all' && (
+            <div className="text-center py-6 text-gray-500 dark:text-gray-400">
+              <p>'{tierFilter}' 티어에 해당하는 항목이 없습니다.</p>
+              <button
+                onClick={() => setTierFilter('all')}
+                className="mt-2 text-blue-600 dark:text-blue-400 hover:underline text-sm"
+              >
+                전체 보기
+              </button>
+            </div>
+          )}
+          {filteredCandidates.map(candidate => (
             <div
               key={candidate.id}
               className={`p-3 rounded-md border transition-colors ${
@@ -471,12 +535,27 @@ export default function PatternAnalysisSection({ documentId }: PatternAnalysisSe
         </div>
       )}
 
-      {/* 선택 현황 (후보 있을 때) */}
+      {/* [P3-01] 선택 현황 (후보 있을 때) - 진행률 바 포함 */}
       {candidates.length > 0 && (
         <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
-          <span>
-            대기: {draftCount}개 | 채택: {selectedCount}개
-          </span>
+          {/* 상태별 카운터 */}
+          <div className="flex items-center gap-4">
+            <span>
+              📦 대기: {draftCount} | ✅ 활성: {selectedCount}/{RUBRIC_LIMITS.ACTIVE_RECOMMENDED} | ❌ 제외: {rejectedCount}
+            </span>
+
+            {/* 진행률 바 */}
+            <div className="w-24 h-2 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+              <div
+                className={`h-full transition-all duration-300 ${
+                  selectedCount > RUBRIC_LIMITS.ACTIVE_RECOMMENDED ? 'bg-amber-500' : 'bg-blue-500'
+                }`}
+                style={{ width: `${Math.min(progressPercent, 100)}%` }}
+              />
+            </div>
+          </div>
+
+          {/* 안내 메시지 */}
           {selectedCount > 0 && (
             <span className="text-blue-600 dark:text-blue-400">
               선택된 패턴이 평가에 반영됩니다.

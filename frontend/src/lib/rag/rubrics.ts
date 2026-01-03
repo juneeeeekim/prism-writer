@@ -44,6 +44,45 @@ export type RubricCategory =
  */
 export type LegacyRubricCategory = 'content' | 'expression' | 'logic' | 'evidence'
 
+// =============================================================================
+// [P4-01] 루브릭 티어 (12-Rubric Rule)
+// - Category: "무엇에 대한 기준인가" (구조, 어투, 설득 등)
+// - Tier: "얼마나 중요한가" (Core, Style, Detail) ← 별개 개념
+// - 최적 조합: Core(5) + Style(4) + Detail(3) = 12개
+// =============================================================================
+
+/**
+ * [P4-01] 루브릭 티어 타입
+ * - core: 글의 본질적 성패를 가르는 핵심 기준 (권장 5개)
+ * - style: 글의 매력도와 가독성을 높이는 장치 (권장 4개)
+ * - detail: 완성도를 높이는 미세 조정 (권장 3개)
+ */
+export type RubricTier = 'core' | 'style' | 'detail'
+
+/**
+ * [P4-01] 티어별 설정
+ * - label: UI 표시용 레이블 (이모지 포함)
+ * - max: 권장 최대 개수
+ * - description: 티어 설명
+ */
+export const TIER_CONFIG = {
+  core: {
+    label: '🟢 Core',
+    max: 5,
+    description: '글의 본질적 성패를 가르는 기준',
+  },
+  style: {
+    label: '🔵 Style',
+    max: 4,
+    description: '글의 매력도와 가독성',
+  },
+  detail: {
+    label: '⚪ Detail',
+    max: 3,
+    description: '완성도를 높이는 미세 조정',
+  },
+} as const
+
 /** 루브릭 세트 */
 export interface RubricSet {
   /** 루브릭 세트 ID */
@@ -262,4 +301,24 @@ export function validateWeights(rubrics: Rubric[] = DEFAULT_RUBRICS): boolean {
   const enabledRubrics = getEnabledRubrics(rubrics)
   const totalWeight = enabledRubrics.reduce((sum, r) => sum + r.weight, 0)
   return totalWeight === 100
+}
+
+// =============================================================================
+// [P4-03] Helper: 패턴 타입 → 티어 매핑
+// =============================================================================
+
+/**
+ * 패턴 타입에 따라 적절한 티어를 반환합니다.
+ * - Core: 글의 핵심 구조 (훅, 문제, 원인, 해결, 증거, 콜백, 요약)
+ * - Style: 표현 방식 (비유, 대비, 질문, 반복, 스토리, 유추, 전환)
+ * - Detail: 세부 요소 (CTA, 통계, 반박, 권위, 증거, 희소성)
+ */
+export function getTierForPattern(patternType: string): RubricTier {
+  const corePatterns = new Set(['hook', 'problem', 'cause', 'solution', 'evidence', 'callback', 'summary'])
+  const stylePatterns = new Set(['metaphor', 'contrast', 'question', 'repetition', 'story', 'analogy', 'transition'])
+  
+  if (corePatterns.has(patternType)) return 'core'
+  if (stylePatterns.has(patternType)) return 'style'
+  
+  return 'detail' // cta, statistics, rebuttal, authority, social_proof, scarcity
 }
