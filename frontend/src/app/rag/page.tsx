@@ -11,7 +11,7 @@
 import { useState } from 'react'
 import AuthHeader from '@/components/auth/AuthHeader'
 import { EvidenceCard, EvidenceList } from '@/components/rag/EvidenceCard'
-import { ModeSelector } from '@/components/rag/ModeSelector'
+
 import { ReviewBadge } from '@/components/rag/ReviewBadge'
 import type { JudgeResult, JudgeEvidence, RouterMode, EvidencePack } from '@/types/rag'
 import type { VerifiedEvidence } from '@/lib/rag/citationGate'
@@ -55,7 +55,7 @@ export default function RAGSearchPage() {
   const [searchState, setSearchState] = useState<SearchState>({
     query: '',
     mode: 'standard',
-    category: '미분류',  // [보안] 기본 카테고리
+    category: '',  // [General] 전체 검색
     isLoading: false,
     isSearching: false,
     error: null,
@@ -205,28 +205,7 @@ export default function RAGSearchPage() {
               </button>
             </div>
 
-            {/* [보안] 카테고리 필터 + 모드 선택기 */}
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <label htmlFor="category-filter" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  카테고리:
-                </label>
-                <input
-                  id="category-filter"
-                  type="text"
-                  value={searchState.category}
-                  onChange={(e) => setSearchState(prev => ({ ...prev, category: e.target.value }))}
-                  placeholder="카테고리"
-                  className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
-                />
-              </div>
-              <ModeSelector
-                value={searchState.mode}
-                onChange={(mode) => setSearchState(prev => ({ ...prev, mode }))}
-                showDetails={true}
-                className="w-full sm:w-auto"
-              />
-            </div>
+
           </div>
 
           {searchState.error && (
