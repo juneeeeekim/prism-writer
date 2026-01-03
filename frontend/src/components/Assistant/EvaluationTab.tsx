@@ -18,6 +18,7 @@ import { useProject } from '@/contexts/ProjectContext'
 import type { UpgradePlan } from '@/lib/judge/types'
 import type { ChangePlan, Patch } from '@/lib/rag/types/patch'
 import { clsx } from 'clsx'
+import PatternAnalysisSection from './PatternAnalysisSection' // [PATTERN] 루브릭 UI
 
 
 // =============================================================================
@@ -612,6 +613,13 @@ export default function EvaluationTab() {
 
   return (
     <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
+      {/* -----------------------------------------------------------------------
+          [PATTERN] 패턴 분석 섹션 (Phase 2 UI)
+          ----------------------------------------------------------------------- */}
+      <div className="p-4 pb-0">
+        <PatternAnalysisSection documentId={documentId} />
+      </div>
+
       {/* -----------------------------------------------------------------------
           헤더 및 평가 버튼 (초기 상태에서만 표시)
           [P2-06] 종합 평가 버튼 추가
