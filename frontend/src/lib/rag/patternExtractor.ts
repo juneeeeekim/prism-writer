@@ -106,12 +106,17 @@ export async function extractPatterns(
     throw new Error(`Pattern extraction failed after 3 attempts: ${lastError?.message}`)
   }
 
+  // [DEBUG] LLM 응답 로깅
+  console.log('[PatternExtractor] LLM response length:', response.length)
+  console.log('[PatternExtractor] LLM response preview:', response.substring(0, 200))
+
   // 3. JSON 파싱
   const candidates = parsePatternResponse(response)
 
-  // [SAFETY] 빈 응답 확인
+  // [SAFETY] 빈 응답 확인 - 더 자세한 에러
   if (!candidates || candidates.length === 0) {
-    throw new Error('Pattern extraction failed: empty response from LLM')
+    console.error('[PatternExtractor] Empty candidates. Full response:', response)
+    throw new Error(`Pattern extraction failed: LLM returned no valid patterns. Response length: ${response.length}, Preview: ${response.substring(0, 100)}`)
   }
 
   // 4. 청크 ID 매핑 (evidence_quote이 포함된 청크 찾기)
@@ -233,7 +238,8 @@ function parsePatternResponse(response: string): RuleCandidate[] {
     })
   } catch (error) {
     console.error('[PatternExtractor] JSON parse failed:', error)
-    console.error('[PatternExtractor] Raw response:', response)
+    console.error('[PatternExtractor] Raw response length:', response.length)
+    console.error('[PatternExtractor] Raw response first 500 chars:', response.substring(0, 500))
     return []
   }
 }
