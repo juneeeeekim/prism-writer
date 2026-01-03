@@ -51,8 +51,15 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // 3. 액션에 따른 상태 결정
-    const newStatus = action === 'reject' ? 'rejected' : 'selected'
+    // 3. 액션에 따른 상태 결정 (select/reject/reset)
+    let newStatus: 'selected' | 'rejected' | 'draft'
+    if (action === 'reject') {
+      newStatus = 'rejected'
+    } else if (action === 'reset') {
+      newStatus = 'draft'
+    } else {
+      newStatus = 'selected'
+    }
 
     // 4. 소유권 확인 및 상태 업데이트
     const { data: updatedData, error: updateError } = await supabase

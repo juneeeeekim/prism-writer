@@ -180,6 +180,40 @@ export default function PatternAnalysisSection({ documentId }: PatternAnalysisSe
   }
 
   // ---------------------------------------------------------------------------
+  // [NEW] 후보 상태 초기화 (채택/거부 취소)
+  // ---------------------------------------------------------------------------
+  const handleResetCandidate = async (candidateId: string) => {
+    try {
+      const res = await fetch('/api/rubrics/candidates/select', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          candidateIds: [candidateId],
+          action: 'reset', // draft로 되돌림
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Reset failed')
+      }
+
+      // 로컬 상태 업데이트
+      setCandidates(prev =>
+        prev.map(c =>
+          c.id === candidateId
+            ? { ...c, status: 'draft' }
+            : c
+        )
+      )
+    } catch (err) {
+      console.error('[PatternAnalysis] Reset error:', err)
+      setError((err as Error).message)
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // 선택된 개수 계산
   // ---------------------------------------------------------------------------
   const selectedCount = candidates.filter(c => c.status === 'selected').length
@@ -308,12 +342,30 @@ export default function PatternAnalysisSection({ documentId }: PatternAnalysisSe
                   </div>
                 )}
 
-                {/* 상태 표시 */}
+                {/* 상태 표시 + 취소 버튼 */}
                 {candidate.status === 'selected' && (
-                  <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">✅ 채택됨</span>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">✅ 채택됨</span>
+                    <button
+                      onClick={() => handleResetCandidate(candidate.id)}
+                      className="px-2 py-1 text-xs bg-orange-500 hover:bg-orange-600 text-white rounded transition-colors"
+                      title="채택 취소"
+                    >
+                      취소
+                    </button>
+                  </div>
                 )}
                 {candidate.status === 'rejected' && (
-                  <span className="text-xs text-gray-500">거부됨</span>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-xs text-gray-500">거부됨</span>
+                    <button
+                      onClick={() => handleResetCandidate(candidate.id)}
+                      className="px-2 py-1 text-xs bg-orange-500 hover:bg-orange-600 text-white rounded transition-colors"
+                      title="거부 취소"
+                    >
+                      취소
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
