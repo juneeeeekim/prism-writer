@@ -25,6 +25,12 @@ const CHUNK_TYPE_CONFIG = {
 
 type ChunkType = keyof typeof CHUNK_TYPE_CONFIG
 
+// =============================================================================
+// [R-10] Pin 제한 상수
+// =============================================================================
+/** 최대 핀 가능 청크 수 */
+const MAX_PINNED_CHUNKS = 5
+
 interface ChunkListProps {
   chunks: ChunkData[]
   onUpdateChunk: (chunkId: string, newContent?: string, isPinned?: boolean, chunkType?: ChunkType) => Promise<void>
@@ -78,6 +84,36 @@ export default function ChunkList({ chunks, onUpdateChunk }: ChunkListProps) {
       await onUpdateChunk(chunkId, undefined, undefined, newType)
     } catch (err) {
       alert('타입 변경 실패: ' + err)
+    }
+  }
+
+  // =========================================================================
+  // [R-10] Pin/Unpin Handler with Max Limit
+  // =========================================================================
+  const handlePin = async (chunk: ChunkData) => {
+    const isPinned = chunk.metadata?.isPinned === true
+    
+    // Unpin은 항상 허용
+    if (isPinned) {
+      try {
+        await onUpdateChunk(chunk.id, undefined, false)
+      } catch (err) {
+        alert('고정 해제 실패: ' + err)
+      }
+      return
+    }
+    
+    // Pin 시 최대 개수 체크
+    const pinnedCount = chunks.filter(c => c.metadata?.isPinned === true).length
+    if (pinnedCount >= MAX_PINNED_CHUNKS) {
+      alert(`최대 ${MAX_PINNED_CHUNKS}개까지만 고정할 수 있습니다.`)
+      return
+    }
+    
+    try {
+      await onUpdateChunk(chunk.id, undefined, true)
+    } catch (err) {
+      alert('고정 실패: ' + err)
     }
   }
   
@@ -169,7 +205,7 @@ export default function ChunkList({ chunks, onUpdateChunk }: ChunkListProps) {
                 {!isEditing && (
                   <>
                     <button
-                      onClick={() => onUpdateChunk(chunk.id, undefined, !isPinned)}
+                      onClick={() => handlePin(chunk)}
                       className={`
                         text-xs px-2 py-1 rounded transition-colors
                         ${isPinned 

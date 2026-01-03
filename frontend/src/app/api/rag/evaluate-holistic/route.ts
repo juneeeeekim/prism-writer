@@ -19,6 +19,10 @@ import { type HolisticEvaluationResult } from '@/lib/judge/types'
 // [P3-05] Template 컨텍스트 지원
 import { type TemplateSchema } from '@/lib/rag/templateTypes'
 import { FEATURE_FLAGS } from '@/config/featureFlags'
+// =============================================================================
+// [I-05] Retrieval Pipeline v2 통합 - Sufficiency Gate
+// =============================================================================
+import { checkSufficiency, type SufficiencyResult } from '@/lib/rag/sufficiencyGate'
 
 // =============================================================================
 // 타입 정의
@@ -40,6 +44,10 @@ interface HolisticEvaluateResponse {
   result?: HolisticEvaluationResult
   message?: string
   error?: string
+  // [I-05] Sufficiency 메타데이터 추가
+  metadata?: {
+    retrieval_sufficiency?: SufficiencyResult
+  }
 }
 
 // =============================================================================
@@ -173,6 +181,24 @@ export async function POST(request: NextRequest): Promise<NextResponse<HolisticE
     }
 
     // -------------------------------------------------------------------------
+    // [I-05] Sufficiency Gate - 근거 충분성 검사
+    // -------------------------------------------------------------------------
+    let sufficiencyResult: SufficiencyResult | undefined
+    if (FEATURE_FLAGS.ENABLE_SUFFICIENCY_GATE) {
+      try {
+        const evidenceResults = await vectorSearch(searchQuery, {
+          userId,
+          topK,
+          minScore: 0.5
+        })
+        sufficiencyResult = checkSufficiency(evidenceResults)
+        console.log(`[Holistic Evaluate API] Sufficiency: ${sufficiencyResult.sufficient}, ${sufficiencyResult.reason}`)
+      } catch (suffErr) {
+        console.warn('[Holistic Evaluate API] Sufficiency check failed:', suffErr)
+      }
+    }
+
+    // -------------------------------------------------------------------------
     // 4. [P3-05] Template 예시 컨텍스트 조회
     // -------------------------------------------------------------------------
     let templateExamplesContext = ''
@@ -251,7 +277,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<HolisticE
     // -------------------------------------------------------------------------
     return NextResponse.json({
       success: true,
-      result
+      result,
+      // [I-05] Sufficiency 메타데이터 포함
+      metadata: sufficiencyResult ? {
+        retrieval_sufficiency: sufficiencyResult
+      } : undefined
     })
 
   } catch (error) {

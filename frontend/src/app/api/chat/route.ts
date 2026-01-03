@@ -6,6 +6,7 @@
 // 수정: 2025-12-23 - OpenAI 하드코딩 제거, Gateway 연동으로 Gemini 기본 사용
 // 수정: 2025-12-28 - Phase 14 Feedback-to-Memory 통합 (MemoryService, Prompt Injection)
 // 수정: Pipeline v5 - 비로그인 사용자 명시적 차단 + 메시지 저장 실패 시 클라이언트 알림
+// 수정: 2026-01-03 23:50 - Criteria Pack 통합 (I-01 ~ I-04)
 // =============================================================================
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -18,6 +19,11 @@ import { MemoryService } from '@/lib/rag/memory'
 import { FEATURE_FLAGS } from '@/config/featureFlags'
 import { type TemplateSchema } from '@/lib/rag/templateTypes'
 import { type RubricTier } from '@/lib/rag/rubrics'  // [P2] 티어 정보
+// =============================================================================
+// [I-01] Retrieval Pipeline v2 통합 - Query Builder & Sufficiency Gate
+// =============================================================================
+import { buildSearchQueries } from '@/lib/rag/queryBuilder'
+import { checkSufficiency } from '@/lib/rag/sufficiencyGate'
 
 export const runtime = 'nodejs'
 
@@ -50,6 +56,22 @@ async function saveMessageWithRetry(
   }
   console.error('All message save attempts failed')
   return false
+}
+
+// -----------------------------------------------------------------------------
+// [I-02] Helper: Criteria Pack 검색 결과 중복 제거
+// -----------------------------------------------------------------------------
+/**
+ * chunkId 기준으로 검색 결과 중복 제거
+ * @description 3개 병렬 검색 결과 병합 시 동일 청크 제거
+ */
+function deduplicateByChunkId(results: SearchResult[]): SearchResult[] {
+  const seen = new Set<string>()
+  return results.filter((r) => {
+    if (seen.has(r.chunkId)) return false
+    seen.add(r.chunkId)
+    return true
+  })
 }
 
 export async function POST(req: NextRequest) {
@@ -161,6 +183,62 @@ export async function POST(req: NextRequest) {
     // -------------------------------------------------------------------------
     const ragPromise = (async (): Promise<{ context: string; hasRetrievedDocs: boolean; uniqueResults: SearchResult[] }> => {
       try {
+        // =====================================================================
+        // [I-03] Criteria Pack Mode - Query Builder + Sufficiency Gate
+        // =====================================================================
+        if (FEATURE_FLAGS.ENABLE_CRITERIA_PACK) {
+          // Step 1: Query Builder를 통한 3개 쿼리 생성
+          const queries = buildSearchQueries({
+            criteria_id: 'chat-query',
+            name: query,
+            definition: query,
+            category: 'general'
+          })
+          console.log('[Chat API] Criteria Pack mode - 3 queries generated')
+
+          // Step 2: 3개 쿼리 병렬 검색 (각각 topK=3, 개별 실패 허용)
+          const searchOptions = { 
+            userId, 
+            topK: 3, 
+            projectId, 
+            minScore: 0.35,
+            vectorWeight: 0.6,
+            keywordWeight: 0.4,
+          }
+
+          const [ruleResults, exampleResults, patternResults] = await Promise.all([
+            hybridSearch(queries.rule_query, searchOptions).catch(() => []),
+            hybridSearch(queries.example_query, searchOptions).catch(() => []),
+            hybridSearch(queries.pattern_query, searchOptions).catch(() => []),
+          ])
+
+          // Step 3: 결과 병합 + 중복 제거 + 정렬
+          const allResults = [...ruleResults, ...exampleResults, ...patternResults]
+          const uniqueResults = deduplicateByChunkId(allResults)
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 5)
+
+          // Step 4: Sufficiency Gate
+          const sufficiency = checkSufficiency(uniqueResults)
+          console.log(`[Chat API] Sufficiency: ${sufficiency.sufficient}, ${sufficiency.reason}`)
+
+          // Step 5: 결과 있으면 반환
+          if (uniqueResults.length > 0) {
+            return {
+              context: uniqueResults
+                .map((result, index) => `[참고 자료 ${index + 1}: ${result.metadata?.title || 'Untitled'}]\n${result.content}`)
+                .join('\n\n'),
+              hasRetrievedDocs: true,
+              uniqueResults
+            }
+          }
+          // 결과 없으면 기존 로직으로 fall-through
+          console.log('[Chat API] Criteria Pack - no results, falling back to legacy mode')
+        }
+
+        // =====================================================================
+        // [EXISTING] 기존 로직 - Query Expansion / Legacy Mode
+        // =====================================================================
         const enableQueryExpansion = process.env.ENABLE_QUERY_EXPANSION === 'true'
 
         if (enableQueryExpansion) {

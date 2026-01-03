@@ -10,6 +10,10 @@ interface ActiveContextPanelProps {
   // Mobile Navigation Props
   onBack?: () => void
   showBackButton?: boolean
+  // [I-06] Pin/Unpin Props (optional - 상위 컴포넌트에서 관리)
+  pinnedChunkIds?: string[]
+  onPinChunk?: (chunkId: string) => void
+  onUnpinChunk?: (chunkId: string) => void
 }
 
 export default function ActiveContextPanel({ 

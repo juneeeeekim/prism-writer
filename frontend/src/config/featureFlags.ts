@@ -251,6 +251,57 @@ export const FEATURE_FLAGS = {
    * - 롤백: OFF 시 루브릭 관리 UI 숨김
    */
   ENABLE_RUBRIC_CANDIDATE_UI: process.env.NEXT_PUBLIC_ENABLE_RUBRIC_CANDIDATE_UI === 'true',
+
+  // ==========================================================================
+  // [R-11] 리트리벌 파이프라인 v2 Feature Flags (2026-01-03 추가)
+  // ==========================================================================
+
+  /**
+   * Query Builder 활성화 (R-05)
+   * 환경 변수: NEXT_PUBLIC_ENABLE_QUERY_BUILDER
+   * 기본값: true (프로덕션 활성화)
+   * 
+   * @description
+   * - 루브릭 기반 검색 쿼리 자동 생성 (rule/example/pattern)
+   * - 롤백: OFF 시 기존 단순 쿼리 방식으로 복귀
+   */
+  ENABLE_QUERY_BUILDER: process.env.NEXT_PUBLIC_ENABLE_QUERY_BUILDER !== 'false',
+
+  /**
+   * Sufficiency Gate 활성화 (R-06)
+   * 환경 변수: NEXT_PUBLIC_ENABLE_SUFFICIENCY_GATE
+   * 기본값: true (프로덕션 활성화)
+   * 
+   * @description
+   * - 검색 결과 근거 충분성 검사
+   * - 부족 시 Judge에 '판정 보류' 상태 전달
+   * - 롤백: OFF 시 충분성 검사 건너뜀
+   */
+  ENABLE_SUFFICIENCY_GATE: process.env.NEXT_PUBLIC_ENABLE_SUFFICIENCY_GATE !== 'false',
+
+  /**
+   * Criteria Pack 시스템 활성화 (R-07, R-08)
+   * 환경 변수: NEXT_PUBLIC_ENABLE_CRITERIA_PACK
+   * 기본값: true (프로덕션 활성화)
+   * 
+   * @description
+   * - 구조화된 근거 패키지(CriteriaPackV2) 구축
+   * - Query Builder → 검색 → Gate 검증 통합 파이프라인
+   * - 롤백: OFF 시 기존 개별 검색 방식 사용
+   */
+  ENABLE_CRITERIA_PACK: process.env.NEXT_PUBLIC_ENABLE_CRITERIA_PACK !== 'false',
+
+  /**
+   * Pin/Unpin 기능 활성화 (R-10)
+   * 환경 변수: NEXT_PUBLIC_ENABLE_PIN_UNPIN
+   * 기본값: true (프로덕션 활성화)
+   * 
+   * @description
+   * - 청크 고정 기능 (최대 5개 제한)
+   * - 고정된 청크는 검색 결과 상단 고정
+   * - 롤백: OFF 시 핀 버튼 숨김
+   */
+  ENABLE_PIN_UNPIN: process.env.NEXT_PUBLIC_ENABLE_PIN_UNPIN !== 'false',
 } as const
 
 // =============================================================================

@@ -28,6 +28,11 @@ import PatternAnalysisSection from '../PatternAnalysisSection' // [PATTERN] 루�
 // =============================================================================
 const SELECTED_DOC_KEY = 'prism_ref_selected_doc'
 const PANEL_WIDTH_KEY = 'prism_ref_panel_width'
+// =============================================================================
+// [I-06] Pin/Unpin 상태 저장 키
+// =============================================================================
+const PINNED_CHUNKS_KEY = 'prism_ref_pinned_chunks'
+const MAX_PINNED_CHUNKS = 5  // 최대 5개 핀 제한
 
 import { useRef, useCallback } from 'react'
 
@@ -118,6 +123,26 @@ export default function ReferenceStudioContainer() {
   const { documents, isLoading, mutate: refreshDocuments } = useDocumentStatus(projectId)
 
   // ===========================================================================
+  // [I-06] Pin/Unpin 상태 관리
+  // - 최대 5개 청크를 핀할 수 있음
+  // - localStorage에 저장하여 세션 간 유지
+  // ===========================================================================
+  const [pinnedChunkIds, setPinnedChunkIds] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return []
+    const saved = localStorage.getItem(PINNED_CHUNKS_KEY)
+    try {
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
+
+  // [I-06] pinnedChunkIds 변경 시 localStorage 저장
+  useEffect(() => {
+    localStorage.setItem(PINNED_CHUNKS_KEY, JSON.stringify(pinnedChunkIds))
+  }, [pinnedChunkIds])
+
+  // ===========================================================================
   // [Phase 6.2] 새 프로젝트 온보딩 - 문서 없음 상태 감지
   // ===========================================================================
   const isNewProject = !isLoading && documents.length === 0
@@ -172,6 +197,35 @@ export default function ReferenceStudioContainer() {
       console.error('문서 삭제 중 오류:', err)
       alert('문서 삭제에 실패했습니다.')
     }
+  }
+
+  // ===========================================================================
+  // [I-06] Pin/Unpin 핸들러
+  // ===========================================================================
+  
+  /**
+   * 청크 핀 추가 (최대 5개 제한)
+   */
+  const handlePinChunk = (chunkId: string) => {
+    setPinnedChunkIds(prev => {
+      if (prev.includes(chunkId)) return prev  // 이미 핀됨
+      if (prev.length >= MAX_PINNED_CHUNKS) {
+        alert(`최대 ${MAX_PINNED_CHUNKS}개까지만 핀할 수 있습니다.`)
+        return prev
+      }
+      console.log(`[ReferenceStudio] Pinned chunk: ${chunkId}`)
+      return [...prev, chunkId]
+    })
+  }
+
+  /**
+   * 청크 핀 제거
+   */
+  const handleUnpinChunk = (chunkId: string) => {
+    setPinnedChunkIds(prev => {
+      console.log(`[ReferenceStudio] Unpinned chunk: ${chunkId}`)
+      return prev.filter(id => id !== chunkId)
+    })
   }
 
   // =============================================================================
@@ -249,6 +303,10 @@ export default function ReferenceStudioContainer() {
           // Mobile Back Button (only visible on mobile when detail is shown)
           onBack={handleBackToList}
           showBackButton={mobileView === 'detail'}
+          // [I-06] Pin/Unpin props
+          pinnedChunkIds={pinnedChunkIds}
+          onPinChunk={handlePinChunk}
+          onUnpinChunk={handleUnpinChunk}
         />
       </div>
     </div>

@@ -613,3 +613,174 @@ export interface RagTemplate {
   /** 수정일 */
   updated_at: string
 }
+
+// =============================================================================
+// [R-07] Criteria Pack 관련 타입 (Retrieval Pipeline v2)
+// =============================================================================
+
+/**
+ * [R-07] 검색된 청크 인터페이스
+ * 
+ * @description
+ * hybridSearch 또는 패턴 검색에서 반환된 개별 청크 정보입니다.
+ * CriteriaPack의 evidence 필드에 저장됩니다.
+ */
+export interface RetrievedChunk {
+  /** 청크 ID */
+  chunk_id: string
+  /** 청크 내용 */
+  content: string
+  /** 유사도 점수 (0.0 ~ 1.0) */
+  score: number
+  /** 출처 정보 */
+  source: {
+    /** 문서 ID */
+    document_id: string
+    /** 페이지 번호 (옵션) */
+    page?: number
+    /** 섹션명 (옵션) */
+    section?: string
+  }
+}
+
+/**
+ * [R-07] 검색 쿼리 정보 인터페이스
+ * 
+ * @description
+ * Query Builder가 생성한 3종 쿼리 정보입니다.
+ */
+export interface CriteriaPackQueries {
+  /** 규칙 검색 쿼리 */
+  rule_query: string
+  /** 예시 검색 쿼리 */
+  example_query: string
+  /** 패턴 검색 쿼리 */
+  pattern_query: string
+}
+
+/**
+ * [R-07] 검색된 근거 인터페이스
+ * 
+ * @description
+ * 각 쿼리 타입별 검색 결과를 구조화합니다.
+ */
+export interface CriteriaPackEvidence {
+  /** 규칙 청크 목록 (기본값: []) */
+  rules: RetrievedChunk[]
+  /** 예시 청크 목록 (기본값: []) */
+  examples: RetrievedChunk[]
+  /** 패턴 청크 목록 (기본값: []) */
+  patterns: RetrievedChunk[]
+}
+
+/**
+ * [R-07] 게이트 결과 인터페이스
+ * 
+ * @description
+ * Citation Gate와 Sufficiency Gate의 검증 결과입니다.
+ */
+export interface CriteriaPackGates {
+  /** Citation Gate 검증 결과 (기본값: false) */
+  citation_verified: boolean
+  /** Sufficiency Gate 검증 결과 (기본값: false) */
+  retrieval_sufficient: boolean
+}
+
+/**
+ * [R-07] 메타데이터 인터페이스
+ * 
+ * @description
+ * CriteriaPack 생성 관련 메타데이터입니다.
+ */
+export interface CriteriaPackMetadata {
+  /** 생성 시간 (ISO 8601) */
+  created_at: string
+  /** 검색 소요 시간 (밀리초) */
+  search_duration_ms: number
+}
+
+/**
+ * [R-07] Judge에 전달할 구조화된 근거 패키지
+ * 
+ * @description
+ * Retrieval Pipeline v2에서 사용하는 확장된 CriteriaPack입니다.
+ * Query Builder → 검색 → Gate 검증을 거쳐 Judge에 전달됩니다.
+ * 
+ * @example
+ * ```typescript
+ * const criteriaPack: CriteriaPackV2 = {
+ *   criteria_id: 'rubric-001',
+ *   queries: {
+ *     rule_query: '서론의 흡입력 규칙 정의',
+ *     example_query: '서론의 흡입력 좋은 예시',
+ *     pattern_query: '훅 문장 패턴'
+ *   },
+ *   evidence: {
+ *     rules: [],
+ *     examples: [],
+ *     patterns: []
+ *   },
+ *   gates: {
+ *     citation_verified: false,
+ *     retrieval_sufficient: false
+ *   },
+ *   metadata: {
+ *     created_at: new Date().toISOString(),
+ *     search_duration_ms: 0
+ *   }
+ * }
+ * ```
+ */
+export interface CriteriaPackV2 {
+  /** 루브릭(평가 기준) ID */
+  criteria_id: string
+  
+  /** 검색 쿼리 정보 */
+  queries: CriteriaPackQueries
+  
+  /** 검색된 근거 */
+  evidence: CriteriaPackEvidence
+  
+  /** 게이트 결과 */
+  gates: CriteriaPackGates
+  
+  /** 메타데이터 */
+  metadata: CriteriaPackMetadata
+}
+
+// =============================================================================
+// [R-07] CriteriaPack 헬퍼 함수
+// =============================================================================
+
+/**
+ * [R-07] 기본 CriteriaPackV2 생성
+ * 
+ * @description
+ * 모든 배열 필드와 gates에 안전한 기본값이 설정된 CriteriaPackV2를 생성합니다.
+ * 
+ * @param criteriaId - 루브릭 ID
+ * @returns 기본값이 설정된 CriteriaPackV2
+ */
+export function createDefaultCriteriaPackV2(criteriaId: string): CriteriaPackV2 {
+  return {
+    criteria_id: criteriaId,
+    queries: {
+      rule_query: '',
+      example_query: '',
+      pattern_query: '',
+    },
+    evidence: {
+      rules: [],
+      examples: [],
+      patterns: [],
+    },
+    gates: {
+      citation_verified: false,
+      retrieval_sufficient: false,
+    },
+    metadata: {
+      created_at: new Date().toISOString(),
+      search_duration_ms: 0,
+    },
+  }
+}
