@@ -196,6 +196,22 @@ export const FEATURE_FLAGS = {
    */
   ENABLE_DEBUG_LOGS: process.env.ENABLE_DEBUG_LOGS === 'true' || 
                      process.env.NODE_ENV === 'development',
+
+  // ==========================================================================
+  // [CITATION] RAG 인용 표기 Feature Flags (2026-01-03 추가)
+  // ==========================================================================
+
+  /**
+   * AI 응답에 인용 마커 ([1], [2]) 및 참고문헌 목록 표시
+   * 환경 변수: NEXT_PUBLIC_ENABLE_CITATION_MARKERS
+   * 기본값: true (인용 표기 활성화)
+   * 
+   * @description
+   * - 참고 자료 기반 답변에 [1], [2] 형식의 인용 마커 추가
+   * - 답변 하단에 참고 자료 목록 (📚 참고 자료) 표시
+   * - 롤백: OFF 시 기존 인용 마커 없는 답변으로 복귀
+   */
+  ENABLE_CITATION_MARKERS: process.env.NEXT_PUBLIC_ENABLE_CITATION_MARKERS !== 'false',
 } as const
 
 // =============================================================================

@@ -150,9 +150,6 @@ export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
   const { currentProject } = useProject()
   const projectId = currentProject?.id ?? null
 
-  // [DEBUG] 프로젝트 ID 추적용 (문제 해결 후 삭제)
-  console.log('[ChatTab] currentProject:', currentProject?.name, '| projectId:', projectId)
-
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)

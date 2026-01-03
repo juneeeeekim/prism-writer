@@ -67,9 +67,6 @@ export async function POST(req: NextRequest) {
     const lastMessage = messages[messages.length - 1]
     const query = lastMessage.content
 
-    // [DEBUG] 프로젝트 ID 추적용 (문제 해결 후 삭제)
-    console.log('[Chat API] Received projectId:', projectId, '| sessionId:', sessionId)
-
     // =========================================================================
     // [Pipeline v5] 1. 사용자 인증 확인 (비로그인 명시적 차단)
     // =========================================================================
@@ -208,8 +205,9 @@ export async function POST(req: NextRequest) {
 
           if (uniqueResults.length > 0) {
             return {
+              // [CITATION] 인용 번호가 포함된 컨텍스트 형식
               context: uniqueResults
-                .map((result) => `[참고 문서: ${result.metadata?.title || 'Untitled'}]\n${result.content}`)
+                .map((result, index) => `[참고 자료 ${index + 1}: ${result.metadata?.title || 'Untitled'}]\n${result.content}`)
                 .join('\n\n'),
               hasRetrievedDocs: true,
               uniqueResults
@@ -231,8 +229,9 @@ export async function POST(req: NextRequest) {
 
         if (searchResults.length > 0) {
           return {
+            // [CITATION] 인용 번호가 포함된 컨텍스트 형식
             context: searchResults
-              .map((result) => `[참고 문서: ${result.metadata?.title || 'Untitled'}]\n${result.content}`)
+              .map((result, index) => `[참고 자료 ${index + 1}: ${result.metadata?.title || 'Untitled'}]\n${result.content}`)
               .join('\n\n'),
             hasRetrievedDocs: true,
             uniqueResults: searchResults
@@ -295,7 +294,21 @@ ${templateContext ? templateContext : '(템플릿 기준 없음)'}
 # 참고 자료
 ${context ? context : '(참고 자료 없음 - 일반 지식으로 답변 가능)'}
 
-# 사고 과정
+${FEATURE_FLAGS.ENABLE_CITATION_MARKERS ? `# 🔖 출처 표기 규칙 (Citation Rules)
+⚠️ 참고 자료를 인용할 때는 반드시 아래 규칙을 따르세요:
+1. **인용 마커**: 참고 자료 내용을 사용할 때마다 문장 끝에 [1], [2] 형식으로 번호를 붙이세요.
+2. **번호 할당**: [참고 자료 1: 문서명]은 [1], [참고 자료 2: 문서명]은 [2]입니다.
+3. **참고문헌 목록**: 답변 마지막에 반드시 아래 형식으로 정리하세요:
+
+---
+**📚 참고 자료**
+[1] {문서 제목 1}
+[2] {문서 제목 2}
+---
+
+4. **일반 지식 사용 시**: 참고 자료가 없으면 인용 마커 없이 답변하고, "참고 자료 없이 일반 지식을 바탕으로 답변드립니다."라고 명시하세요.
+
+` : ''}# 사고 과정
 1. 우선순위 확인: "User Preferences"가 있다면 답변 톤과 구조의 기준으로 삼습니다.
 2. 분석: 참고 자료의 핵심 키워드와 구조를 파악합니다.
 3. 연결: 사용자 질문이 참고 자료와 어떻게 연결되는지 찾습니다.
