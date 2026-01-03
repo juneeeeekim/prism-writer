@@ -110,7 +110,7 @@
 
 ---
 
-- [ ] **R-06**: Sufficiency Gate 구현
+- [x] **R-06**: Sufficiency Gate 구현 ✅
 
   - `Target`: `lib/rag/sufficiencyGate.ts` (신규 파일)
   - `Logic (Pseudo)`:
