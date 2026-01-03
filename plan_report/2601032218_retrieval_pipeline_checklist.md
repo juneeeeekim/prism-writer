@@ -59,7 +59,7 @@
 
 ### Implementation Items:
 
-- [ ] **R-05**: Query Builder 구현
+- [x] **R-05**: Query Builder 구현 ✅
 
   - `Target`: `lib/rag/queryBuilder.ts` (신규 파일)
   - `Logic (Pseudo)`:
