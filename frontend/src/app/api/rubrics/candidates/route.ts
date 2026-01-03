@@ -12,6 +12,19 @@ import { extractPatterns, type ChunkData, type RuleCandidate } from '@/lib/rag/p
 import { FEATURE_FLAGS } from '@/config/featureFlags'
 
 // =============================================================================
+// [PATTERN] Helper: 배열 무작위 셔플 (Fisher-Yates)
+// =============================================================================
+
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array]
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+  return shuffled
+}
+
+// =============================================================================
 // [PATTERN] POST: 루브릭 후보 생성
 // =============================================================================
 
@@ -70,21 +83,38 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. 프로젝트의 청크 조회
-    const chunks = await getProjectChunks(supabase, projectId)
+    const allChunks = await getProjectChunks(supabase, projectId)
     
-    if (chunks.length === 0) {
+    if (allChunks.length === 0) {
       return NextResponse.json(
         { error: 'No chunks found in project. Please upload documents first.' },
         { status: 400 }
       )
     }
 
-    console.log(`[RubricCandidates] Processing ${chunks.length} chunks for project ${projectId}`)
+    // [NEW] 무작위 샘플링 (최대 15개) - 매번 다른 청크 선택으로 다양성 증가
+    const SAMPLE_SIZE = 15
+    const chunks = allChunks.length <= SAMPLE_SIZE 
+      ? allChunks 
+      : shuffleArray(allChunks).slice(0, SAMPLE_SIZE)
 
-    // 5. 패턴 추출 LLM 호출
+    console.log(`[RubricCandidates] Sampled ${chunks.length}/${allChunks.length} chunks for project ${projectId}`)
+
+    // [NEW] 기존 패턴 조회 (중복 방지)
+    const { data: existingCandidates } = await supabase
+      .from('rag_rule_candidates')
+      .select('rule_text')
+      .eq('project_id', projectId)
+      .limit(50)
+    
+    const existingPatterns = existingCandidates?.map(c => c.rule_text) || []
+    console.log(`[RubricCandidates] Found ${existingPatterns.length} existing patterns to exclude`)
+
+    // 5. 패턴 추출 LLM 호출 (기존 패턴 제외)
     const candidates = await extractPatterns(chunks, {
       targetCount: Math.min(targetCount, 100), // 최대 100개
-      patternScope: patternScope as 'script' | 'lecture' | 'both'
+      patternScope: patternScope as 'script' | 'lecture' | 'both',
+      existingPatterns // [NEW] 제외할 패턴 목록 전달
     })
 
     // 6. DB 저장 (rag_rule_candidates)

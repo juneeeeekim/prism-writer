@@ -13,20 +13,29 @@ import { FEATURE_FLAGS } from '../../config/featureFlags'
 // [PATTERN] 타입 정의
 // =============================================================================
 
-/** 패턴 타입 (DB pattern_type 컬럼과 매칭) */
+/** 패턴 타입 (DB pattern_type 컨럼과 매칭) - 확장됨 (12 → 20개) */
 export type PatternType = 
-  | 'hook'        // 도입 훅
-  | 'problem'     // 문제 정의
-  | 'cause'       // 원인 분석
-  | 'solution'    // 해결책 제시
-  | 'evidence'    // 근거/증거
-  | 'cta'         // 행동 유도
-  | 'metaphor'    // 비유/은유
-  | 'contrast'    // 대비/비교
-  | 'statistics'  // 숫자/통계
-  | 'rebuttal'    // 반박 선제처리
-  | 'question'    // 질문 활용
-  | 'repetition'  // 반복 구조
+  | 'hook'            // 도입 훅
+  | 'problem'         // 문제 정의
+  | 'cause'           // 원인 분석
+  | 'solution'        // 해결책 제시
+  | 'evidence'        // 근거/증거
+  | 'cta'             // 행동 유도
+  | 'metaphor'        // 비유/은유
+  | 'contrast'        // 대비/비교
+  | 'statistics'      // 숫자/통계
+  | 'rebuttal'        // 반박 선제처리
+  | 'question'        // 질문 활용
+  | 'repetition'      // 반복 구조
+  // [NEW] 확장된 패턴 타입 (8개 추가)
+  | 'story'           // 스토리텔링/일화
+  | 'analogy'         // 유추/비교 논증
+  | 'authority'       // 권위 인용
+  | 'social_proof'    // 사회적 증거
+  | 'scarcity'        // 희소성/긴급성
+  | 'transition'      // 전환 문구
+  | 'summary'         // 요약/정리
+  | 'callback'        // 콜백/연결
 
 /** 청크 데이터 (검색 결과에서 가져옴) */
 export interface ChunkData {
@@ -50,6 +59,7 @@ export interface RuleCandidate {
 export interface PatternExtractionOptions {
   targetCount: number
   patternScope: 'script' | 'lecture' | 'both'
+  existingPatterns?: string[]  // [NEW] 제외할 기존 패턴 목록
 }
 
 // =============================================================================
@@ -139,7 +149,7 @@ function buildPatternExtractionPrompt(
   chunks: ChunkData[],
   options: PatternExtractionOptions
 ): string {
-  const { targetCount, patternScope } = options
+  const { targetCount, patternScope, existingPatterns } = options
 
   const scopeDescription = {
     script: '이 텍스트는 실제 스크립트/글입니다. 글에서 사용된 패턴을 분석하세요.',
@@ -151,14 +161,19 @@ function buildPatternExtractionPrompt(
     .map((c, i) => `[청크 ${i + 1}]\n${c.content}`)
     .join('\n\n---\n\n')
 
+  // [NEW] 기존 패턴 제외 목록
+  const exclusionSection = existingPatterns && existingPatterns.length > 0
+    ? `\n# ⚠️ 이미 추출된 패턴 (중복 금지)\n다음 규칙들은 이미 있습니다. 이와 다른 새로운 패턴만 추출하세요:\n${existingPatterns.map((p, i) => `${i + 1}. ${p}`).join('\n')}\n`
+    : ''
+
   return `# 역할
 당신은 글쓰기 패턴 분석 전문가입니다. 
 ${scopeDescription[patternScope]}
-
+${exclusionSection}
 # 입력 청크
 ${chunksText}
 
-# 추출할 패턴 유형 (주제 무관, 형식만 분석)
+# 추출할 패턴 유형 (주제 무관, 형식만 분석) - 20가지
 - hook: 도입 훅 (질문/통계/도발로 시작)
 - problem: 문제 정의
 - cause: 원인 분석
@@ -171,11 +186,19 @@ ${chunksText}
 - rebuttal: 반박 선제처리
 - question: 질문 활용
 - repetition: 반복 구조
+- story: 스토리텔링/일화
+- analogy: 유추/비교 논증
+- authority: 권위 인용
+- social_proof: 사회적 증거 (사례/후기)
+- scarcity: 희소성/긴급성
+- transition: 전환 문구
+- summary: 요약/정리
+- callback: 콜백/연결 (앞뒤 내용 참조)
 
 # 출력 형식 (JSON 배열)
-반드시 아래 JSON 형식으로 ${targetCount}개의 패턴을 출력하세요.
+반드시 아래 JSON 형식으로 ${targetCount}개의 **새로운** 패턴을 출력하세요.
 각 패턴은 **주제와 무관하게 다른 글에도 적용 가능한 형식적 규칙**이어야 합니다.
-
+${existingPatterns && existingPatterns.length > 0 ? '⚠️ 위에서 제외한 패턴과 유사한 것은 출력하지 마세요.\n' : ''}
 \`\`\`json
 [
   {
@@ -189,10 +212,11 @@ ${chunksText}
 \`\`\`
 
 중요:
-1. pattern_type은 위 12개 중 하나여야 함
+1. pattern_type은 위 20개 중 하나여야 함
 2. rule_text는 주제어 없이 형식만 설명
 3. evidence_quote는 반드시 입력 청크에 있는 원문 그대로
-4. JSON만 출력 (추가 설명 금지)`
+4. JSON만 출력 (추가 설명 금지)
+5. 이미 있는 패턴과 중복되지 않는 새로운 규칙만 출력`
 }
 
 // =============================================================================
