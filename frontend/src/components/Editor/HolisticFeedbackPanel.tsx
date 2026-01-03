@@ -220,18 +220,23 @@ export default function HolisticFeedbackPanel({
       role="region"
       aria-label="종합 평가 결과"
     >
-      {/* [P4] 재평가 버튼 (상단 우측) */}
+      {/* [P4] 재평가 버튼 (상단 우측) - UX 개선: 로딩 시 시각적 피드백 강화 */}
       {onRetry && (
         <div className="absolute top-4 right-4">
           <button
             onClick={onRetry}
             disabled={isLoading}
-            className="text-xs flex items-center gap-1 px-2 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className={`text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all duration-200 ${
+              isLoading
+                ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 cursor-wait'
+                : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
+            } disabled:cursor-not-allowed`}
             title="다시 평가하기"
           >
             {isLoading ? (
               <>
-                <span className="animate-spin">⏳</span> 평가 중...
+                <span className="inline-block w-3 h-3 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                <span className="animate-pulse">평가 중...</span>
               </>
             ) : (
               <>
