@@ -618,7 +618,7 @@ export default function EvaluationTab() {
   const showInitialState = !result && !isLoading
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900">
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-900 overflow-hidden">
       {/* -----------------------------------------------------------------------
           헤더 및 평가 버튼 (초기 상태에서만 표시)
           [P2-06] 종합 평가 버튼 추가
