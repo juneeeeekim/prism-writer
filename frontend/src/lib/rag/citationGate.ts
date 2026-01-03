@@ -42,6 +42,9 @@ const SIMILARITY_THRESHOLD = 0.7
 /** 부분 매칭을 위한 최소 문자열 길이 */
 const MIN_PARTIAL_MATCH_LENGTH = 10
 
+/** [Phase B] 인용 마커 가산점 (0.15 = +15%) */
+const CITATION_MARKER_BONUS = 0.15
+
 // =============================================================================
 // 유틸리티 함수
 // =============================================================================
@@ -121,6 +124,29 @@ function calculatePartialMatchScore(content: string, quote: string): number {
   }
   
   return matchedWords / totalWords
+}
+
+/**
+ * [Phase B] 인용 마커 존재 여부 확인
+ * 
+ * @description
+ * AI 응답에 [1], [2], [참고 자료 1] 등의 인용 마커가 있는지 확인합니다.
+ * 마커가 있으면 출처를 명시하려는 의도로 판단하여 가산점을 부여합니다.
+ */
+export function hasCitationMarkers(text: string): boolean {
+  // [1], [2], ... [9] 패턴 또는 [참고 자료 N] 패턴
+  const citationPattern = /\[\d+\]|\[참고\s*자료\s*\d+\]/g
+  const matches = text.match(citationPattern)
+  return matches !== null && matches.length >= 1
+}
+
+/**
+ * [Phase B] 인용 마커 개수 반환
+ */
+export function countCitationMarkers(text: string): number {
+  const citationPattern = /\[\d+\]|\[참고\s*자료\s*\d+\]/g
+  const matches = text.match(citationPattern)
+  return matches ? matches.length : 0
 }
 
 // =============================================================================

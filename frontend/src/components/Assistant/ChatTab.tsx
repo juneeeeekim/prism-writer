@@ -500,28 +500,49 @@ export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
               </span>
               </div>
               
-              {/* Citation Verification Badge - [P1-02] 티어 정보 강화 */}
-              {message.role === 'assistant' && message.metadata?.citation_verification && (
-                <div className="mt-1 flex items-center gap-2 flex-wrap">
-                  {/* 검증 상태 뱃지 */}
-                  <div className={`text-xs px-2 py-1 rounded w-fit ${
-                    message.metadata.citation_verification.valid 
-                      ? 'bg-green-100 text-green-700' 
-                      : 'bg-amber-100 text-amber-700'
-                  }`}>
-                    {message.metadata.citation_verification.valid ? '✅ 근거 검증됨' : '⚠️ 근거 부족 가능성'} 
-                    {message.metadata.citation_verification.matchScore > 0 && 
-                      ` (${Math.round(message.metadata.citation_verification.matchScore * 100)}% 일치)`
-                    }
-                  </div>
-                  {/* [P1-02] 티어 정보 뱃지 */}
-                  {message.metadata.rubric_tier && (
-                    <div className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                      {TIER_CONFIG[message.metadata.rubric_tier].label}
+              {/* Citation Verification Badge - [Phase C] 구간별 메시지 개선 */}
+              {message.role === 'assistant' && message.metadata?.citation_verification && (() => {
+                const score = message.metadata.citation_verification.matchScore
+                const scorePercent = Math.round(score * 100)
+                
+                // [Phase C] 구간별 스타일 및 메시지 정의
+                let badgeStyle: string
+                let badgeIcon: string
+                let badgeText: string
+                
+                if (score >= 0.7) {
+                  // 70% 이상: 원문 직접 인용
+                  badgeStyle = 'bg-green-100 text-green-700'
+                  badgeIcon = '✅'
+                  badgeText = '원문 직접 인용'
+                } else if (score >= 0.4) {
+                  // 40~70%: 참고 기반 작성
+                  badgeStyle = 'bg-blue-100 text-blue-700'
+                  badgeIcon = '📝'
+                  badgeText = '참고 기반 작성'
+                } else {
+                  // 40% 미만: AI 요약 답변
+                  badgeStyle = 'bg-gray-100 text-gray-600'
+                  badgeIcon = 'ℹ️'
+                  badgeText = 'AI 요약 답변'
+                }
+                
+                return (
+                  <div className="mt-1 flex items-center gap-2 flex-wrap">
+                    {/* 검증 상태 뱃지 */}
+                    <div className={`text-xs px-2 py-1 rounded w-fit ${badgeStyle}`}>
+                      {badgeIcon} {badgeText}
+                      {scorePercent > 0 && ` (${scorePercent}%)`}
                     </div>
-                  )}
-                </div>
-              )}
+                    {/* [P1-02] 티어 정보 뱃지 */}
+                    {message.metadata.rubric_tier && (
+                      <div className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                        {TIER_CONFIG[message.metadata.rubric_tier].label}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
         ))}
         <div ref={messagesEndRef} />

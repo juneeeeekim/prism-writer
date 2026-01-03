@@ -13,7 +13,7 @@ import { hybridSearch, type SearchResult } from '@/lib/rag/search'
 import { generateTextStream } from '@/lib/llm/gateway'
 import { getDefaultModel } from '@/config/llm.config'
 import { createClient } from '@/lib/supabase/server'
-import { verifyCitation } from '@/lib/rag/citationGate'
+import { verifyCitation, hasCitationMarkers } from '@/lib/rag/citationGate'  // [Phase B] 마커 검증 추가
 import { MemoryService } from '@/lib/rag/memory'
 import { FEATURE_FLAGS } from '@/config/featureFlags'
 import { type TemplateSchema } from '@/lib/rag/templateTypes'
@@ -393,12 +393,22 @@ ${context ? context : '관련된 참고 자료가 없습니다.'}
                 const sourceChunksForVerify = uniqueResults.map(r => ({ id: r.chunkId, content: r.content }))
                 const verificationResult = verifyCitation(fullResponse, sourceChunksForVerify)
                 
+                // [Phase B] 인용 마커 가산점 적용
+                const hasMarkers = hasCitationMarkers(fullResponse)
+                const adjustedScore = hasMarkers 
+                  ? Math.min(verificationResult.matchScore + 0.15, 1.0)  // +15% 보너스, 최대 1.0
+                  : verificationResult.matchScore
+                
                 // [P2] 가장 높은 점수의 청크에서 tier 정보 추출
                 const topResult = uniqueResults[0]  // 이미 점수순 정렬됨
                 const rubricTier = topResult?.metadata?.tier as RubricTier | undefined
                 
                 citationMetadata = {
-                  citation_verification: verificationResult,
+                  citation_verification: {
+                    ...verificationResult,
+                    matchScore: Math.round(adjustedScore * 100) / 100,  // [Phase B] 조정된 점수
+                    valid: adjustedScore >= 0.7  // 70% 기준으로 재평가
+                  },
                   source_count: uniqueResults.length,
                   rubric_tier: rubricTier  // [P2] Core/Style/Detail
                 }
