@@ -302,6 +302,8 @@ export default function EvaluationTab() {
       // [FIX] 기존 result가 있더라도 overall_score는 새로 받은 holistic score로 갱신해야 함
       const resultToSave: V5EvaluationResult = result ? { 
         ...result,
+        template_id: 'holistic-only', // [FIX] ID 강제 설정하여 분류 기준 명확화
+        judgments: [], // [FIX] 기준별 평가 데이터 제거 (혼재 방지)
         overall_score: data.result.scoreC.overall || 0 // 점수 강제 갱신
       } : {
         document_id: documentId || 'unknown',
@@ -807,12 +809,14 @@ export default function EvaluationTab() {
           ----------------------------------------------------------------------- */}
       {!isLoadingHistory && savedEvaluations.length > 0 && (() => {
         // 평가 유형별 분류
+        // 평가 유형별 분류 (template_id 우선, 없으면 데이터 구조로 판단)
         const holisticEvaluations = savedEvaluations.filter(e =>
-          e.result_data?.holistic_result &&
-          (!e.result_data?.judgments || e.result_data.judgments.length === 0)
+          e.result_data?.template_id === 'holistic-only' || 
+          (e.result_data?.holistic_result && (!e.result_data?.judgments || e.result_data.judgments.length === 0))
         )
         const detailedEvaluations = savedEvaluations.filter(e =>
-          e.result_data?.judgments && e.result_data.judgments.length > 0
+          (e.result_data?.template_id && e.result_data.template_id !== 'holistic-only') ||
+          (e.result_data?.judgments && e.result_data.judgments.length > 0 && e.result_data?.template_id !== 'holistic-only')
         )
 
         // 평가 항목 렌더 함수
