@@ -114,13 +114,7 @@ export default function AuthHeader({
                   >
                     🛡️ 관리자
                   </Link>
-                  <Link
-                    href="/admin/raft"
-                    className="px-3 py-1.5 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors flex items-center gap-1 font-medium"
-                    aria-label="RAFT 합성 데이터"
-                  >
-                    🧬 RAFT
-                  </Link>
+
                 </>
               )}
             </nav>
