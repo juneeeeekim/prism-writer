@@ -716,67 +716,69 @@ export default function EvaluationTab() {
           ----------------------------------------------------------------------- */}
       {(result || isLoading) && (
         <div className="flex-1 overflow-hidden flex flex-col">
-          {/* [P2-06] 탭 헤더 (holisticResult도 있으면 표시) */}
-          {holisticResult && result && (
-            <div className="flex border-b border-gray-200 dark:border-gray-700 mx-4 mt-2">
-              <button
-                onClick={() => setActiveEvalTab('holistic')}
-                className={clsx(
-                  'px-4 py-2 text-sm font-medium transition-colors',
-                  activeEvalTab === 'holistic'
-                    ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                )}
-                aria-label="종합 평가 탭"
-              >
-                📊 종합 평가
-              </button>
-              <button
-                onClick={() => setActiveEvalTab('detailed')}
-                className={clsx(
-                  'px-4 py-2 text-sm font-medium transition-colors',
-                  activeEvalTab === 'detailed'
-                    ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                )}
-                aria-label="기준별 평가 탭"
-              >
-                📋 기준별 평가
-              </button>
-            </div>
-          )}
+          {/* [P2-06] 탭 헤더 (항상 표시) */}
+          <div className="flex border-b border-gray-200 dark:border-gray-700 mx-4 mt-2">
+            <button
+              onClick={() => setActiveEvalTab('holistic')}
+              className={clsx(
+                'px-4 py-2 text-sm font-medium transition-colors',
+                activeEvalTab === 'holistic'
+                  ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+              )}
+              aria-label="종합 평가 탭"
+            >
+              📊 종합 평가
+            </button>
+            <button
+              onClick={() => setActiveEvalTab('detailed')}
+              className={clsx(
+                'px-4 py-2 text-sm font-medium transition-colors',
+                activeEvalTab === 'detailed'
+                  ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+              )}
+              aria-label="기준별 평가 탭"
+            >
+              📋 기준별 평가
+            </button>
+          </div>
           
           {/* 탭 컨텐츠 */}
           <div className="flex-1 overflow-y-auto">
             {/* 종합 평가 탭 */}
-            {holisticResult && activeEvalTab === 'holistic' && (
+            {activeEvalTab === 'holistic' && (
               <div className="p-4">
-                <HolisticFeedbackPanel 
-                  result={holisticResult}
-                  isLoading={false}
-                  onRetry={handleHolisticEvaluate}
-                />
-              </div>
-            )}
-            
-            {/* 기준별 평가 탭 (또는 holisticResult 없으면 바로 표시) */}
-            {(activeEvalTab === 'detailed' || !holisticResult) && (
-              <>
-                {/* [UX Fix] 종합 평가 유도 버튼 (종합 평가 결과가 없을 때) */}
-                {!holisticResult && (
-                  <div className="mx-4 mt-2 p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100 dark:border-indigo-800 flex justify-between items-center">
-                    <div className="text-sm text-indigo-700 dark:text-indigo-300">
-                      <span className="font-semibold">💡 전체적인 글 평가가 필요하신가요?</span>
-                    </div>
+                {holisticResult ? (
+                  <HolisticFeedbackPanel 
+                    result={holisticResult}
+                    isLoading={false}
+                    onRetry={handleHolisticEvaluate}
+                  />
+                ) : (
+                  <div className="mx-auto mt-8 p-6 max-w-sm bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800 text-center">
+                    <div className="mb-3 text-2xl">💡</div>
+                    <h3 className="text-sm font-semibold text-indigo-900 dark:text-indigo-200 mb-2">
+                      전체적인 글 평가가 필요하신가요?
+                    </h3>
+                    <p className="text-xs text-indigo-700 dark:text-indigo-400 mb-4">
+                      AI가 글의 구조, 내용, 표현을 종합적으로 분석해드립니다.
+                    </p>
                     <button
                       onClick={handleHolisticEvaluate}
                       disabled={isHolisticLoading}
-                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded transition-colors shadow-sm"
+                      className="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm disabled:opacity-50"
                     >
-                      {isHolisticLoading ? '분석 중...' : '📊 종합 평가 실행'}
+                      {isHolisticLoading ? '분석 중...' : '📊 종합 평가 실행하기'}
                     </button>
                   </div>
                 )}
+              </div>
+            )}
+            
+            {/* 기준별 평가 탭 */}
+            {activeEvalTab === 'detailed' && (
+              <>
 
                 {/* 저장됨 표시 */}
                 {isSaved && result && (
