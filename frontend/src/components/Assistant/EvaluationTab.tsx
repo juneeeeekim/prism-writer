@@ -844,34 +844,41 @@ export default function EvaluationTab() {
         )
 
         return (
-          <div className="mx-4 mb-4 border-t border-gray-200 dark:border-gray-700 pt-3 space-y-3">
-            <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400">📁 이전 평가 기록</h4>
+          <div className="mx-4 mb-4 border-t border-gray-200 dark:border-gray-700 pt-3">
+            <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">📁 이전 평가 기록</h4>
 
-            {/* 종합 평가 기록 섹션 */}
-            {holisticEvaluations.length > 0 && (
+            {/* 2열 가로 배치 */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* 종합 평가 기록 섹션 */}
               <div>
                 <h5 className="text-xs font-medium text-indigo-600 dark:text-indigo-400 mb-1 flex items-center gap-1">
                   📊 종합 평가
                   <span className="text-gray-400 font-normal">({holisticEvaluations.length})</span>
                 </h5>
-                <div className="space-y-1 max-h-24 overflow-y-auto pl-2 border-l-2 border-indigo-200 dark:border-indigo-800">
-                  {holisticEvaluations.slice(0, 3).map(renderEvaluationItem)}
-                </div>
+                {holisticEvaluations.length > 0 ? (
+                  <div className="space-y-1 max-h-24 overflow-y-auto pl-2 border-l-2 border-indigo-200 dark:border-indigo-800">
+                    {holisticEvaluations.slice(0, 3).map(renderEvaluationItem)}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 pl-2 border-l-2 border-gray-200 dark:border-gray-700">없음</p>
+                )}
               </div>
-            )}
 
-            {/* 기준별 평가 기록 섹션 */}
-            {detailedEvaluations.length > 0 && (
+              {/* 기준별 평가 기록 섹션 */}
               <div>
                 <h5 className="text-xs font-medium text-emerald-600 dark:text-emerald-400 mb-1 flex items-center gap-1">
                   📋 기준별 평가
                   <span className="text-gray-400 font-normal">({detailedEvaluations.length})</span>
                 </h5>
-                <div className="space-y-1 max-h-24 overflow-y-auto pl-2 border-l-2 border-emerald-200 dark:border-emerald-800">
-                  {detailedEvaluations.slice(0, 3).map(renderEvaluationItem)}
-                </div>
+                {detailedEvaluations.length > 0 ? (
+                  <div className="space-y-1 max-h-24 overflow-y-auto pl-2 border-l-2 border-emerald-200 dark:border-emerald-800">
+                    {detailedEvaluations.slice(0, 3).map(renderEvaluationItem)}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 pl-2 border-l-2 border-gray-200 dark:border-gray-700">없음</p>
+                )}
               </div>
-            )}
+            </div>
           </div>
         )
       })()}
