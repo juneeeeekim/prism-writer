@@ -111,11 +111,28 @@ export async function POST(req: NextRequest) {
     console.log(`[RubricCandidates] Found ${existingPatterns.length} existing patterns to exclude`)
 
     // 5. 패턴 추출 LLM 호출 (기존 패턴 제외)
-    const candidates = await extractPatterns(chunks, {
+    const rawCandidates = await extractPatterns(chunks, {
       targetCount: Math.min(targetCount, 100), // 최대 100개
       patternScope: patternScope as 'script' | 'lecture' | 'both',
-      existingPatterns // [NEW] 제외할 패턴 목록 전달
+      existingPatterns // [NEW] 제외할 패턴 목록 전달 (프롬프트 레벨)
     })
+
+    // [NEW] 2차 필터링: 코드 레벨에서 중복 제거 (LLM 할루시네이션 방지)
+    const existingSet = new Set(existingPatterns)
+    const newSet = new Set<string>()
+    
+    const candidates = rawCandidates.filter(c => {
+      // 1. 기존 DB에 있는가?
+      if (existingSet.has(c.rule_text)) return false
+      
+      // 2. 이번 배치에서 이미 나왔는가?
+      if (newSet.has(c.rule_text)) return false
+      
+      newSet.add(c.rule_text)
+      return true
+    })
+
+    console.log(`[RubricCandidates] After deduplication: ${rawCandidates.length} -> ${candidates.length}`)
 
     // 6. DB 저장 (rag_rule_candidates)
     const insertData = candidates.map(c => ({
