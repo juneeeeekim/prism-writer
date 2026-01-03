@@ -197,7 +197,7 @@ import { FEATURE_FLAGS } from "@/config/featureFlags";
 
 ---
 
-#### [ ] **P2-02**: Git Commit 및 Push
+#### [x] **P2-02**: Git Commit 및 Push ✅
 
 - `Target`: Git 저장소
 - `Logic (Pseudo)`:

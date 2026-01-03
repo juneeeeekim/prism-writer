@@ -322,12 +322,17 @@ export async function vectorSearch(
 
       // v3 결과 반환 (클라이언트 사이드 필터링)
       // [P0-01-D Fix] RPC returns 'id', not 'chunk_id' - mapped correctly
+      // [CITATION-FIX] document_title 추가 - 인용 시 문서 제목 표시용
       let v3Results: SearchResult[] = (v3Data || []).map((item: any) => ({
         chunkId: item.id,  // Fixed: RPC returns 'id' not 'chunk_id'
         documentId: item.document_id,
         content: item.content,
         score: item.similarity,
-        metadata: { ...item.metadata, chunkType: item.chunk_type },
+        metadata: { 
+          ...item.metadata, 
+          chunkType: item.chunk_type,
+          title: item.document_title || item.metadata?.title || null,  // [CITATION-FIX] 문서 제목
+        },
       }))
 
       if (documentId) {
