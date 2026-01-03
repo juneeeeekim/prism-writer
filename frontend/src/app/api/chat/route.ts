@@ -17,6 +17,7 @@ import { verifyCitation } from '@/lib/rag/citationGate'
 import { MemoryService } from '@/lib/rag/memory'
 import { FEATURE_FLAGS } from '@/config/featureFlags'
 import { type TemplateSchema } from '@/lib/rag/templateTypes'
+import { type RubricTier } from '@/lib/rag/rubrics'  // [P2] 티어 정보
 
 export const runtime = 'nodejs'
 
@@ -383,13 +384,23 @@ ${context ? context : '관련된 참고 자료가 없습니다.'}
           // [Pipeline v5] 메시지 저장 및 실패 시 클라이언트 알림
           // =====================================================================
           if (userId && sessionId && fullResponse) {
-            let citationMetadata = {}
+            let citationMetadata: {
+              citation_verification?: { valid: boolean; matchScore: number; matchedChunkId?: string }
+              source_count?: number
+              rubric_tier?: RubricTier
+            } = {}
             if (hasRetrievedDocs && uniqueResults && uniqueResults.length > 0) {
                 const sourceChunksForVerify = uniqueResults.map(r => ({ id: r.chunkId, content: r.content }))
                 const verificationResult = verifyCitation(fullResponse, sourceChunksForVerify)
+                
+                // [P2] 가장 높은 점수의 청크에서 tier 정보 추출
+                const topResult = uniqueResults[0]  // 이미 점수순 정렬됨
+                const rubricTier = topResult?.metadata?.tier as RubricTier | undefined
+                
                 citationMetadata = {
                   citation_verification: verificationResult,
-                  source_count: uniqueResults.length
+                  source_count: uniqueResults.length,
+                  rubric_tier: rubricTier  // [P2] Core/Style/Detail
                 }
             }
 

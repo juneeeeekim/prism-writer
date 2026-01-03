@@ -36,7 +36,8 @@ export interface VerifiedEvidence extends JudgeEvidence {
 // =============================================================================
 
 /** 유사도 임계값 - 이 값 이상이면 매칭으로 판단 */
-const SIMILARITY_THRESHOLD = 0.6
+// [2026-01-03] 60% → 70% 상향: 더 엄격한 근거 검증 기준 적용
+const SIMILARITY_THRESHOLD = 0.7
 
 /** 부분 매칭을 위한 최소 문자열 길이 */
 const MIN_PARTIAL_MATCH_LENGTH = 10

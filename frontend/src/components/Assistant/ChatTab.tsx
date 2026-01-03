@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useEditorState } from '@/hooks/useEditorState'
 import { useProject } from '@/contexts/ProjectContext'  // [FIX] 프로젝트 격리
+import { TIER_CONFIG, type RubricTier } from '@/lib/rag/rubrics'  // [P1-02] 티어 정보 표시
 
 // =============================================================================
 // Constants (Pipeline v5 업그레이드)
@@ -32,6 +33,8 @@ interface Message {
       valid: boolean
       matchScore: number
     }
+    /** [P1-02] 관련 루브릭 티어 (Core/Style/Detail) */
+    rubric_tier?: RubricTier
   }
 }
 
@@ -497,17 +500,26 @@ export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
               </span>
               </div>
               
-              {/* Citation Verification Badge */}
+              {/* Citation Verification Badge - [P1-02] 티어 정보 강화 */}
               {message.role === 'assistant' && message.metadata?.citation_verification && (
-                <div className={`mt-1 text-xs px-2 py-1 rounded w-fit ${
-                  message.metadata.citation_verification.valid 
-                    ? 'bg-green-100 text-green-700' 
-                    : 'bg-amber-100 text-amber-700'
-                }`}>
-                  {message.metadata.citation_verification.valid ? '✅ 근거 검증됨' : '⚠️ 근거 부족 가능성'} 
-                  {message.metadata.citation_verification.matchScore > 0 && 
-                    ` (${Math.round(message.metadata.citation_verification.matchScore * 100)}% 일치)`
-                  }
+                <div className="mt-1 flex items-center gap-2 flex-wrap">
+                  {/* 검증 상태 뱃지 */}
+                  <div className={`text-xs px-2 py-1 rounded w-fit ${
+                    message.metadata.citation_verification.valid 
+                      ? 'bg-green-100 text-green-700' 
+                      : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    {message.metadata.citation_verification.valid ? '✅ 근거 검증됨' : '⚠️ 근거 부족 가능성'} 
+                    {message.metadata.citation_verification.matchScore > 0 && 
+                      ` (${Math.round(message.metadata.citation_verification.matchScore * 100)}% 일치)`
+                    }
+                  </div>
+                  {/* [P1-02] 티어 정보 뱃지 */}
+                  {message.metadata.rubric_tier && (
+                    <div className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                      {TIER_CONFIG[message.metadata.rubric_tier].label}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
