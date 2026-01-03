@@ -205,21 +205,31 @@ ${chunksText}
  */
 function parsePatternResponse(response: string): RuleCandidate[] {
   try {
-    // 1. 코드 블록 제거 (여러 형태 지원)
+    // 1. 코드 블록 제거 (더 강력한 방식)
     let jsonStr = response.trim()
     
-    // ```json 또는 ``` 시작 제거
-    const jsonBlockMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/)
-    if (jsonBlockMatch) {
-      jsonStr = jsonBlockMatch[1].trim()
-    } else {
-      // 코드 블록 없이 직접 JSON인 경우
-      if (jsonStr.startsWith('[')) {
-        // 이미 배열 형태
-      } else if (jsonStr.startsWith('{')) {
-        // 단일 객체 → 배열로 래핑
-        jsonStr = `[${jsonStr}]`
-      }
+    console.log('[PatternExtractor] Raw response length:', jsonStr.length)
+    console.log('[PatternExtractor] Raw response first 100:', jsonStr.substring(0, 100))
+    
+    // ```json 또는 ``` 시작 제거 (단순 문자열 방식)
+    if (jsonStr.startsWith('```json')) {
+      jsonStr = jsonStr.slice(7)
+    } else if (jsonStr.startsWith('```')) {
+      jsonStr = jsonStr.slice(3)
+    }
+    
+    // 끝에 ``` 제거 (있는 경우만)
+    if (jsonStr.endsWith('```')) {
+      jsonStr = jsonStr.slice(0, -3)
+    }
+    
+    jsonStr = jsonStr.trim()
+    
+    // [ 로 시작하는지 확인, 아니면 [ 찾기
+    const arrayStart = jsonStr.indexOf('[')
+    if (arrayStart > 0) {
+      jsonStr = jsonStr.slice(arrayStart)
+      console.log('[PatternExtractor] Trimmed to array start')
     }
 
     console.log('[PatternExtractor] Cleaned JSON length:', jsonStr.length)
