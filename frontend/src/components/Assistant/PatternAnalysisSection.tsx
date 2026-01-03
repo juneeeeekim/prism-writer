@@ -220,6 +220,35 @@ export default function PatternAnalysisSection({ documentId }: PatternAnalysisSe
   const draftCount = candidates.filter(c => c.status === 'draft').length
 
   // ---------------------------------------------------------------------------
+  // [NEW] 전체 초기화
+  // ---------------------------------------------------------------------------
+  const handleResetAll = async () => {
+    if (!projectId || !confirm('모든 채택/거부 상태를 초기화하시겠습니까?')) return
+
+    try {
+      const res = await fetch('/api/rubrics/candidates/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Reset failed')
+      }
+
+      setSuccessMessage(`${data.resetCount}개 항목이 초기화되었습니다.`)
+      
+      // 로컬 상태 전체 업데이트
+      setCandidates(prev => prev.map(c => ({ ...c, status: 'draft' })))
+    } catch (err) {
+      console.error('[PatternAnalysis] Reset All error:', err)
+      setError((err as Error).message)
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // 렌더링
   // ---------------------------------------------------------------------------
   return (
@@ -238,25 +267,37 @@ export default function PatternAnalysisSection({ documentId }: PatternAnalysisSe
           )}
         </div>
 
-        <button
-          onClick={handleExtractPatterns}
-          disabled={isExtracting || !projectId}
-          className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md 
-                     disabled:bg-gray-400 disabled:cursor-not-allowed
-                     flex items-center gap-2 transition-colors"
-        >
-          {isExtracting ? (
-            <>
-              <span className="animate-spin">⏳</span>
-              분석 중...
-            </>
-          ) : (
-            <>
-              <span>🔍</span>
-              패턴 분석
-            </>
+        <div className="flex items-center gap-2">
+          {/* [NEW] 전체 초기화 버튼 */}
+          {(selectedCount > 0 || candidates.some(c => c.status === 'rejected')) && (
+            <button
+              onClick={handleResetAll}
+              className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
+            >
+              🔄 전체 초기화
+            </button>
           )}
-        </button>
+
+          <button
+            onClick={handleExtractPatterns}
+            disabled={isExtracting || !projectId}
+            className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md 
+                       disabled:bg-gray-400 disabled:cursor-not-allowed
+                       flex items-center gap-2 transition-colors"
+          >
+            {isExtracting ? (
+              <>
+                <span className="animate-spin">⏳</span>
+                분석 중...
+              </>
+            ) : (
+              <>
+                <span>🔍</span>
+                패턴 분석
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* 에러/성공 메시지 */}
