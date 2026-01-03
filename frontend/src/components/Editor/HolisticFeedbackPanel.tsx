@@ -226,10 +226,18 @@ export default function HolisticFeedbackPanel({
           <button
             onClick={onRetry}
             disabled={isLoading}
-            className="text-xs flex items-center gap-1 px-2 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-300 transition-colors"
+            className="text-xs flex items-center gap-1 px-2 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="다시 평가하기"
           >
-            <span>🔄</span> 재평가
+            {isLoading ? (
+              <>
+                <span className="animate-spin">⏳</span> 평가 중...
+              </>
+            ) : (
+              <>
+                <span>🔄</span> 재평가
+              </>
+            )}
           </button>
         </div>
       )}

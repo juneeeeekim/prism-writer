@@ -299,7 +299,11 @@ export default function EvaluationTab() {
       console.log('[EvaluationTab] Holistic evaluation complete:', data.result?.scoreC?.overall)
       
       // [P4] 평가 결과 자동 저장
-      const resultToSave: V5EvaluationResult = result ? { ...result } : {
+      // [FIX] 기존 result가 있더라도 overall_score는 새로 받은 holistic score로 갱신해야 함
+      const resultToSave: V5EvaluationResult = result ? { 
+        ...result,
+        overall_score: data.result.scoreC.overall || 0 // 점수 강제 갱신
+      } : {
         document_id: documentId || 'unknown',
         template_id: 'holistic-only',
         evaluated_at: new Date().toISOString(),
