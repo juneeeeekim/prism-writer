@@ -40,8 +40,10 @@
 ---
 
 - [x] **H-02**: 프롬프트에 Core 루브릭 기준 섹션 삽입
+
   - `Target`: `holisticAdvisor.ts` > `buildHolisticPrompt()`
   - `Logic (Pseudo)`:
+
     ```
     function buildHolisticPrompt(userText, evidenceContext, category,
                                   templateExamplesContext?, coreRubricsContext?):
@@ -57,6 +59,7 @@
       // ... 나머지 프롬프트
       return prompt
     ```
+
   - `Key Variables`:
     - `coreRubricsContext: string | undefined` - 새로 추가된 5번째 파라미터
   - `Safety`:
@@ -89,8 +92,10 @@
 ---
 
 - [x] **H-04**: `runHolisticEvaluation()` 내부에서 Core 컨텍스트 생성 및 전달
+
   - `Target`: `holisticAdvisor.ts` > `runHolisticEvaluation()`
   - `Logic (Pseudo)`:
+
     ```
     async function runHolisticEvaluation(userText, evidenceContext, category,
                                           templateExamplesContext?):
@@ -108,6 +113,7 @@
 
       // LLM 호출...
     ```
+
   - `Key Variables`:
     - `coreRubricsContext: string` - 생성된 Core 루브릭 문자열
   - `Safety`:
@@ -211,11 +217,20 @@
 
 ## 변경 파일 요약
 
-| 파일                 | 변경 내용                                     | 라인 수 |
-| -------------------- | --------------------------------------------- | ------- |
-| `holisticAdvisor.ts` | `getCoreRubricsContext()` 추가, 프롬프트 수정 | +80     |
-| `types.ts`           | `trust?`, `persuasion?` 필드 추가             | +4      |
+| 파일                        | 변경 내용                                     | 라인 수 |
+| --------------------------- | --------------------------------------------- | ------- |
+| `holisticAdvisor.ts`        | `getCoreRubricsContext()` 추가, 프롬프트 수정 | +80     |
+| `types.ts`                  | `trust?`, `persuasion?` 필드 추가             | +4      |
+| `HolisticFeedbackPanel.tsx` | 신뢰성/설득력 점수 바 UI 추가                 | +10     |
 
 ---
+
+## ✅ 최종 검증 완료
+
+- **검증 일시**: 2026-01-03 22:07
+- **검증자**: Tech Lead, 시니어 개발자, 주니어 개발자, UX 전문가
+- **Syntax 오류**: 0개
+- **빌드 상태**: ✅ 성공
+- **배포 상태**: ✅ f1b70d8
 
 **끝.**
