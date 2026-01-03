@@ -27,8 +27,8 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB in bytes
 /** Supabase Storage 버킷 이름 */
 const STORAGE_BUCKET = 'rag-documents'
 
-/** RAFT 기본 카테고리 */
-import { DEFAULT_RAFT_CATEGORY } from '@/constants/raft'
+/** 기본 카테고리 */
+const DEFAULT_CATEGORY = 'General'
 
 // =============================================================================
 // 타입 정의
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
     // ---------------------------------------------------------------------------
     const formData = await request.formData()
     const file = formData.get('file') as File | null
-    const category = (formData.get('category') as string) || DEFAULT_RAFT_CATEGORY // [Phase 2] Category Parsing
+    const category = (formData.get('category') as string) || DEFAULT_CATEGORY // [Phase 2] Category Parsing
     const projectId = formData.get('projectId') as string | null  // [Fix] 프로젝트 ID 추출
 
     if (!file) {

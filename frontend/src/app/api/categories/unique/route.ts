@@ -1,7 +1,8 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { RAFT_CATEGORIES } from '@/constants/raft'
+// [REMOVED] RAFT constants
+// import { RAFT_CATEGORIES } from '@/constants/raft'
 
 // =============================================================================
 // PRISM Writer - Unique Category Fetch API
@@ -56,8 +57,9 @@ export async function GET() {
     const dbCategories = documents?.map(d => d.category?.trim()) || []
     
     // 고정 카테고리 + DB 카테고리 병합 및 중복 제거
+    // [FIX] RAFT 제거됨 -> DB에 있는 카테고리만 사용 (없으면 기본값 General)
     const uniqueCategoriesSet = new Set([
-      ...RAFT_CATEGORIES,
+      'General', // Default Fallback
       ...dbCategories
     ])
 
@@ -74,6 +76,7 @@ export async function GET() {
   } catch (error: any) {
     console.error('[API/categories/unique] Unexpected Error:', error)
     // 치명적 오류 시 기본 카테고리 반환
-    return NextResponse.json(RAFT_CATEGORIES)
+    // 치명적 오류 시 기본 카테고리 반환
+    return NextResponse.json(['General'])
   }
 }
