@@ -202,6 +202,11 @@ export async function GET(req: NextRequest) {
     const projectId = searchParams.get('projectId')
     const status = searchParams.get('status')
     const patternType = searchParams.get('patternType')
+    // =========================================================================
+    // [P4-03-D] tier 필터 파라미터 추가
+    // - 프론트엔드에서 ?tier=core 형태로 필터링 가능
+    // =========================================================================
+    const tier = searchParams.get('tier')
 
     // 3. 쿼리 빌드
     let query = supabase
@@ -218,6 +223,13 @@ export async function GET(req: NextRequest) {
     }
     if (patternType) {
       query = query.eq('pattern_type', patternType)
+    }
+    // =========================================================================
+    // [P4-03-D] tier 필터 적용
+    // - 유효값: 'core', 'style', 'detail'
+    // =========================================================================
+    if (tier && ['core', 'style', 'detail'].includes(tier)) {
+      query = query.eq('tier', tier)
     }
 
     const { data, error } = await query.limit(100)

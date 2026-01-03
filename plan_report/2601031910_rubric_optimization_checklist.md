@@ -292,6 +292,8 @@
     - 📄 마이그레이션 문서: `plan_report/2601032000_tier_migration.md`
     - ✅ **P4-03-A**: Supabase SQL 실행 완료 (tier 컬럼, CHECK, INDEX)
     - ✅ **P4-03-B**: 기존 데이터 마이그레이션 완료 (Core:25, Style:14, Detail:14)
+    - ✅ **P4-03-C**: POST API tier 저장 (이미 구현됨 - `getTierForPattern()`)
+    - ✅ **P4-03-D**: GET API tier 필터링 추가 완료 (2026-01-03)
     - `Target`: Supabase SQL Editor (또는 migration 파일)
     - `Logic (Pseudo)`:
       ```sql
@@ -307,14 +309,17 @@
 ---
 
 - [x] **P4-04**: [UI에 티어별 필터 추가] ✅ 완료 (2026-01-03 20:10)
+    - ✅ useMemo 최적화 추가 (2026-01-03)
     - `Target`: `PatternAnalysisSection.tsx` > 헤더 영역 (필터 드롭다운 추가)
     - `Logic (Pseudo)`:
       ```tsx
       const [tierFilter, setTierFilter] = useState<RubricTier | 'all'>('all')
 
-      const filteredCandidates = tierFilter === 'all'
-        ? candidates
-        : candidates.filter(c => c.tier === tierFilter)
+      // [P4-04] useMemo로 최적화
+      const filteredCandidates = useMemo(() => {
+        if (tierFilter === 'all') return candidates
+        return candidates.filter(c => c.tier === tierFilter)
+      }, [candidates, tierFilter])
 
       // UI
       <select value={tierFilter} onChange={e => setTierFilter(e.target.value)}>
@@ -324,7 +329,7 @@
         <option value="detail">⚪ Detail (3)</option>
       </select>
       ```
-    - `Key Variables`: `tierFilter`, `filteredCandidates`
+    - `Key Variables`: `tierFilter`, `filteredCandidates`, `useMemo`
     - `Safety`: 필터 적용 시 개수 표시 업데이트
 
 ---

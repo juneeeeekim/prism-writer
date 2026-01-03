@@ -8,7 +8,7 @@
 
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useProject } from '@/contexts/ProjectContext'
 import { FEATURE_FLAGS } from '@/config/featureFlags'
 
@@ -276,14 +276,15 @@ export default function PatternAnalysisSection({ documentId }: PatternAnalysisSe
   const progressPercent = Math.round((selectedCount / RUBRIC_LIMITS.ACTIVE_RECOMMENDED) * 100)
 
   // ---------------------------------------------------------------------------
-  // [P4-04] 티어별 필터링된 후보 목록
-  // - 'all': 전체 표시
+  // [P4-04] 티어별 필터링된 후보 목록 (useMemo 최적화)
+  // - 'all': 전체 표시 (tier가 NULL인 항목 포함)
   // - 'core'/'style'/'detail': 해당 티어만 표시
-  // - tier가 NULL인 항목도 'all'에서는 표시
+  // - useMemo로 candidates/tierFilter 변경 시에만 재계산
   // ---------------------------------------------------------------------------
-  const filteredCandidates = tierFilter === 'all'
-    ? candidates
-    : candidates.filter(c => c.tier === tierFilter)
+  const filteredCandidates = useMemo(() => {
+    if (tierFilter === 'all') return candidates
+    return candidates.filter(c => c.tier === tierFilter)
+  }, [candidates, tierFilter])
 
   // ---------------------------------------------------------------------------
   // [NEW] 전체 초기화
