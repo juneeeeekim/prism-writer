@@ -107,6 +107,10 @@ export interface DetailedScore {
     expression: number
     /** 논리 점수 */
     logic: number
+    /** [H-03] 신뢰성 점수 (Core) */
+    trust?: number
+    /** [H-03] 설득력 점수 (Core) */
+    persuasion?: number
   }
   /** 상세 액션 아이템 (3-5개 권장) */
   actionItems: string[]

@@ -18,6 +18,8 @@ import {
   type AreaAdvice, 
   type DetailedScore 
 } from './types'
+// [H-01] Core 루브릭 통합
+import { DEFAULT_RUBRICS, TIER_CONFIG, type RubricTier } from '@/lib/rag/rubrics'
 
 // =============================================================================
 // Helper: JSON Sanitization (alignJudge.ts 패턴 참조)
@@ -46,6 +48,28 @@ function sanitizeJSON(text: string): string {
 }
 
 // =============================================================================
+// [H-01] Core 루브릭 필터링
+// =============================================================================
+
+/**
+ * Core 티어 루브릭만 추출하여 종합 평가에 사용
+ * Core(5개): 글의 본질적 성패를 가르는 핵심 기준
+ */
+export function getCoreRubricsContext(): string {
+  const coreRubrics = DEFAULT_RUBRICS.filter(r => {
+    // category가 core 영역인 것들: structure, trust, persuasion
+    const coreCategories = ['structure', 'trust', 'persuasion']
+    return coreCategories.includes(r.category)
+  }).slice(0, 5)  // 최대 5개
+  
+  if (coreRubrics.length === 0) return ''
+  
+  return coreRubrics.map((r, i) => 
+    `${i + 1}. [${r.category.toUpperCase()}] ${r.name}\n   - ${r.description}`
+  ).join('\n\n')
+}
+
+// =============================================================================
 // Default Fallback Result (에러 시 기본값)
 // =============================================================================
 
@@ -69,7 +93,9 @@ function getDefaultHolisticResult(category: string): HolisticEvaluationResult {
         structure: 0,
         content: 0,
         expression: 0,
-        logic: 0
+        logic: 0,
+        trust: 0,
+        persuasion: 0
       },
       actionItems: ['평가를 다시 시도해주세요.']
     },
@@ -85,12 +111,14 @@ function getDefaultHolisticResult(category: string): HolisticEvaluationResult {
 /**
  * 종합 평가를 위한 프롬프트 생성
  * [P3-05] templateExamplesContext 지원 추가
+ * [H-02] Core 루브릭 기준 추가
  */
 function buildHolisticPrompt(
   userText: string, 
   evidenceContext: string, 
   category: string,
-  templateExamplesContext?: string  // [P3-05]
+  templateExamplesContext?: string,  // [P3-05]
+  coreRubricsContext?: string  // [H-02] Core 루브릭 기준
 ): string {
   return `
 당신은 ${category} 분야의 전문 글쓰기 컨설턴트입니다.
@@ -98,6 +126,13 @@ function buildHolisticPrompt(
 
 [사용자 글]
 ${userText}
+
+${coreRubricsContext ? `[필수 평가 기준 - Core Rubrics]
+다음 5가지 핵심 기준을 반드시 평가에 반영하세요:
+${coreRubricsContext}
+
+위 기준들을 기반으로 글의 강점과 개선점을 평가해주세요.
+` : ''}
 
 ${evidenceContext ? `[참고자료 (평가 기준)]
 ${evidenceContext}
@@ -147,7 +182,9 @@ ${templateExamplesContext}
       "structure": 80, 
       "content": 70, 
       "expression": 60, 
-      "logic": 80 
+      "logic": 80,
+      "trust": 75,
+      "persuasion": 70
     },
     "actionItems": [
       "구체적인 액션 아이템 1",
@@ -196,8 +233,18 @@ export async function runHolisticEvaluation(
   // ---------------------------------------------------------------------------
   // 3. 프롬프트 생성 및 LLM 호출
   // ---------------------------------------------------------------------------
+  // [H-01] Core 티어 루브릭 컨텍스트 생성
+  const coreRubricsContext = getCoreRubricsContext()
+  
   // [P3-05] templateExamplesContext 전달
-  const prompt = buildHolisticPrompt(userText, evidenceContext, category, templateExamplesContext)
+  // [H-02] coreRubricsContext 전달
+  const prompt = buildHolisticPrompt(
+    userText, 
+    evidenceContext, 
+    category, 
+    templateExamplesContext,
+    coreRubricsContext
+  )
 
   try {
     console.log('[HolisticAdvisor] Starting holistic evaluation...')
@@ -242,7 +289,9 @@ export async function runHolisticEvaluation(
         structure: Number(parsed.scoreC?.breakdown?.structure) || 50,
         content: Number(parsed.scoreC?.breakdown?.content) || 50,
         expression: Number(parsed.scoreC?.breakdown?.expression) || 50,
-        logic: Number(parsed.scoreC?.breakdown?.logic) || 50
+        logic: Number(parsed.scoreC?.breakdown?.logic) || 50,
+        trust: Number(parsed.scoreC?.breakdown?.trust) || 50,
+        persuasion: Number(parsed.scoreC?.breakdown?.persuasion) || 50
       },
       actionItems: Array.isArray(parsed.scoreC?.actionItems) 
         ? parsed.scoreC.actionItems 
