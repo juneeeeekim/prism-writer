@@ -13,6 +13,8 @@ import { type ChunkType } from './chunking'
 import { PIPELINE_V4_FLAGS } from './featureFlags'
 import { type EvidenceQuality, EvidenceQualityGrade } from '@/types/rag' // P1-C types
 import { LRUCache, hashText, createCacheKey } from '@/lib/cache/lruCache'
+import { type PatternType } from './patternExtractor' // [PATTERN] 패턴 타입
+import { FEATURE_FLAGS } from '../../config/featureFlags' // [PATTERN] Feature Flags
 
 // =============================================================================
 // 타입 정의
@@ -60,6 +62,8 @@ export interface HybridSearchOptions extends SearchOptions {
   vectorWeight?: number
   /** 키워드 검색 가중치 (0~1, 기본: 0.3) */
   keywordWeight?: number
+  /** [PATTERN] 패턴 타입 필터 (선택적) */
+  patternType?: PatternType
 }
 
 // =============================================================================
@@ -631,8 +635,21 @@ export async function hybridSearch(
     topK = DEFAULT_TOP_K,
     vectorWeight = DEFAULT_VECTOR_WEIGHT,
     keywordWeight = DEFAULT_KEYWORD_WEIGHT,
+    patternType, // [PATTERN] 패턴 타입 추출
     ...baseOptions
   } = options
+
+  // ---------------------------------------------------------------------------
+  // [PATTERN] 패턴 기반 검색 분기
+  // ---------------------------------------------------------------------------
+  if (FEATURE_FLAGS.ENABLE_PATTERN_BASED_SEARCH && patternType && baseOptions.projectId) {
+    console.log(`[Search] Pattern-based search for type: ${patternType}`)
+    return await patternBasedSearch(query, {
+      ...baseOptions,
+      topK,
+      patternType,
+    })
+  }
 
   // ---------------------------------------------------------------------------
   // [Pipeline v5] 0. 검색 캐시 확인
@@ -691,4 +708,90 @@ export async function hybridSearch(
   searchCache.set(cacheKey, mergedResults)
 
   return mergedResults
+}
+
+// =============================================================================
+// [PATTERN] 패턴 기반 검색
+// =============================================================================
+
+/** 패턴 기반 검색 옵션 */
+interface PatternSearchOptions extends SearchOptions {
+  patternType: PatternType
+}
+
+/**
+ * [PATTERN] 패턴 기반 검색
+ * 
+ * @description
+ * pattern_type 컬럼을 필터로 사용하여 특정 패턴의 청크만 검색합니다.
+ * 기존 하이브리드 검색과 달리, 패턴 타입으로 먼저 필터링한 후 벡터 검색을 수행합니다.
+ * 
+ * @param query - 검색 쿼리
+ * @param options - 패턴 검색 옵션 (patternType 필수)
+ * @returns 검색 결과 배열
+ */
+async function patternBasedSearch(
+  query: string,
+  options: PatternSearchOptions
+): Promise<SearchResult[]> {
+  const { userId, topK = 10, minScore = 0.5, patternType, projectId } = options
+
+  // [SAFETY] 필수 파라미터 검증
+  if (!projectId) {
+    console.error('[PatternSearch] projectId is required for pattern-based search')
+    return []
+  }
+
+  try {
+    // 1. 쿼리 임베딩 생성
+    const queryEmbedding = await embedText(query)
+    if (!queryEmbedding) {
+      console.error('[PatternSearch] Failed to generate embedding')
+      return []
+    }
+
+    // 2. Supabase RPC 호출 (패턴 필터 포함)
+    const supabase = await createClient()
+    const { data, error } = await supabase.rpc('match_document_chunks_by_pattern', {
+      query_embedding: queryEmbedding,
+      pattern_type_param: patternType,
+      project_id_param: projectId,
+      user_id_param: userId,
+      match_threshold: minScore,
+      match_count: topK,
+    })
+
+    if (error) {
+      console.error('[PatternSearch] RPC error:', error.message)
+      // 폴백: 기존 검색으로 대체
+      console.log('[PatternSearch] Falling back to standard vector search')
+      return await vectorSearch(query, options)
+    }
+
+    if (!data || data.length === 0) {
+      console.log(`[PatternSearch] No results for pattern: ${patternType}`)
+      return []
+    }
+
+    // 3. 결과 매핑
+    const results: SearchResult[] = data.map((item: any) => ({
+      chunkId: item.id,
+      documentId: item.document_id,
+      content: item.content,
+      score: item.similarity,
+      metadata: {
+        ...item.metadata,
+        title: item.document_title || item.metadata?.title || 'Untitled',
+        patternType: item.pattern_type,
+      },
+      quality: calculateEvidenceQuality(item.similarity, 'vector'),
+    }))
+
+    console.log(`[PatternSearch] Found ${results.length} results for pattern: ${patternType}`)
+    return results
+
+  } catch (err) {
+    console.error('[PatternSearch] Unexpected error:', err)
+    return []
+  }
 }

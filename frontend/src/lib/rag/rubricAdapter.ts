@@ -46,34 +46,38 @@ export class RubricAdapter {
   }
 
   /**
-   * Template 카테고리를 Rubric 카테고리로 매핑합니다.
+   * [PATTERN] Template 카테고리를 Rubric 카테고리로 매핑합니다. (v2.0)
    */
   private static mapTemplateCategoryToRubric(category: TemplateSchema['category']): RubricCategory {
     switch (category) {
       case 'structure':
         return 'structure'
-      case 'expression':
       case 'tone':
+        return 'tone'
+      case 'expression':
+        return 'rhythm'  // 표현 → 리듬으로 매핑
       case 'prohibition':
-        return 'expression'
+        return 'trust'   // 금지 → 신뢰로 매핑
       default:
-        return 'content'
+        return 'persuasion'  // 기본값: 설득
     }
   }
 
   /**
-   * Rubric 카테고리를 Template 카테고리로 매핑합니다.
+   * [PATTERN] Rubric 카테고리를 Template 카테고리로 매핑합니다. (v2.0)
    */
   private static mapRubricCategoryToTemplate(category: RubricCategory): TemplateSchema['category'] {
     switch (category) {
       case 'structure':
         return 'structure'
-      case 'expression':
+      case 'tone':
+        return 'tone'
+      case 'rhythm':
         return 'expression'
-      case 'content':
-      case 'logic':
-      case 'evidence':
-        return 'expression' // 가장 근접한 카테고리로 매핑
+      case 'persuasion':
+      case 'trust':
+      case 'cta':
+        return 'expression'  // 설득/신뢰/CTA → expression으로 매핑
       default:
         return 'expression'
     }

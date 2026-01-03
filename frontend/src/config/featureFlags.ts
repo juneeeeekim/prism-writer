@@ -212,6 +212,45 @@ export const FEATURE_FLAGS = {
    * - 롤백: OFF 시 기존 인용 마커 없는 답변으로 복귀
    */
   ENABLE_CITATION_MARKERS: process.env.NEXT_PUBLIC_ENABLE_CITATION_MARKERS !== 'false',
+
+  // ==========================================================================
+  // [PATTERN] 패턴 기반 루브릭 파이프라인 Feature Flags (2026-01-03 추가)
+  // ==========================================================================
+
+  /**
+   * 패턴 추출 기능 활성화
+   * 환경 변수: ENABLE_PATTERN_EXTRACTION
+   * 기본값: false (명시적 활성화 필요)
+   * 
+   * @description
+   * - 업로드 문서에서 형식 패턴(훅/CTA/비유 등)을 LLM으로 추출
+   * - 롤백: OFF 시 패턴 추출 기능 비활성화
+   */
+  ENABLE_PATTERN_EXTRACTION: process.env.ENABLE_PATTERN_EXTRACTION === 'true',
+
+  /**
+   * 패턴 기반 검색 활성화
+   * 환경 변수: ENABLE_PATTERN_BASED_SEARCH
+   * 기본값: false (명시적 활성화 필요)
+   * 
+   * @description
+   * - pattern_type 컬럼을 활용한 패턴 기반 RAG 검색
+   * - hybridSearch에서 patternType 필터 지원
+   * - 롤백: OFF 시 기존 의미 기반 검색만 사용
+   */
+  ENABLE_PATTERN_BASED_SEARCH: process.env.ENABLE_PATTERN_BASED_SEARCH === 'true',
+
+  /**
+   * 루브릭 후보 UI 활성화
+   * 환경 변수: ENABLE_RUBRIC_CANDIDATE_UI
+   * 기본값: false (명시적 활성화 필요)
+   * 
+   * @description
+   * - 루브릭 후보 생성/채택/검수 UI 표시
+   * - 관리자 기능으로 제한
+   * - 롤백: OFF 시 루브릭 관리 UI 숨김
+   */
+  ENABLE_RUBRIC_CANDIDATE_UI: process.env.ENABLE_RUBRIC_CANDIDATE_UI === 'true',
 } as const
 
 // =============================================================================

@@ -1,12 +1,13 @@
 // =============================================================================
-// PRISM Writer - Rubrics Management
+// PRISM Writer - Rubrics Management (v2.0 - Form-Based Design)
 // =============================================================================
 // 파일: frontend/src/lib/rag/rubrics.ts
 // 역할: 글 평가를 위한 루브릭(평가 기준) 정의 및 관리
+// 업데이트: 2026-01-03 - 형식 중심 카테고리로 재설계 (주제 무관 적용)
 // =============================================================================
 
 // =============================================================================
-// 타입 정의
+// [PATTERN] 타입 정의
 // =============================================================================
 
 /** 루브릭 항목 */
@@ -17,7 +18,7 @@ export interface Rubric {
   name: string
   /** 평가 기준 상세 설명 */
   description: string
-  /** 카테고리 (구조, 내용, 표현 등) */
+  /** 카테고리 (형식 중심: 구조, 어투, 설득 등) */
   category: RubricCategory
   /** 가중치 (0-100, 총합 100) */
   weight: number
@@ -25,8 +26,23 @@ export interface Rubric {
   enabled: boolean
 }
 
-/** 루브릭 카테고리 */
-export type RubricCategory = 'structure' | 'content' | 'expression' | 'logic' | 'evidence'
+/** 
+ * [PATTERN] 루브릭 카테고리 (v2.0 - 형식 중심)
+ * 주제와 무관하게 적용 가능한 6개 형식 카테고리
+ */
+export type RubricCategory = 
+  | 'structure'   // 구조 - 글의 뼈대 패턴
+  | 'tone'        // 어투 - 말하기 스타일
+  | 'persuasion'  // 설득 장치 - 설득 기법
+  | 'rhythm'      // 리듬 - 문장 패턴
+  | 'trust'       // 신뢰 형성 - 근거 제시 방식
+  | 'cta'         // 행동 유도 - CTA 설계
+
+/**
+ * [LEGACY] 기존 카테고리 (하위 호환용)
+ * @deprecated v2.0에서 새 카테고리로 마이그레이션
+ */
+export type LegacyRubricCategory = 'content' | 'expression' | 'logic' | 'evidence'
 
 /** 루브릭 세트 */
 export interface RubricSet {
@@ -45,133 +61,151 @@ export interface RubricSet {
 }
 
 // =============================================================================
-// 기본 루브릭 정의 (10개)
+// [PATTERN] 기본 루브릭 정의 (12개 - 형식 중심)
 // =============================================================================
 
-/** 기본 루브릭 목록 */
+/** 기본 루브릭 목록 (v2.0 - 형식 중심, 카테고리별 2개) */
 export const DEFAULT_RUBRICS: Rubric[] = [
   // ---------------------------------------------------------------------------
-  // 구조 (Structure) 관련 루브릭
+  // [PATTERN] 구조 (Structure) - 글의 뼈대 패턴
   // ---------------------------------------------------------------------------
   {
-    id: 'structure_intro',
-    name: '서론 구성',
-    description: '글의 서론이 주제를 명확히 소개하고 독자의 관심을 유도하는지 평가합니다. 배경, 목적, 방향성이 포함되어야 합니다.',
+    id: 'structure_hook',
+    name: '도입 훅',
+    description: '글의 첫 1-2문장이 독자의 관심을 즉시 사로잡는지 평가합니다. 질문, 통계, 도발적 주장, 이익 약속 등으로 시작해야 합니다.',
     category: 'structure',
     weight: 10,
     enabled: true,
   },
   {
-    id: 'structure_body',
-    name: '본론 전개',
-    description: '본론이 논리적 순서로 전개되고, 각 단락이 명확한 주제문을 가지고 있는지 평가합니다.',
-    category: 'structure',
-    weight: 15,
-    enabled: true,
-  },
-  {
-    id: 'structure_conclusion',
-    name: '결론 정리',
-    description: '결론이 본론의 내용을 효과적으로 요약하고, 의미 있는 마무리를 제시하는지 평가합니다.',
+    id: 'structure_flow',
+    name: '논리 흐름',
+    description: '훅→문제정의→원인→해결→증거→CTA 순서로 자연스럽게 전개되는지 평가합니다. 각 단계 간 연결이 명확해야 합니다.',
     category: 'structure',
     weight: 10,
     enabled: true,
   },
 
   // ---------------------------------------------------------------------------
-  // 내용 (Content) 관련 루브릭
+  // [PATTERN] 어투 (Tone) - 말하기 스타일
   // ---------------------------------------------------------------------------
   {
-    id: 'content_accuracy',
-    name: '내용 정확성',
-    description: '글에 포함된 정보와 사실이 정확하고 신뢰할 수 있는지 평가합니다. 오류나 잘못된 정보가 없어야 합니다.',
-    category: 'content',
-    weight: 15,
+    id: 'tone_consistency',
+    name: '어투 일관성',
+    description: '글 전체에서 선택한 어투(단정/친근/권위/공감)가 일관되게 유지되는지 평가합니다.',
+    category: 'tone',
+    weight: 8,
     enabled: true,
   },
   {
-    id: 'content_depth',
-    name: '내용 깊이',
-    description: '주제에 대한 충분한 깊이의 분석과 설명이 제공되는지 평가합니다. 피상적인 설명을 넘어선 통찰이 필요합니다.',
-    category: 'content',
+    id: 'tone_authority',
+    name: '전문성 어투',
+    description: '해당 분야의 전문성을 드러내면서도 독자가 이해할 수 있는 표현을 사용하는지 평가합니다.',
+    category: 'tone',
+    weight: 8,
+    enabled: true,
+  },
+
+  // ---------------------------------------------------------------------------
+  // [PATTERN] 설득 장치 (Persuasion) - 설득 기법
+  // ---------------------------------------------------------------------------
+  {
+    id: 'persuasion_contrast',
+    name: '대비 활용',
+    description: 'Before/After, 문제/해결, 일반적 vs 권장 등 대비 프레임을 효과적으로 사용하는지 평가합니다.',
+    category: 'persuasion',
+    weight: 10,
+    enabled: true,
+  },
+  {
+    id: 'persuasion_rebuttal',
+    name: '반박 선제처리',
+    description: '독자가 품을 수 있는 의심이나 반론을 미리 언급하고 해소하는지 평가합니다. "하지만", "그럼에도" 패턴 활용.',
+    category: 'persuasion',
     weight: 10,
     enabled: true,
   },
 
   // ---------------------------------------------------------------------------
-  // 논리 (Logic) 관련 루브릭
+  // [PATTERN] 리듬 (Rhythm) - 문장 패턴
   // ---------------------------------------------------------------------------
   {
-    id: 'logic_coherence',
-    name: '논리적 일관성',
-    description: '글 전체의 논리 흐름이 일관되고, 모순되는 주장이 없는지 평가합니다.',
-    category: 'logic',
-    weight: 10,
+    id: 'rhythm_sentence',
+    name: '문장 리듬',
+    description: '짧은 문장과 긴 문장이 적절히 섞여 리듬감을 주는지 평가합니다. 연속 3문장 이상 같은 길이 X.',
+    category: 'rhythm',
+    weight: 8,
     enabled: true,
   },
   {
-    id: 'logic_reasoning',
-    name: '논증 타당성',
-    description: '주장을 뒷받침하는 논증이 타당하고 설득력 있는지 평가합니다. 논리적 오류가 없어야 합니다.',
-    category: 'logic',
-    weight: 10,
-    enabled: true,
-  },
-
-  // ---------------------------------------------------------------------------
-  // 근거 (Evidence) 관련 루브릭
-  // ---------------------------------------------------------------------------
-  {
-    id: 'evidence_quality',
-    name: '근거 품질',
-    description: '제시된 근거와 예시가 적절하고 신뢰할 수 있는지 평가합니다. 출처가 명확해야 합니다.',
-    category: 'evidence',
-    weight: 10,
-    enabled: true,
-  },
-  {
-    id: 'evidence_relevance',
-    name: '근거 관련성',
-    description: '근거가 주장과 직접적으로 관련되고 적절히 활용되는지 평가합니다.',
-    category: 'evidence',
-    weight: 5,
+    id: 'rhythm_question',
+    name: '질문 활용',
+    description: '독자의 사고를 유도하는 질문을 적절히 배치하는지 평가합니다. 수사적 질문, 호기심 유발 질문 등.',
+    category: 'rhythm',
+    weight: 8,
     enabled: true,
   },
 
   // ---------------------------------------------------------------------------
-  // 표현 (Expression) 관련 루브릭
+  // [PATTERN] 신뢰 형성 (Trust) - 근거 제시 방식
   // ---------------------------------------------------------------------------
   {
-    id: 'expression_clarity',
-    name: '표현 명확성',
-    description: '문장이 명확하고 이해하기 쉽게 작성되었는지 평가합니다. 모호한 표현이나 불필요한 복잡성이 없어야 합니다.',
-    category: 'expression',
-    weight: 5,
+    id: 'trust_evidence',
+    name: '근거 제시',
+    description: '주장에 대해 "근거→해석→적용" 순서로 신뢰를 쌓는지 평가합니다. 출처가 명확하고 관련성 있어야 합니다.',
+    category: 'trust',
+    weight: 10,
+    enabled: true,
+  },
+  {
+    id: 'trust_limitation',
+    name: '한계 인정',
+    description: '모든 상황에 적용되지 않음을 솔직히 인정하여 오히려 신뢰를 높이는지 평가합니다.',
+    category: 'trust',
+    weight: 6,
+    enabled: true,
+  },
+
+  // ---------------------------------------------------------------------------
+  // [PATTERN] 행동 유도 (CTA) - CTA 설계
+  // ---------------------------------------------------------------------------
+  {
+    id: 'cta_specific',
+    name: 'CTA 구체성',
+    description: '행동 요청이 구체적인지 평가합니다. "언제", "어디서", "무엇을" 명시. 추상적 권고 X.',
+    category: 'cta',
+    weight: 6,
+    enabled: true,
+  },
+  {
+    id: 'cta_friction',
+    name: '마찰 감소',
+    description: '행동 전환의 장벽을 낮추는 표현이 있는지 평가합니다. "단 3분만", "지금 바로" 등.',
+    category: 'cta',
+    weight: 6,
     enabled: true,
   },
 ]
 
 // =============================================================================
-// 기본 루브릭 세트
+// [PATTERN] 기본 루브릭 세트
 // =============================================================================
 
-/** 기본 루브릭 세트 */
+/** 기본 루브릭 세트 (v2.0 - 형식 중심) */
 export const DEFAULT_RUBRIC_SET: RubricSet = {
-  id: 'default_v1',
-  name: '기본 평가 루브릭',
-  description: '일반적인 글쓰기 평가를 위한 기본 루브릭 세트입니다.',
-  version: '1.0.0',
+  id: 'default_v2',
+  name: '형식 중심 평가 루브릭',
+  description: '주제와 무관하게 글의 형식적 패턴을 평가하는 루브릭 세트입니다.',
+  version: '2.0.0',
   rubrics: DEFAULT_RUBRICS,
-  createdAt: '2025-12-16',
+  createdAt: '2026-01-03',
 }
 
 // =============================================================================
-// Helper Functions
+// [PATTERN] Helper Functions
 // =============================================================================
 
 /**
- * @deprecated v3 템플릿 시스템으로 마이그레이션 예정
- * @see RubricAdapter
  * 활성화된 루브릭만 필터링
  */
 export function getEnabledRubrics(rubrics: Rubric[] = DEFAULT_RUBRICS): Rubric[] {
@@ -179,8 +213,6 @@ export function getEnabledRubrics(rubrics: Rubric[] = DEFAULT_RUBRICS): Rubric[]
 }
 
 /**
- * @deprecated v3 템플릿 시스템으로 마이그레이션 예정
- * @see RubricAdapter
  * 카테고리별 루브릭 그룹화
  */
 export function groupRubricsByCategory(
@@ -199,8 +231,6 @@ export function groupRubricsByCategory(
 }
 
 /**
- * @deprecated v3 템플릿 시스템으로 마이그레이션 예정
- * @see RubricAdapter
  * 루브릭 ID로 루브릭 찾기
  */
 export function getRubricById(
@@ -211,24 +241,21 @@ export function getRubricById(
 }
 
 /**
- * @deprecated v3 템플릿 시스템으로 마이그레이션 예정
- * @see RubricAdapter
- * 카테고리 한글 이름 반환
+ * [PATTERN] 카테고리 한글 이름 반환 (v2.0 - 형식 중심)
  */
 export function getCategoryLabel(category: RubricCategory): string {
   const labels: Record<RubricCategory, string> = {
     structure: '구조',
-    content: '내용',
-    expression: '표현',
-    logic: '논리',
-    evidence: '근거',
+    tone: '어투',
+    persuasion: '설득 장치',
+    rhythm: '리듬',
+    trust: '신뢰 형성',
+    cta: '행동 유도',
   }
-  return labels[category]
+  return labels[category] || category
 }
 
 /**
- * @deprecated v3 템플릿 시스템으로 마이그레이션 예정
- * @see RubricAdapter
  * 총 가중치 검증
  */
 export function validateWeights(rubrics: Rubric[] = DEFAULT_RUBRICS): boolean {

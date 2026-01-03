@@ -211,7 +211,7 @@ import { FEATURE_FLAGS } from "@/config/featureFlags";
 
 ---
 
-#### [ ] **P2-03**: 프로덕션 검증
+#### [x] **P2-03**: 프로덕션 검증 ✅ (사용자 확인)
 
 - `Target`: prism-writer.vercel.app
 - `Logic (Pseudo)`:
@@ -228,10 +228,10 @@ import { FEATURE_FLAGS } from "@/config/featureFlags";
 
 ### Definition of Done (검증):
 
-- [ ] **Production Test 1**: 참고 자료 기반 답변에 `[1]` 마커 표시
-- [ ] **Production Test 2**: 답변 하단에 `📚 참고 자료` 섹션 표시
-- [ ] **Production Test 3**: 참고 자료 없을 때 인용 마커 미표시
-- [ ] **Rollback Test**: Feature Flag off 시 기존 동작 확인
+- [x] **Production Test 1**: 참고 자료 기반 답변에 `[1]` 마커 표시 ✅
+- [x] **Production Test 2**: 답변 하단에 `📚 참고 자료` 섹션 표시 ✅
+- [ ] **Production Test 3**: 참고 자료 없을 때 인용 마커 미표시 (수동 확인 필요)
+- [ ] **Rollback Test**: Feature Flag off 시 기존 동작 확인 (선택 사항)
 
 ---
 
