@@ -51,6 +51,18 @@ const PATTERN_TYPE_LABELS: Record<string, string> = {
 }
 
 // =============================================================================
+// [P1-01] 루브릭 개수 제한 상수 (12-Rubric Rule)
+// - POOL_MAX: 하드 리밋 (보관함 최대 개수)
+// - ACTIVE_RECOMMENDED: 권장 개수 (Sweet Spot - 분석 품질 최적)
+// - ACTIVE_WARNING: 경고 시작 지점 (이 이상이면 품질 저하 경고)
+// =============================================================================
+const RUBRIC_LIMITS = {
+  POOL_MAX: 20,           // 하드 리밋 (Pool 최대)
+  ACTIVE_RECOMMENDED: 12, // 권장 개수 (Sweet Spot)
+  ACTIVE_WARNING: 12,     // 경고 시작 지점
+} as const
+
+// =============================================================================
 // [PATTERN] 컴포넌트
 // =============================================================================
 
@@ -220,6 +232,24 @@ export default function PatternAnalysisSection({ documentId }: PatternAnalysisSe
   const draftCount = candidates.filter(c => c.status === 'draft').length
 
   // ---------------------------------------------------------------------------
+  // [P1-02] 권장 구간 표시를 위한 파생 변수
+  // - isOverRecommended: 권장 개수(12개) 초과 여부
+  // - counterStatusColor: 카운터 배경/텍스트 색상 (권장 초과 시 경고색)
+  // ---------------------------------------------------------------------------
+  const isOverRecommended = selectedCount > RUBRIC_LIMITS.ACTIVE_RECOMMENDED
+  const counterStatusColor = isOverRecommended
+    ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200'
+    : 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
+
+  // ---------------------------------------------------------------------------
+  // [P1-04] 채택 버튼 상태를 위한 파생 변수
+  // - isNearLimit: 권장 개수(12개) 도달/초과 여부 (경고색 버튼)
+  // - isAtHardLimit: 하드 리밋(20개) 도달 여부 (버튼 비활성화)
+  // ---------------------------------------------------------------------------
+  const isNearLimit = selectedCount >= RUBRIC_LIMITS.ACTIVE_RECOMMENDED
+  const isAtHardLimit = selectedCount >= RUBRIC_LIMITS.POOL_MAX
+
+  // ---------------------------------------------------------------------------
   // [NEW] 전체 초기화
   // ---------------------------------------------------------------------------
   const handleResetAll = async () => {
@@ -260,10 +290,20 @@ export default function PatternAnalysisSection({ documentId }: PatternAnalysisSe
           <h3 className="font-semibold text-gray-900 dark:text-white">
             패턴 기반 평가 기준
           </h3>
+          {/* [P1-02] 카운터 표시 - 권장 구간 표시 */}
+          {/* 활성 기준: n/12 (권장) + 보관함 정보 */}
           {selectedCount > 0 && (
-            <span className="px-2 py-0.5 text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full">
-              {selectedCount}/20 선택됨
-            </span>
+            <div className="flex items-center gap-2">
+              {/* 활성 기준 카운터 (권장 초과 시 경고색) */}
+              <span className={`px-2 py-0.5 text-xs rounded-full ${counterStatusColor}`}>
+                {selectedCount}/{RUBRIC_LIMITS.ACTIVE_RECOMMENDED} 활성
+                {isOverRecommended && ' ⚠️'}
+              </span>
+              {/* 보관함 정보 */}
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                (보관함: {candidates.length}/{RUBRIC_LIMITS.POOL_MAX})
+              </span>
+            </div>
           )}
         </div>
 
@@ -309,6 +349,14 @@ export default function PatternAnalysisSection({ documentId }: PatternAnalysisSe
       {successMessage && (
         <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 rounded-md text-sm">
           ✅ {successMessage}
+        </div>
+      )}
+
+      {/* [P1-03] 스마트 경고 배너 - 권장 개수 초과 시 표시 */}
+      {/* 12개 초과 시 품질 저하 경고를 사용자에게 안내 */}
+      {selectedCount > RUBRIC_LIMITS.ACTIVE_WARNING && (
+        <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-md text-sm text-amber-700 dark:text-amber-300">
+          ⚠️ <strong>품질 경고:</strong> 기준이 {selectedCount}개입니다. {RUBRIC_LIMITS.ACTIVE_RECOMMENDED}개 이하로 줄이면 분석의 날카로움이 높아집니다.
         </div>
       )}
 
@@ -362,15 +410,24 @@ export default function PatternAnalysisSection({ documentId }: PatternAnalysisSe
                   )}
                 </div>
 
-                {/* 버튼 (draft 상태일 때만) */}
+                {/* [P1-04] 버튼 (draft 상태일 때만) - 권장 초과 시 경고색 */}
                 {candidate.status === 'draft' && (
                   <div className="flex gap-2 flex-shrink-0">
                     <button
                       onClick={() => handleSelectCandidate(candidate.id, 'select')}
-                      disabled={selectedCount >= 20}
-                      className="px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded
-                                 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-                      title={selectedCount >= 20 ? '최대 20개까지 선택 가능' : '채택'}
+                      disabled={isAtHardLimit}
+                      className={`px-2 py-1 text-xs text-white rounded transition-colors
+                                 disabled:bg-gray-400 disabled:cursor-not-allowed
+                                 ${isNearLimit && !isAtHardLimit
+                                   ? 'bg-amber-600 hover:bg-amber-700'
+                                   : 'bg-green-600 hover:bg-green-700'}`}
+                      title={
+                        isAtHardLimit
+                          ? `최대 ${RUBRIC_LIMITS.POOL_MAX}개까지 선택 가능`
+                          : isNearLimit
+                            ? `권장 개수(${RUBRIC_LIMITS.ACTIVE_RECOMMENDED}개)를 초과합니다`
+                            : '채택'
+                      }
                     >
                       채택
                     </button>
