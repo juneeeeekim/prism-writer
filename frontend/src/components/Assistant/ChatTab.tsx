@@ -35,6 +35,12 @@ interface Message {
     }
     /** [P1-02] 관련 루브릭 티어 (Core/Style/Detail) */
     rubric_tier?: RubricTier
+    // [FE-A] 사용된 참고자료 목록 (시각화용)
+    sources?: Array<{
+      title: string
+      chunkId: string
+      score: number
+    }>
   }
 }
 
@@ -529,12 +535,12 @@ export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
                 
                 return (
                   <div className="mt-1 flex items-center gap-2 flex-wrap">
-                    {/* 검증 상태 뱃지 */}
+                    {/* 검증 상태 뼉지 */}
                     <div className={`text-xs px-2 py-1 rounded w-fit ${badgeStyle}`}>
                       {badgeIcon} {badgeText}
                       {scorePercent > 0 && ` (${scorePercent}%)`}
                     </div>
-                    {/* [P1-02] 티어 정보 뱃지 */}
+                    {/* [P1-02] 티어 정보 뼉지 */}
                     {message.metadata.rubric_tier && (
                       <div className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
                         {TIER_CONFIG[message.metadata.rubric_tier].label}
@@ -543,6 +549,50 @@ export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
                   </div>
                 )
               })()}
+              
+              {/* [FE-A/UX-A] 접이식 참고자료 카드 */}
+              {message.role === 'assistant' && message.metadata?.sources && message.metadata.sources.length > 0 && (
+                <details className="mt-2 group">
+                  <summary className="cursor-pointer text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center gap-1">
+                    <span>📚 사용된 참고자료 ({message.metadata.sources.length}개)</span>
+                    <svg className="w-3 h-3 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </summary>
+                  <div className="mt-2 space-y-1.5 pl-1">
+                    {message.metadata.sources.map((source, idx) => {
+                      // [UX-A] 신뢰도 색상 결정
+                      const scorePercent = Math.round(source.score * 100)
+                      let barColor = 'bg-gray-300'
+                      let dotColor = '🟠'  // 주황
+                      if (scorePercent >= 80) {
+                        barColor = 'bg-green-500'
+                        dotColor = '🟢'  // 녹색
+                      } else if (scorePercent >= 60) {
+                        barColor = 'bg-yellow-400'
+                        dotColor = '🟡'  // 노랑
+                      }
+                      
+                      return (
+                        <div key={source.chunkId} className="flex items-center gap-2 text-xs">
+                          <span>{dotColor}</span>
+                          <span className="truncate max-w-[150px] text-gray-700 dark:text-gray-300" title={source.title}>
+                            {source.title}
+                          </span>
+                          {/* [UX-A] 신뢰도 프로그레스 바 */}
+                          <div className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden min-w-[50px] max-w-[80px]">
+                            <div 
+                              className={`h-full ${barColor} transition-all`}
+                              style={{ width: `${scorePercent}%` }}
+                            />
+                          </div>
+                          <span className="text-gray-400 w-8 text-right">{scorePercent}%</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </details>
+              )}
             </div>
         ))}
         <div ref={messagesEndRef} />

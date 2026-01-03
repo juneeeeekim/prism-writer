@@ -466,6 +466,12 @@ ${context ? context : '관련된 참고 자료가 없습니다.'}
               citation_verification?: { valid: boolean; matchScore: number; matchedChunkId?: string }
               source_count?: number
               rubric_tier?: RubricTier
+              // [FE-A] 사용된 참고자료 목록 (UI 시각화용)
+              sources?: Array<{
+                title: string
+                chunkId: string
+                score: number
+              }>
             } = {}
             if (hasRetrievedDocs && uniqueResults && uniqueResults.length > 0) {
                 const sourceChunksForVerify = uniqueResults.map(r => ({ id: r.chunkId, content: r.content }))
@@ -481,6 +487,13 @@ ${context ? context : '관련된 참고 자료가 없습니다.'}
                 const topResult = uniqueResults[0]  // 이미 점수순 정렬됨
                 const rubricTier = topResult?.metadata?.tier as RubricTier | undefined
                 
+                // [FE-A] 사용된 참고자료 배열 생성 (최대 5개)
+                const sources = uniqueResults.slice(0, 5).map(r => ({
+                  title: r.metadata?.title || 'Untitled',
+                  chunkId: r.chunkId,
+                  score: Math.round(r.score * 100) / 100
+                }))
+                
                 citationMetadata = {
                   citation_verification: {
                     ...verificationResult,
@@ -488,7 +501,8 @@ ${context ? context : '관련된 참고 자료가 없습니다.'}
                     valid: adjustedScore >= 0.7  // 70% 기준으로 재평가
                   },
                   source_count: uniqueResults.length,
-                  rubric_tier: rubricTier  // [P2] Core/Style/Detail
+                  rubric_tier: rubricTier,  // [P2] Core/Style/Detail
+                  sources  // [FE-A] UI 시각화용
                 }
             }
 
