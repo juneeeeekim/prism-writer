@@ -219,18 +219,18 @@ export const FEATURE_FLAGS = {
 
   /**
    * 패턴 추출 기능 활성화
-   * 환경 변수: ENABLE_PATTERN_EXTRACTION
+   * 환경 변수: NEXT_PUBLIC_ENABLE_PATTERN_EXTRACTION
    * 기본값: false (명시적 활성화 필요)
    * 
    * @description
    * - 업로드 문서에서 형식 패턴(훅/CTA/비유 등)을 LLM으로 추출
    * - 롤백: OFF 시 패턴 추출 기능 비활성화
    */
-  ENABLE_PATTERN_EXTRACTION: process.env.ENABLE_PATTERN_EXTRACTION === 'true',
+  ENABLE_PATTERN_EXTRACTION: process.env.NEXT_PUBLIC_ENABLE_PATTERN_EXTRACTION === 'true',
 
   /**
    * 패턴 기반 검색 활성화
-   * 환경 변수: ENABLE_PATTERN_BASED_SEARCH
+   * 환경 변수: NEXT_PUBLIC_ENABLE_PATTERN_BASED_SEARCH
    * 기본값: false (명시적 활성화 필요)
    * 
    * @description
@@ -238,11 +238,11 @@ export const FEATURE_FLAGS = {
    * - hybridSearch에서 patternType 필터 지원
    * - 롤백: OFF 시 기존 의미 기반 검색만 사용
    */
-  ENABLE_PATTERN_BASED_SEARCH: process.env.ENABLE_PATTERN_BASED_SEARCH === 'true',
+  ENABLE_PATTERN_BASED_SEARCH: process.env.NEXT_PUBLIC_ENABLE_PATTERN_BASED_SEARCH === 'true',
 
   /**
    * 루브릭 후보 UI 활성화
-   * 환경 변수: ENABLE_RUBRIC_CANDIDATE_UI
+   * 환경 변수: NEXT_PUBLIC_ENABLE_RUBRIC_CANDIDATE_UI
    * 기본값: false (명시적 활성화 필요)
    * 
    * @description
@@ -250,7 +250,7 @@ export const FEATURE_FLAGS = {
    * - 관리자 기능으로 제한
    * - 롤백: OFF 시 루브릭 관리 UI 숨김
    */
-  ENABLE_RUBRIC_CANDIDATE_UI: process.env.ENABLE_RUBRIC_CANDIDATE_UI === 'true',
+  ENABLE_RUBRIC_CANDIDATE_UI: process.env.NEXT_PUBLIC_ENABLE_RUBRIC_CANDIDATE_UI === 'true',
 } as const
 
 // =============================================================================

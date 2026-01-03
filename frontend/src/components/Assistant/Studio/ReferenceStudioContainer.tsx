@@ -7,6 +7,7 @@ import OnboardingGuide from './OnboardingGuide'
 import { useDocumentStatus } from '@/hooks/useDocumentStatus'
 // [P7-FIX] 프로젝트 Context 추가
 import { useProject } from '@/contexts/ProjectContext'
+import PatternAnalysisSection from '../PatternAnalysisSection' // [PATTERN] 루브릭 UI
 
 // =============================================================================
 // Reference Studio Container (Mobile Responsive)
@@ -196,11 +197,18 @@ export default function ReferenceStudioContainer() {
   // 일반 2-Pane 레이아웃
   // ---------------------------------------------------------------------------
   return (
-    <div
-      ref={containerRef}
-      className="flex h-[calc(100vh-12rem)] min-h-[500px] border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden shadow-sm bg-white dark:bg-gray-800"
-      style={{ '--left-panel-width': `${leftWidth}px` } as React.CSSProperties}
-    >
+    <div className="flex flex-col h-full">
+      {/* [PATTERN] 패턴 분석 섹션 - 참고자료 탭 상단 */}
+      <div className="flex-shrink-0">
+        <PatternAnalysisSection />
+      </div>
+
+      {/* 2-Pane 레이아웃 */}
+      <div
+        ref={containerRef}
+        className="flex flex-1 min-h-[400px] border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden shadow-sm bg-white dark:bg-gray-800"
+        style={{ '--left-panel-width': `${leftWidth}px` } as React.CSSProperties}
+      >
 
       {/* ========================================================================
           Desktop: 2-Pane Layout (Always visible on md+)
@@ -244,5 +252,6 @@ export default function ReferenceStudioContainer() {
         />
       </div>
     </div>
+  </div>
   )
 }
