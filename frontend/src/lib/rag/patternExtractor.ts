@@ -201,41 +201,88 @@ ${chunksText}
 
 /**
  * LLM 응답을 JSON으로 파싱합니다.
+ * [FIX] 더 관대한 파싱 + 기본값 처리 + 상세 로깅
  */
 function parsePatternResponse(response: string): RuleCandidate[] {
   try {
-    // 코드 블록 제거
+    // 1. 코드 블록 제거 (여러 형태 지원)
     let jsonStr = response.trim()
-    if (jsonStr.startsWith('```json')) {
-      jsonStr = jsonStr.slice(7)
-    }
-    if (jsonStr.startsWith('```')) {
-      jsonStr = jsonStr.slice(3)
-    }
-    if (jsonStr.endsWith('```')) {
-      jsonStr = jsonStr.slice(0, -3)
-    }
-    jsonStr = jsonStr.trim()
-
-    // JSON 파싱
-    const parsed = JSON.parse(jsonStr)
     
-    // 배열 확인
+    // ```json 또는 ``` 시작 제거
+    const jsonBlockMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/)
+    if (jsonBlockMatch) {
+      jsonStr = jsonBlockMatch[1].trim()
+    } else {
+      // 코드 블록 없이 직접 JSON인 경우
+      if (jsonStr.startsWith('[')) {
+        // 이미 배열 형태
+      } else if (jsonStr.startsWith('{')) {
+        // 단일 객체 → 배열로 래핑
+        jsonStr = `[${jsonStr}]`
+      }
+    }
+
+    console.log('[PatternExtractor] Cleaned JSON length:', jsonStr.length)
+    console.log('[PatternExtractor] JSON preview (first 300):', jsonStr.substring(0, 300))
+
+    // 2. JSON 파싱 시도
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(jsonStr)
+    } catch (parseError) {
+      // 잘린 JSON 복구 시도 (마지막 유효한 객체까지)
+      console.warn('[PatternExtractor] JSON parse failed, attempting recovery...')
+      const lastValidIndex = jsonStr.lastIndexOf('}')
+      if (lastValidIndex > 0) {
+        const truncatedJson = jsonStr.substring(0, lastValidIndex + 1) + ']'
+        try {
+          parsed = JSON.parse(truncatedJson)
+          console.log('[PatternExtractor] Recovery successful with truncated JSON')
+        } catch {
+          console.error('[PatternExtractor] Recovery also failed')
+          throw parseError
+        }
+      } else {
+        throw parseError
+      }
+    }
+    
+    // 3. 배열 확인
     if (!Array.isArray(parsed)) {
-      console.error('[PatternExtractor] Response is not an array:', parsed)
+      console.error('[PatternExtractor] Response is not an array:', typeof parsed)
       return []
     }
 
-    // 각 항목 검증
-    return parsed.filter((item): item is RuleCandidate => {
-      return (
-        typeof item.pattern_type === 'string' &&
-        typeof item.rule_text === 'string' &&
-        typeof item.why_it_works === 'string' &&
-        Array.isArray(item.query_hints) &&
-        typeof item.evidence_quote === 'string'
-      )
-    })
+    console.log('[PatternExtractor] Parsed array length:', parsed.length)
+
+    // 4. 각 항목 검증 (관대한 검증 + 기본값)
+    const validCandidates: RuleCandidate[] = []
+    
+    for (let i = 0; i < parsed.length; i++) {
+      const item = parsed[i] as Record<string, unknown>
+      
+      // 필수 필드: pattern_type, rule_text
+      if (typeof item.pattern_type !== 'string' || typeof item.rule_text !== 'string') {
+        console.warn(`[PatternExtractor] Item ${i} missing required fields:`, {
+          hasPatternType: typeof item.pattern_type,
+          hasRuleText: typeof item.rule_text,
+        })
+        continue
+      }
+
+      // 관대한 처리: 선택 필드에 기본값 제공
+      validCandidates.push({
+        pattern_type: item.pattern_type as PatternType,
+        rule_text: item.rule_text as string,
+        why_it_works: typeof item.why_it_works === 'string' ? item.why_it_works : '',
+        query_hints: Array.isArray(item.query_hints) ? item.query_hints : [],
+        evidence_quote: typeof item.evidence_quote === 'string' ? item.evidence_quote : '',
+      })
+    }
+
+    console.log('[PatternExtractor] Valid candidates after filtering:', validCandidates.length)
+    
+    return validCandidates
   } catch (error) {
     console.error('[PatternExtractor] JSON parse failed:', error)
     console.error('[PatternExtractor] Raw response length:', response.length)
