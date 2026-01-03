@@ -18,16 +18,16 @@
 
 ### Phase 1: Core 루브릭 5개 통합
 
-**대상 파일**: `evaluate-holistic/route.ts`, `holisticAdvisor.ts`
+**대상 파일**: `evaluate-holistic/route.ts`, `holisticAdvisor.ts`, `HolisticFeedbackPanel.tsx`
 
-- [ ] **H-01**: `DEFAULT_RUBRICS`에서 Core 티어만 필터링
-- [ ] **H-02**: `buildHolisticPrompt()`에 루브릭 기준 삽입
-- [ ] **H-03**: 응답 스키마에 루브릭별 점수 추가
-- [ ] **H-04**: UI에 루브릭별 평가 표시 (선택)
+- [x] **H-01**: `DEFAULT_RUBRICS`에서 Core 티어만 필터링 ✅
+- [x] **H-02**: `buildHolisticPrompt()`에 루브릭 기준 삽입 ✅
+- [x] **H-03**: 응답 스키마에 루브릭별 점수 추가 ✅
+- [x] **H-04**: UI에 루브릭별 평가 표시 (신뢰성/설득력 점수 바) ✅
 
 ### Phase 2: 빌드 및 배포
 
-- [ ] **H-05**: 빌드 검증
+- [x] **H-05**: 빌드 검증 ✅
 - [ ] **H-06**: 배포
 
 ---
