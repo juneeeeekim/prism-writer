@@ -468,6 +468,12 @@ export default function EvaluationTab() {
         setHolisticResult(null)
       }
       setIsSaved(true)
+
+      // [FIX] 로드된 데이터 유형에 따라 탭 자동 전환
+      const isHolistic = evaluation.result_data.template_id === 'holistic-only' || 
+                         (!evaluation.result_data.judgments || evaluation.result_data.judgments.length === 0)
+      
+      setActiveEvalTab(isHolistic ? 'holistic' : 'detailed')
     }
   }
 
