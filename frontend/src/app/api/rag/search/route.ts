@@ -111,11 +111,11 @@ export async function POST(request: Request): Promise<NextResponse<SearchRespons
       )
     }
 
-    const { 
-      query, 
-      topK = DEFAULT_TOP_K, 
+    const {
+      query,
+      topK = DEFAULT_TOP_K,
       threshold = DEFAULT_THRESHOLD,
-      category  // [Phase C] 카테고리 필터
+      category = '*'  // [Option B] 기본값 '*' (전체 검색) - UI 단순화
     } = body
 
     // 쿼리 검증
@@ -131,21 +131,13 @@ export async function POST(request: Request): Promise<NextResponse<SearchRespons
     }
 
     // =========================================================================
-    // [Phase C] C-01: 카테고리 필수 검증 (보안 격리 모드)
+    // [Option B] 카테고리 기본값 처리 (UI 단순화)
     // =========================================================================
-    // 주석(시니어 개발자): 카테고리 격리를 통해 문서 간 정보 유출 방지
-    // - 카테고리 미지정 시 검색 차단 (보안 강화)
-    // - 전체 검색이 필요한 경우 명시적으로 category: '*' 전달 필요
-    if (!category) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: '카테고리별 격리 검색을 위해 category 파라미터가 필요합니다.',
-          error: 'MISSING_CATEGORY',
-        },
-        { status: 400 }
-      )
-    }
+    // 변경사항: category 미지정 시 기본값 '*' (전체 검색) 적용
+    // - 기존: 필수 검증 → 에러 반환
+    // - 변경: 기본값 '*' → 전체 문서에서 검색
+    // 참고: 특정 카테고리 검색이 필요한 API는 별도로 category 전달
+    const effectiveCategory = category || '*'
 
     // Top-K 값 검증 및 제한
     const validTopK = Math.min(Math.max(topK, 1), MAX_TOP_K)
@@ -179,7 +171,7 @@ export async function POST(request: Request): Promise<NextResponse<SearchRespons
         match_threshold: threshold,
         match_count: validTopK,
         user_id_param: session.user.id,        // [Phase C] 사용자 ID 전달
-        category_param: category || null       // [Phase C] 카테고리 필터 (null = 전체)
+        category_param: effectiveCategory === '*' ? null : effectiveCategory  // [Option B] '*' → null (전체 검색)
       }
     )
 

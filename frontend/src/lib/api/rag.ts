@@ -18,8 +18,8 @@ export interface SearchOptions {
   topK?: number
   /** 최소 유사도 임계값 (기본: 0.5) */
   threshold?: number
-  /** [보안] 카테고리 필터 (필수 - 격리 모드) */
-  category: string
+  /** [P1-02] 카테고리 필터 (선택 - 생략 시 전체 검색) */
+  category?: string
 }
 
 /** 검색 API 응답 */

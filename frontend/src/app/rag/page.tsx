@@ -13,7 +13,8 @@ import AuthHeader from '@/components/auth/AuthHeader'
 import { EvidenceCard, EvidenceList } from '@/components/rag/EvidenceCard'
 
 import { ReviewBadge } from '@/components/rag/ReviewBadge'
-import type { JudgeResult, JudgeEvidence, RouterMode, EvidencePack } from '@/types/rag'
+// [P1-04] 미사용 타입 제거: JudgeEvidence, RouterMode
+import type { JudgeResult, EvidencePack } from '@/types/rag'
 import type { VerifiedEvidence } from '@/lib/rag/citationGate'
 import { searchDocuments, documentsToContext, RAGSearchError } from '@/lib/api/rag'
 
@@ -21,10 +22,11 @@ import { searchDocuments, documentsToContext, RAGSearchError } from '@/lib/api/r
 // 타입 정의
 // =============================================================================
 
+// [P1-01] SearchState 단순화: mode/category 제거 (Google 스타일 UI)
+// - mode: 'standard' 고정 (Judge API에서 하드코딩)
+// - category: 전체 검색 (백엔드 자동 처리)
 interface SearchState {
   query: string
-  mode: RouterMode
-  category: string  // [보안] 카테고리 격리 필터
   isLoading: boolean
   isSearching: boolean  // 검색 단계 표시용
   error: string | null
@@ -52,10 +54,9 @@ export default function RAGSearchPage() {
   // ---------------------------------------------------------------------------
   // State
   // ---------------------------------------------------------------------------
+  // [P1-01] 단순화된 초기 상태
   const [searchState, setSearchState] = useState<SearchState>({
     query: '',
-    mode: 'standard',
-    category: '',  // [General] 전체 검색
     isLoading: false,
     isSearching: false,
     error: null,
@@ -79,14 +80,15 @@ export default function RAGSearchPage() {
 
     try {
       // -----------------------------------------------------------------
-      // 1단계: RAG 검색 API 호출 (Gemini 768차원 벡터 검색)
+      // [Option B] 1단계: RAG 검색 API 호출 (Gemini 768차원 벡터 검색)
+      // category 생략 → 백엔드에서 기본값 '*' (전체 검색) 자동 적용
       // -----------------------------------------------------------------
       let searchResult
       try {
         searchResult = await searchDocuments(searchState.query, {
           topK: 5,
           threshold: 0.5,
-          category: searchState.category,  // [보안] 카테고리 격리 필터
+          // category 생략 → 백엔드 기본값 '*' 적용
         })
         setEvidencePack(searchResult.evidencePack)
       } catch (searchError) {
@@ -106,9 +108,10 @@ export default function RAGSearchPage() {
       setSearchState(prev => ({ ...prev, isSearching: false }))
 
       // -----------------------------------------------------------------
-      // 2단계: Judge API 호출 (검색된 문서를 컨텍스트로 전달)
+      // [P1-03] 2단계: Judge API 호출 (검색된 문서를 컨텍스트로 전달)
+      // mode: 'standard' 고정 (UI에서 선택권 제거됨)
       // -----------------------------------------------------------------
-      const context = searchResult 
+      const context = searchResult
         ? documentsToContext(searchResult.documents)
         : [
             // 검색 결과가 없을 경우 안내 메시지
@@ -123,7 +126,7 @@ export default function RAGSearchPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           query: searchState.query,
-          mode: searchState.mode,
+          mode: 'standard',  // [P1-03] 고정값 (Google 스타일 단순화)
           context,
         }),
       })
@@ -162,15 +165,15 @@ export default function RAGSearchPage() {
       <AuthHeader showLogo />
 
       {/* =================================================================
-          메인 콘텐츠
+          [P2-01] 메인 콘텐츠 - 사용자 친화적 타이틀로 변경
           ================================================================= */}
       <main className="max-w-4xl mx-auto px-4 py-8">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-            RAG 검색 파이프라인
+            스마트 검색
           </h1>
           <p className="text-lg text-gray-600 dark:text-gray-400">
-            검색, 리랭킹, 그리고 검증(Citation Gate) 과정을 시각화합니다.
+            AI가 문서를 분석하여 정확한 답변을 제공합니다.
           </p>
         </div>
 
@@ -186,6 +189,7 @@ export default function RAGSearchPage() {
                 placeholder="질문을 입력하세요..."
                 className="flex-1 px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               />
+              {/* [P2-02] 검색 버튼 - 로딩 텍스트 단순화 */}
               <button
                 onClick={handleSearch}
                 disabled={searchState.isLoading}
@@ -194,7 +198,7 @@ export default function RAGSearchPage() {
                 {searchState.isLoading ? (
                   <>
                     <span className="animate-spin">↻</span>
-                    {searchState.isSearching ? '검색 중...' : '분석 중...'}
+                    처리 중...
                   </>
                 ) : (
                   <>
