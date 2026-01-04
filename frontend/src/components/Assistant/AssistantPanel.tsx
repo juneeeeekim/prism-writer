@@ -9,7 +9,7 @@
 'use client'
 
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import OutlineTab from './OutlineTab'
 import ReferenceTab from './ReferenceTab'
 import ChatTab from './ChatTab'
@@ -95,14 +95,65 @@ export default function AssistantPanel({ defaultTab = 'reference' }: AssistantPa
   // [Phase 8] Chat Draft Interaction
   // ===========================================================================
   const chatDraft = useEditorState((state) => state.chatDraft)
-  
+
   useEffect(() => {
     if (chatDraft) {
       setActiveTab('chat')
     }
   }, [chatDraft])
 
+  // ===========================================================================
+  // [P-B04-02] 키보드 네비게이션 (WAI-ARIA Tab Pattern)
+  // ---------------------------------------------------------------------------
+  // - ArrowLeft/ArrowRight: 이전/다음 탭으로 포커스 이동
+  // - Home: 첫 번째 탭으로 포커스 이동
+  // - End: 마지막 탭으로 포커스 이동
+  // - tabIndex: 활성 탭 = 0, 비활성 탭 = -1 (roving tabindex)
+  // ===========================================================================
+  const tabRefs = useRef<Map<TabId, HTMLButtonElement>>(new Map())
 
+  /**
+   * [P-B04-02] 탭 키보드 이벤트 핸들러
+   * WAI-ARIA Tab Pattern에 따른 키보드 네비게이션 구현
+   */
+  const handleTabKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLButtonElement>, currentTabId: TabId) => {
+      const currentIndex = visibleTabs.findIndex((tab) => tab.id === currentTabId)
+      if (currentIndex === -1) return
+
+      let nextIndex: number | null = null
+
+      switch (e.key) {
+        case 'ArrowLeft':
+          // 이전 탭으로 이동 (순환)
+          nextIndex = currentIndex === 0 ? visibleTabs.length - 1 : currentIndex - 1
+          break
+        case 'ArrowRight':
+          // 다음 탭으로 이동 (순환)
+          nextIndex = currentIndex === visibleTabs.length - 1 ? 0 : currentIndex + 1
+          break
+        case 'Home':
+          // 첫 번째 탭으로 이동
+          nextIndex = 0
+          break
+        case 'End':
+          // 마지막 탭으로 이동
+          nextIndex = visibleTabs.length - 1
+          break
+        default:
+          return // 다른 키는 무시
+      }
+
+      if (nextIndex !== null) {
+        e.preventDefault() // 기본 동작 방지
+        const nextTab = visibleTabs[nextIndex]
+        setActiveTab(nextTab.id)
+        // 포커스 이동
+        tabRefs.current.get(nextTab.id)?.focus()
+      }
+    },
+    [visibleTabs]
+  )
 
   return (
     <div className="flex flex-col h-full relative">
@@ -121,22 +172,49 @@ export default function AssistantPanel({ defaultTab = 'reference' }: AssistantPa
         role="tablist"
         aria-label="어시스턴트 기능 탭"
       >
+        {/* =================================================================
+            [P-B02-01] 모바일 반응형 탭 버튼
+            - 모바일: px-2 py-2.5, 아이콘만 표시 (text-xs)
+            - 데스크톱(sm+): px-4 py-3, 아이콘+레이블 표시 (text-sm)
+            - 터치 타겟 44px 이상 유지 (py-2.5 ≈ 10px * 2 + 텍스트)
+            ================================================================= */}
+        {/* =================================================================
+            [P-B04-02] 키보드 네비게이션 추가
+            - onKeyDown: ArrowLeft/Right, Home/End 키 핸들링
+            - tabIndex: roving tabindex (활성=0, 비활성=-1)
+            - ref: 포커스 이동을 위한 ref 저장
+            ================================================================= */}
         {visibleTabs.map((tab) => (
           <button
             key={tab.id}
+            ref={(el) => {
+              if (el) {
+                tabRefs.current.set(tab.id, el)
+              } else {
+                tabRefs.current.delete(tab.id)
+              }
+            }}
             role="tab"
             id={`tab-${tab.id}`}
             aria-selected={activeTab === tab.id}
             aria-controls={`panel-${tab.id}`}
-            className={`flex-1 px-4 py-3 text-sm font-medium transition-colors
-                        ${activeTab === tab.id
-                          ? 'border-b-2 border-prism-primary text-prism-primary bg-white dark:bg-gray-800'
-                          : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-                        }`}
+            tabIndex={activeTab === tab.id ? 0 : -1}
+            onKeyDown={(e) => handleTabKeyDown(e, tab.id)}
+            className={`
+              flex-1 flex items-center justify-center
+              px-2 py-2.5 sm:px-4 sm:py-3
+              text-xs sm:text-sm font-medium transition-colors
+              focus:outline-none focus:ring-2 focus:ring-prism-primary focus:ring-inset
+              ${activeTab === tab.id
+                ? 'border-b-2 border-prism-primary text-prism-primary bg-white dark:bg-gray-800'
+                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+              }
+            `}
             onClick={() => setActiveTab(tab.id)}
           >
-            <span className="mr-2">{tab.icon}</span>
-            {tab.label}
+            <span className="mr-1 sm:mr-2">{tab.icon}</span>
+            {/* [P-B02-01] 모바일에서 레이블 숨김 - 아이콘만 표시 */}
+            <span className="hidden sm:inline">{tab.label}</span>
           </button>
         ))}
       </div>

@@ -23,6 +23,138 @@ import { FEATURE_FLAGS } from '../../config/featureFlags' // [PATTERN] Feature F
 import { logger } from '@/lib/utils/logger'
 
 // =============================================================================
+// [P-C03-02] RAG 검색 메트릭 로깅 (rag_logs 테이블)
+// =============================================================================
+// 목적: RAG 검색 요청의 성능 및 사용 패턴 추적
+// 특징:
+//   - 비동기 저장: 로그 실패가 검색 기능에 영향 없음
+//   - 개인정보 보호: 쿼리 100자 제한
+//   - 세분화된 메트릭: embedding_latency, search_latency 분리
+// 테이블: public.rag_logs (074_rag_logs.sql)
+// =============================================================================
+
+/** RAG 로그 엔트리 타입 */
+export interface RAGLogEntry {
+  /** 사용자 ID (선택) */
+  userId?: string | null
+  /** 프로젝트 ID (선택) */
+  projectId?: string | null
+  /** 검색 쿼리 (100자 제한) */
+  query: string
+  /** 검색 방법: 'vector' | 'keyword' | 'hybrid' | 'pattern' */
+  searchMethod: 'vector' | 'keyword' | 'hybrid' | 'pattern'
+  /** 반환된 결과 수 */
+  resultCount: number
+  /** 최고 유사도 점수 (0.0 ~ 1.0) */
+  topScore?: number | null
+  /** 총 응답 시간 (ms) */
+  latencyMs: number
+  /** 임베딩 생성 시간 (ms) */
+  embeddingLatencyMs?: number | null
+  /** DB 검색 시간 (ms) */
+  searchLatencyMs?: number | null
+  /** 캐시 사용 여부 */
+  cacheHit: boolean
+  /** 캐시 키 (디버깅용) */
+  cacheKey?: string | null
+  /** 에러 메시지 (있는 경우) */
+  error?: string | null
+  /** 에러 코드 (분류용) */
+  errorCode?: string | null
+  /** 추가 메타데이터 */
+  metadata?: Record<string, unknown>
+}
+
+/**
+ * [P-C03-02] RAG 검색 로그 저장 함수
+ *
+ * @description
+ * RAG 검색 메트릭을 rag_logs 테이블에 비동기로 저장합니다.
+ * 로그 저장 실패는 검색 기능에 영향을 주지 않습니다 (fire-and-forget).
+ *
+ * @param entry - 로그 엔트리
+ * @returns Promise<void> (실패 시에도 reject하지 않음)
+ *
+ * @example
+ * ```typescript
+ * // 성공 로그
+ * logRAGSearch({
+ *   userId,
+ *   query: 'RAG란?',
+ *   searchMethod: 'hybrid',
+ *   resultCount: 5,
+ *   latencyMs: 150,
+ *   cacheHit: false
+ * }).catch(() => {})  // fire-and-forget
+ *
+ * // 에러 로그
+ * logRAGSearch({
+ *   query: 'RAG란?',
+ *   searchMethod: 'hybrid',
+ *   resultCount: 0,
+ *   latencyMs: 50,
+ *   cacheHit: false,
+ *   error: 'Embedding API timeout',
+ *   errorCode: 'EMBEDDING_TIMEOUT'
+ * }).catch(() => {})
+ * ```
+ */
+export async function logRAGSearch(entry: RAGLogEntry): Promise<void> {
+  try {
+    // -------------------------------------------------------------------------
+    // [STEP 1] 개인정보 보호: 쿼리 100자 제한
+    // -------------------------------------------------------------------------
+    const sanitizedQuery = entry.query.substring(0, 100)
+
+    // -------------------------------------------------------------------------
+    // [STEP 2] Supabase 클라이언트 생성
+    // -------------------------------------------------------------------------
+    const supabase = await createClient()
+
+    // -------------------------------------------------------------------------
+    // [STEP 3] rag_logs 테이블에 INSERT (비동기, 결과 무시)
+    // -------------------------------------------------------------------------
+    const { error } = await supabase
+      .from('rag_logs')
+      .insert({
+        user_id: entry.userId || null,
+        project_id: entry.projectId || null,
+        query: sanitizedQuery,
+        search_method: entry.searchMethod,
+        result_count: entry.resultCount,
+        top_score: entry.topScore || null,
+        latency_ms: entry.latencyMs,
+        embedding_latency_ms: entry.embeddingLatencyMs || null,
+        search_latency_ms: entry.searchLatencyMs || null,
+        cache_hit: entry.cacheHit,
+        cache_key: entry.cacheKey || null,
+        error: entry.error || null,
+        error_code: entry.errorCode || null,
+        metadata: entry.metadata || {},
+      })
+
+    if (error) {
+      // 로그 저장 실패는 경고만 출력 (검색 기능에 영향 없음)
+      logger.warn('[logRAGSearch]', 'Failed to save log', {
+        error: error.message,
+        searchMethod: entry.searchMethod,
+      })
+    } else {
+      logger.debug('[logRAGSearch]', 'Log saved', {
+        searchMethod: entry.searchMethod,
+        latencyMs: entry.latencyMs,
+        cacheHit: entry.cacheHit,
+      })
+    }
+  } catch (err) {
+    // 예외 발생 시에도 검색 기능에 영향 없음
+    logger.warn('[logRAGSearch]', 'Unexpected error', {
+      error: err instanceof Error ? err.message : String(err),
+    })
+  }
+}
+
+// =============================================================================
 // 타입 정의
 // =============================================================================
 
@@ -646,6 +778,11 @@ export async function hybridSearch(
   query: string,
   options: HybridSearchOptions
 ): Promise<SearchResult[]> {
+  // ---------------------------------------------------------------------------
+  // [P-C03-02] 성능 측정 시작
+  // ---------------------------------------------------------------------------
+  const startTime = Date.now()
+
   const {
     topK = DEFAULT_TOP_K,
     vectorWeight = DEFAULT_VECTOR_WEIGHT,
@@ -683,46 +820,111 @@ export async function hybridSearch(
   const cachedResult = searchCache.get(cacheKey)
   if (cachedResult) {
     console.log(`[Search] Cache HIT for "${query}" (Category: ${baseOptions.category || 'all'})`)
+
+    // -------------------------------------------------------------------------
+    // [P-C03-02] 캐시 히트 로깅 (fire-and-forget)
+    // -------------------------------------------------------------------------
+    logRAGSearch({
+      userId: baseOptions.userId,
+      projectId: baseOptions.projectId,
+      query,
+      searchMethod: 'hybrid',
+      resultCount: cachedResult.length,
+      topScore: cachedResult.length > 0 ? cachedResult[0].score : null,
+      latencyMs: Date.now() - startTime,
+      cacheHit: true,
+      cacheKey,
+    }).catch(() => {})  // fire-and-forget
+
     return cachedResult
   }
 
   console.log(`[Search] Cache MISS for "${query}" - Executing Hybrid Search...`)
 
   // ---------------------------------------------------------------------------
-  // 1. 병렬로 벡터 검색과 키워드 검색 실행
+  // [P-C03-02] 검색 실행 with try-catch for error logging
   // ---------------------------------------------------------------------------
-  const [vectorResults, keywordResults] = await Promise.all([
-    vectorSearch(query, { ...baseOptions, topK: topK * 2 }), // 더 많은 결과 가져오기
-    fullTextSearch(query, { ...baseOptions, topK: topK * 2 }).catch(() => []), // 실패 시 빈 배열
-  ])
+  try {
+    // -------------------------------------------------------------------------
+    // 1. 병렬로 벡터 검색과 키워드 검색 실행
+    // -------------------------------------------------------------------------
+    const searchStartTime = Date.now()
+    const [vectorResults, keywordResults] = await Promise.all([
+      vectorSearch(query, { ...baseOptions, topK: topK * 2 }), // 더 많은 결과 가져오기
+      fullTextSearch(query, { ...baseOptions, topK: topK * 2 }).catch(() => []), // 실패 시 빈 배열
+    ])
+    const searchLatencyMs = Date.now() - searchStartTime
 
-  // ---------------------------------------------------------------------------
-  // 2. 가중치 적용
-  // ---------------------------------------------------------------------------
-  const weightedVectorResults = vectorResults.map((result) => ({
-    ...result,
-    score: result.score * vectorWeight,
-  }))
+    // -------------------------------------------------------------------------
+    // 2. 가중치 적용
+    // -------------------------------------------------------------------------
+    const weightedVectorResults = vectorResults.map((result) => ({
+      ...result,
+      score: result.score * vectorWeight,
+    }))
 
-  const weightedKeywordResults = keywordResults.map((result) => ({
-    ...result,
-    score: result.score * keywordWeight,
-  }))
+    const weightedKeywordResults = keywordResults.map((result) => ({
+      ...result,
+      score: result.score * keywordWeight,
+    }))
 
-  // ---------------------------------------------------------------------------
-  // 3. RRF로 병합
-  // ---------------------------------------------------------------------------
-  const mergedResults = reciprocalRankFusion(
-    [weightedVectorResults, weightedKeywordResults],
-    topK
-  )
+    // -------------------------------------------------------------------------
+    // 3. RRF로 병합
+    // -------------------------------------------------------------------------
+    const mergedResults = reciprocalRankFusion(
+      [weightedVectorResults, weightedKeywordResults],
+      topK
+    )
 
-  // ---------------------------------------------------------------------------
-  // [Pipeline v5] 4. 결과 캐싱
-  // ---------------------------------------------------------------------------
-  searchCache.set(cacheKey, mergedResults)
+    // -------------------------------------------------------------------------
+    // [Pipeline v5] 4. 결과 캐싱
+    // -------------------------------------------------------------------------
+    searchCache.set(cacheKey, mergedResults)
 
-  return mergedResults
+    // -------------------------------------------------------------------------
+    // [P-C03-02] 성공 로깅 (fire-and-forget)
+    // -------------------------------------------------------------------------
+    const totalLatencyMs = Date.now() - startTime
+    logRAGSearch({
+      userId: baseOptions.userId,
+      projectId: baseOptions.projectId,
+      query,
+      searchMethod: 'hybrid',
+      resultCount: mergedResults.length,
+      topScore: mergedResults.length > 0 ? mergedResults[0].score : null,
+      latencyMs: totalLatencyMs,
+      searchLatencyMs,
+      cacheHit: false,
+      cacheKey,
+      metadata: {
+        vectorResultCount: vectorResults.length,
+        keywordResultCount: keywordResults.length,
+        vectorWeight,
+        keywordWeight,
+      },
+    }).catch(() => {})  // fire-and-forget
+
+    return mergedResults
+
+  } catch (error) {
+    // -------------------------------------------------------------------------
+    // [P-C03-02] 에러 로깅 (fire-and-forget)
+    // -------------------------------------------------------------------------
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    logRAGSearch({
+      userId: baseOptions.userId,
+      projectId: baseOptions.projectId,
+      query,
+      searchMethod: 'hybrid',
+      resultCount: 0,
+      latencyMs: Date.now() - startTime,
+      cacheHit: false,
+      error: errorMessage,
+      errorCode: 'HYBRID_SEARCH_ERROR',
+    }).catch(() => {})  // fire-and-forget
+
+    throw error  // 원래 에러 재throw
+  }
 }
 
 // =============================================================================
@@ -749,6 +951,10 @@ async function patternBasedSearch(
   query: string,
   options: PatternSearchOptions
 ): Promise<SearchResult[]> {
+  // ---------------------------------------------------------------------------
+  // [P-C03-02] 성능 측정 시작
+  // ---------------------------------------------------------------------------
+  const startTime = Date.now()
   const { userId, topK = 10, minScore = 0.5, patternType, projectId } = options
 
   // [SAFETY] 필수 파라미터 검증
@@ -758,14 +964,38 @@ async function patternBasedSearch(
   }
 
   try {
+    // -------------------------------------------------------------------------
     // 1. 쿼리 임베딩 생성
+    // -------------------------------------------------------------------------
+    const embeddingStartTime = Date.now()
     const queryEmbedding = await embedText(query)
+    const embeddingLatencyMs = Date.now() - embeddingStartTime
+
     if (!queryEmbedding) {
       console.error('[PatternSearch] Failed to generate embedding')
+
+      // [P-C03-02] 임베딩 실패 로깅
+      logRAGSearch({
+        userId,
+        projectId,
+        query,
+        searchMethod: 'pattern',
+        resultCount: 0,
+        latencyMs: Date.now() - startTime,
+        embeddingLatencyMs,
+        cacheHit: false,
+        error: 'Failed to generate embedding',
+        errorCode: 'EMBEDDING_FAILED',
+        metadata: { patternType },
+      }).catch(() => {})
+
       return []
     }
 
+    // -------------------------------------------------------------------------
     // 2. Supabase RPC 호출 (패턴 필터 포함)
+    // -------------------------------------------------------------------------
+    const searchStartTime = Date.now()
     const supabase = await createClient()
     const { data, error } = await supabase.rpc('match_document_chunks_by_pattern', {
       query_embedding: queryEmbedding,
@@ -775,9 +1005,27 @@ async function patternBasedSearch(
       match_threshold: minScore,
       match_count: topK,
     })
+    const searchLatencyMs = Date.now() - searchStartTime
 
     if (error) {
       console.error('[PatternSearch] RPC error:', error.message)
+
+      // [P-C03-02] RPC 에러 로깅
+      logRAGSearch({
+        userId,
+        projectId,
+        query,
+        searchMethod: 'pattern',
+        resultCount: 0,
+        latencyMs: Date.now() - startTime,
+        embeddingLatencyMs,
+        searchLatencyMs,
+        cacheHit: false,
+        error: error.message,
+        errorCode: 'PATTERN_RPC_ERROR',
+        metadata: { patternType },
+      }).catch(() => {})
+
       // 폴백: 기존 검색으로 대체
       console.log('[PatternSearch] Falling back to standard vector search')
       return await vectorSearch(query, options)
@@ -785,10 +1033,27 @@ async function patternBasedSearch(
 
     if (!data || data.length === 0) {
       console.log(`[PatternSearch] No results for pattern: ${patternType}`)
+
+      // [P-C03-02] 결과 없음 로깅
+      logRAGSearch({
+        userId,
+        projectId,
+        query,
+        searchMethod: 'pattern',
+        resultCount: 0,
+        latencyMs: Date.now() - startTime,
+        embeddingLatencyMs,
+        searchLatencyMs,
+        cacheHit: false,
+        metadata: { patternType },
+      }).catch(() => {})
+
       return []
     }
 
+    // -------------------------------------------------------------------------
     // 3. 결과 매핑
+    // -------------------------------------------------------------------------
     const results: SearchResult[] = data.map((item: any) => ({
       chunkId: item.id,
       documentId: item.document_id,
@@ -803,10 +1068,46 @@ async function patternBasedSearch(
     }))
 
     console.log(`[PatternSearch] Found ${results.length} results for pattern: ${patternType}`)
+
+    // -------------------------------------------------------------------------
+    // [P-C03-02] 성공 로깅 (fire-and-forget)
+    // -------------------------------------------------------------------------
+    logRAGSearch({
+      userId,
+      projectId,
+      query,
+      searchMethod: 'pattern',
+      resultCount: results.length,
+      topScore: results.length > 0 ? results[0].score : null,
+      latencyMs: Date.now() - startTime,
+      embeddingLatencyMs,
+      searchLatencyMs,
+      cacheHit: false,
+      metadata: { patternType },
+    }).catch(() => {})
+
     return results
 
   } catch (err) {
     console.error('[PatternSearch] Unexpected error:', err)
+
+    // -------------------------------------------------------------------------
+    // [P-C03-02] 예외 로깅 (fire-and-forget)
+    // -------------------------------------------------------------------------
+    const errorMessage = err instanceof Error ? err.message : String(err)
+    logRAGSearch({
+      userId,
+      projectId,
+      query,
+      searchMethod: 'pattern',
+      resultCount: 0,
+      latencyMs: Date.now() - startTime,
+      cacheHit: false,
+      error: errorMessage,
+      errorCode: 'PATTERN_UNEXPECTED_ERROR',
+      metadata: { patternType },
+    }).catch(() => {})
+
     return []
   }
 }

@@ -14,3 +14,10 @@ export { useAssistantSessions } from './useAssistantSessions'
 export { useSearchHistory, default as useSearchHistoryDefault } from './useSearchHistory'
 export type { SearchHistoryItem, UseSearchHistoryReturn } from './useSearchHistory'
 
+// =============================================================================
+// [P-B03-01] Intersection Observer 훅 export
+// 무한 스크롤, 레이지 로딩, 요소 가시성 추적에 활용
+// =============================================================================
+export { useIntersectionObserver, default as useIntersectionObserverDefault } from './useIntersectionObserver'
+export type { UseIntersectionObserverOptions, UseIntersectionObserverReturn } from './useIntersectionObserver'
+

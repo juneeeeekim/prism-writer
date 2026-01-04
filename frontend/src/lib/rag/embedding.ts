@@ -7,7 +7,9 @@
 // =============================================================================
 
 import OpenAI from 'openai'
+import { createHash } from 'crypto'
 import { getTokenCount } from './tokenizer'
+import { createClient } from '@/lib/supabase/server'
 
 // =============================================================================
 // 상수 및 설정
@@ -247,4 +249,162 @@ export async function embedLargeBatch(texts: string[]): Promise<number[][]> {
   }
 
   return allEmbeddings
+}
+
+// =============================================================================
+// [P-C01-02] 임베딩 캐시 시스템
+// =============================================================================
+// 목적: 검색 쿼리 임베딩을 캐싱하여 API 호출 비용 절감 및 응답 속도 향상
+// - 캐시 히트: Supabase에서 즉시 반환 (API 호출 없음)
+// - 캐시 미스: API 호출 후 캐시에 저장
+// - TTL 기반 만료: 24시간 후 자동 무효화
+// - 안전성: 캐시 실패 시 원본 embedText() 로직으로 fallback
+// =============================================================================
+
+/** 캐시 TTL (시간 단위) - 24시간 */
+const CACHE_TTL_HOURS = 24
+
+/**
+ * 쿼리 텍스트의 SHA256 해시 생성
+ *
+ * @description
+ * 동일한 쿼리는 동일한 해시를 생성하여 캐시 키로 사용
+ *
+ * @param text - 해시할 텍스트
+ * @returns SHA256 해시 (hex 문자열)
+ */
+function hashQuery(text: string): string {
+  return createHash('sha256').update(text.trim()).digest('hex')
+}
+
+/**
+ * 캐시를 활용한 텍스트 임베딩 생성
+ *
+ * @description
+ * [P-C01-02] 검색 쿼리 임베딩을 캐싱하여 성능 최적화
+ *
+ * 1. 캐시 조회: query_hash로 캐시 테이블 검색
+ * 2. 캐시 히트: 저장된 임베딩 반환 (hit_count 증가)
+ * 3. 캐시 미스: API 호출 → 캐시 저장 → 임베딩 반환
+ *
+ * @param text - 임베딩할 텍스트
+ * @param userId - 사용자 ID (선택, 사용자별 캐시 격리)
+ * @returns 임베딩 벡터 (1536 차원)
+ *
+ * @example
+ * ```typescript
+ * // 기본 사용 (전역 캐시)
+ * const embedding = await embedTextWithCache("RAG란 무엇인가요?")
+ *
+ * // 사용자별 캐시
+ * const embedding = await embedTextWithCache("RAG란 무엇인가요?", userId)
+ * ```
+ */
+export async function embedTextWithCache(
+  text: string,
+  userId?: string
+): Promise<number[]> {
+  // ---------------------------------------------------------------------------
+  // 입력 검증
+  // ---------------------------------------------------------------------------
+  if (!text || text.trim().length === 0) {
+    throw new Error('임베딩할 텍스트가 비어있습니다.')
+  }
+
+  const queryHash = hashQuery(text)
+  const now = new Date()
+
+  // ---------------------------------------------------------------------------
+  // [STEP 1] 캐시 조회
+  // ---------------------------------------------------------------------------
+  try {
+    const supabase = await createClient()
+
+    // 캐시 조회 쿼리 (만료되지 않은 항목만)
+    let query = supabase
+      .from('embedding_cache')
+      .select('id, embedding')
+      .eq('query_hash', queryHash)
+      .gt('expires_at', now.toISOString())
+
+    // 사용자별 캐시 또는 전역 캐시
+    if (userId) {
+      query = query.eq('user_id', userId)
+    } else {
+      query = query.is('user_id', null)
+    }
+
+    const { data: cached, error: cacheError } = await query.maybeSingle()
+
+    // 캐시 조회 에러 (경고만 출력, fallback 진행)
+    if (cacheError) {
+      console.warn('[embedTextWithCache] 캐시 조회 실패, API 호출로 진행:', cacheError.message)
+    }
+
+    // -------------------------------------------------------------------------
+    // [STEP 2] 캐시 히트 - 저장된 임베딩 반환
+    // -------------------------------------------------------------------------
+    if (cached?.embedding) {
+      // 히트 카운트 증가 (비동기, 실패해도 무시)
+      // Supabase update()는 .select()가 없으면 void 반환하므로 별도 처리
+      void (async () => {
+        try {
+          await supabase
+            .from('embedding_cache')
+            .update({ hit_count: (cached as any).hit_count + 1 || 1 })
+            .eq('id', cached.id)
+        } catch {
+          // 무시
+        }
+      })()
+
+      console.debug('[embedTextWithCache] 캐시 히트:', queryHash.substring(0, 8))
+      return cached.embedding as number[]
+    }
+
+    // -------------------------------------------------------------------------
+    // [STEP 3] 캐시 미스 - API 호출 후 캐시 저장
+    // -------------------------------------------------------------------------
+    console.debug('[embedTextWithCache] 캐시 미스, API 호출:', queryHash.substring(0, 8))
+
+    // 원본 embedText 호출
+    const embedding = await embedText(text)
+
+    // 캐시 저장 (비동기, 실패해도 무시)
+    // Supabase upsert()는 .select()가 없으면 void 반환하므로 별도 처리
+    const expiresAt = new Date(now.getTime() + CACHE_TTL_HOURS * 60 * 60 * 1000)
+
+    void (async () => {
+      try {
+        await supabase
+          .from('embedding_cache')
+          .upsert({
+            query_hash: queryHash,
+            embedding,
+            user_id: userId || null,
+            expires_at: expiresAt.toISOString(),
+            hit_count: 0,
+          }, {
+            onConflict: 'query_hash,user_id',
+          })
+        console.debug('[embedTextWithCache] 캐시 저장 완료:', queryHash.substring(0, 8))
+      } catch (err) {
+        console.warn('[embedTextWithCache] 캐시 저장 실패:', err instanceof Error ? err.message : String(err))
+      }
+    })()
+
+    return embedding
+
+  } catch (error) {
+    // -------------------------------------------------------------------------
+    // [FALLBACK] 캐시 시스템 전체 실패 시 원본 로직으로 진행
+    // -------------------------------------------------------------------------
+    console.warn(
+      '[embedTextWithCache] 캐시 시스템 오류, 원본 API 호출로 진행:',
+      error instanceof Error ? error.message : String(error)
+    )
+
+    // 원본 embedText 호출 (캐시 없이)
+    return embedText(text)
+  }
 }
