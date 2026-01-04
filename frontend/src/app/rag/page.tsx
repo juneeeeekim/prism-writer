@@ -110,8 +110,9 @@ export default function RAGSearchPage() {
       // -----------------------------------------------------------------
       // [P1-03] 2단계: Judge API 호출 (검색된 문서를 컨텍스트로 전달)
       // mode: 'standard' 고정 (UI에서 선택권 제거됨)
+      // [FIX] 검색 성공했지만 documents가 빈 배열인 경우도 fallback 처리
       // -----------------------------------------------------------------
-      const context = searchResult
+      const context = searchResult && searchResult.documents.length > 0
         ? documentsToContext(searchResult.documents)
         : [
             // 검색 결과가 없을 경우 안내 메시지
