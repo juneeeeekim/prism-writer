@@ -16,7 +16,7 @@
 
 ### **Implementation Items**
 
-#### [ ] **ID(M-01)**: 마이그레이션 관리자 API 생성
+#### [x] **ID(M-01)**: 마이그레이션 관리자 API 생성 ✅ (2026-01-05 완료)
 
 - `Target`: `frontend/src/app/api/admin/migrate/route.ts` (New File)
 - `Logic (Pseudo)`:
@@ -55,7 +55,7 @@
   - `processDocument` 호출 시 `try-catch` 필수. 실패 시 해당 문서 상태를 'migration_failed'로 업데이트.
   - `user_id`가 없는 레거시 문서의 경우 `auth.getUser()`로 현재 관리자 ID를 주입하거나 예외 처리.
 
-#### [ ] **ID(M-02)**: 마이그레이션 실행 UI (Admin Page)
+#### [x] **ID(M-02)**: 마이그레이션 실행 UI (Admin Page) ✅ (2026-01-05 완료)
 
 - `Target`: `frontend/src/app/admin/migration/page.tsx` (New File - 임시 페이지)
 - `Logic (Pseudo)`:
