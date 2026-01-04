@@ -9,7 +9,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { generateEmbedding, GEMINI_EMBEDDING_CONFIG } from '@/lib/ai/embedding'
+import { generateEmbedding, EMBEDDING_CONFIG } from '@/lib/ai/embedding'
 import { buildEvidencePack } from '@/lib/rag/evidencePack'
 import type { EvidencePack, EvidenceItem } from '@/types/rag'
 
@@ -69,7 +69,7 @@ const DEFAULT_THRESHOLD = 0.5
  * Gemini 임베딩 + 벡터 유사도 기반 청크 검색 API
  * 
  * @description
- * 1. 사용자 쿼리를 Gemini text-embedding-004로 임베딩 (768차원)
+ * 1. 사용자 쿼리를 OpenAI text-embedding-3-small로 임베딩 (1536차원)
  * 2. match_document_chunks RPC로 유사한 청크 검색
  * 3. 결과를 EvidencePack 형식으로 변환하여 반환
  * 
@@ -215,8 +215,8 @@ export async function POST(request: Request): Promise<NextResponse<SearchRespons
       searchResultsForPack,
       {
         query: query.trim(),
-        retrievalConfigId: 'gemini-768',
-        embeddingModelId: GEMINI_EMBEDDING_CONFIG.modelId,
+        retrievalConfigId: 'openai-1536',
+        embeddingModelId: EMBEDDING_CONFIG.modelId,
       }
     )
 
