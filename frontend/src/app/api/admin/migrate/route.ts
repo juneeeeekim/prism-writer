@@ -65,18 +65,19 @@ export async function GET(req: NextRequest) {
 
     // =========================================================================
     // [MODE: stats] 마이그레이션 통계 조회
+    // [FIX] rag_chunks 테이블 사용 (documentProcessor.ts와 일치)
     // =========================================================================
     if (mode === 'stats') {
       // 1. 총 청크 수
       const { count: totalCount, error: countError } = await supabase
-        .from('document_chunks')
+        .from('rag_chunks')  // [FIX] document_chunks -> rag_chunks
         .select('*', { count: 'exact', head: true })
 
       if (countError) throw countError
 
       // 2. 마이그레이션 완료된 청크 수 (현재 모델과 일치)
       const { count: migratedCount, error: migratedError } = await supabase
-        .from('document_chunks')
+        .from('rag_chunks')  // [FIX] document_chunks -> rag_chunks
         .select('*', { count: 'exact', head: true })
         .eq('embedding_model_id', EMBEDDING_CONFIG.modelId)
 
@@ -199,7 +200,7 @@ export async function POST(req: NextRequest) {
       // Step 2: 기존 청크 삭제
       console.log(`[Migration API] Deleting existing chunks for document: ${documentId}`)
       const { error: deleteError } = await supabase
-        .from('document_chunks')
+        .from('rag_chunks')  // [FIX] document_chunks -> rag_chunks
         .delete()
         .eq('document_id', documentId)
 
@@ -219,7 +220,7 @@ export async function POST(req: NextRequest) {
       try {
         // [Step 3-A] 해당 문서의 모든 청크 조회
         const { data: existingChunks, error: chunkQueryError } = await supabase
-          .from('document_chunks')
+          .from('rag_chunks')  // [FIX] document_chunks -> rag_chunks
           .select('id, content')
           .eq('document_id', documentId)
 
@@ -247,7 +248,7 @@ export async function POST(req: NextRequest) {
             const embedding = await embedText(chunk.content)
 
             const { error: updateError } = await supabase
-              .from('document_chunks')
+              .from('rag_chunks')  // [FIX] document_chunks -> rag_chunks
               .update({
                 embedding,
                 embedding_model_id: EMBEDDING_CONFIG.modelId,
@@ -305,7 +306,7 @@ export async function POST(req: NextRequest) {
       let chunks: any[] = []
 
       const { data: mismatchChunks, error: fetchError } = await supabase
-        .from('document_chunks')
+        .from('rag_chunks')  // [FIX] document_chunks -> rag_chunks
         .select('id, content')
         .neq('embedding_model_id', EMBEDDING_CONFIG.modelId)
         .limit(limit)
@@ -317,7 +318,7 @@ export async function POST(req: NextRequest) {
       } else {
         // NULL 모델 ID 체크 (Supabase neq는 NULL 포함 안 할 수 있음)
         const { data: nullChunks, error: nullError } = await supabase
-          .from('document_chunks')
+          .from('rag_chunks')  // [FIX] document_chunks -> rag_chunks
           .select('id, content')
           .is('embedding_model_id', null)
           .limit(limit)
@@ -344,7 +345,7 @@ export async function POST(req: NextRequest) {
           const embedding = await embedText(chunk.content)
 
           const { error: updateError } = await supabase
-            .from('document_chunks')
+            .from('rag_chunks')  // [FIX] document_chunks -> rag_chunks
             .update({
               embedding,
               embedding_model_id: EMBEDDING_CONFIG.modelId,
