@@ -103,6 +103,6 @@
 - [ ] **Test (Search Quality)**:
   - 마이그레이션 된 문서에 대해 검색 수행 시, 유사도가 **0.75 (75%)** 이상으로 나오는지 확인.
   - "현상", "세탁기" 등 기존 테스트 키워드 검색 시 정확한 문맥이 잡히는지 확인.
-- [ ] **Review**:
-  - `processDocument` 함수가 `text-embedding-3-small`을 사용하고 있는지 재확인 (Code Review).
-  - 마이그레이션 완료 후 임시 Admin Page 및 API 비활성화 또는 접근 제어 확인.
+- [x] **Review**:
+  - ✅ `processDocument` 함수가 `text-embedding-3-small`을 사용하고 있는지 재확인 (Code Review). → **확인 완료** (embedding.ts L27, L132)
+  - ⚠️ 마이그레이션 완료 후 임시 Admin Page 및 API 비활성화 또는 접근 제어 확인. → **사용자 판단 필요**
