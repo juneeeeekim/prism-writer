@@ -4,7 +4,7 @@
 
 | 항목 | 내용 |
 |------|------|
-| **문서 버전** | v1.0 |
+| **문서 버전** | v1.1 |
 | **작성일** | 2026년 01월 05일 |
 | **작성자** | PRISM Writer 기술팀 |
 | **문서 목적** | PRISM Writer LLM 모델 관리 아키텍처 분석 및 현황 보고 |
@@ -96,38 +96,86 @@ export const MODEL_REGISTRY: Record<string, ModelConfig> = {
 
 ### 4.1 평가 결과: ✅ 매우 편리
 
-#### 4.1.1 환경 변수로 기본 모델 변경
+#### 4.1.1 기본 모델 결정 로직
 
-```bash
-# .env.local
-NEXT_PUBLIC_DEFAULT_MODEL=gpt-4o  # 이것만 변경하면 기본 모델 교체
+기본 모델은 **우선순위 기반**으로 결정됩니다:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  getDefaultModel() 함수 (llm.config.ts:46)                  │
+├─────────────────────────────────────────────────────────────┤
+│  1순위: process.env.DEFAULT_MODEL 환경 변수                  │
+│         ↓ (없으면)                                          │
+│  2순위: getDefaultModelId() → models.ts에서                 │
+│         isDefault: true 인 모델 탐색                        │
+│         ↓ (없으면)                                          │
+│  3순위: 폴백 값 "gemini-3-flash-preview"                    │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-#### 4.1.2 코드에서 모델 스위칭
+**현재 기본 모델:** `gemini-3-flash-preview` (models.ts에서 `isDefault: true` 설정됨)
+
+#### 4.1.2 기본 모델 변경 방법
+
+**방법 1: 환경 변수 설정 (재배포 필요)**
+
+```bash
+# .env.local (또는 Vercel/서버 환경 변수)
+DEFAULT_MODEL=gpt-5.2-2025-12-11
+```
+
+- 위치: 프로젝트 루트의 `.env.local` 파일 또는 배포 플랫폼의 환경 변수 설정
+- 적용: 서버 재시작 또는 재배포 후 적용
+- 장점: 코드 수정 없이 모델 변경 가능
+
+**방법 2: 코드에서 isDefault 변경**
+
+```typescript
+// config/models.ts (이 폴더 내)
+"gemini-3-flash-preview": {
+  // ...
+  isDefault: false,  // 기존 기본 모델 해제
+},
+"gpt-5.2-2025-12-11": {
+  // ...
+  isDefault: true,   // 새 기본 모델로 설정
+},
+```
+
+- 위치: `frontend/src/config/models.ts` 파일 (이 폴더 내)
+- 적용: 빌드 및 배포 후 적용
+- 장점: 버전 관리에 기록됨
+
+#### 4.1.3 런타임에서 모델 지정
 
 ```typescript
 // gateway.ts를 통한 간단한 모델 지정
 const response = await generateText({
-  modelId: 'gemini-2.0-flash-exp',  // 또는 'gpt-4o', 'claude-3-5-sonnet'
+  modelId: 'gpt-5.2-2025-12-11',  // 원하는 모델 ID 직접 지정
   prompt: '...',
 })
 ```
 
-#### 4.1.3 새 모델 추가 절차
+- 기본 모델과 관계없이 호출 시점에 원하는 모델 지정 가능
+- MODEL_REGISTRY에 등록된 모든 활성화 모델 사용 가능
+
+#### 4.1.4 새 모델 추가 절차
 
 ```typescript
 // models.ts에 추가하기만 하면 됨
 'new-model-id': {
   provider: 'openai',  // 기존 provider 사용
   displayName: 'New Model',
-  capabilities: ['text'],
+  capabilities: ['text-generation', 'streaming'],
+  costPerInputToken: 0.000001,
+  costPerOutputToken: 0.000005,
   maxTokens: 4096,
-  tier: 'standard',
+  tier: 'premium',
   enabled: true,
 }
 ```
 
-#### 4.1.4 새 Provider 추가 절차
+#### 4.1.5 새 Provider 추가 절차
 
 1. `lib/llm/providers/` 폴더에 새 provider 파일 생성
 2. `providers/index.ts`의 Factory에 등록
@@ -197,3 +245,4 @@ const response = await generateText({
 | 버전 | 날짜 | 작성자 | 변경 내용 |
 |------|------|--------|-----------|
 | v1.0 | 2026-01-05 | 기술팀 | 최초 작성 |
+| v1.1 | 2026-01-05 | 기술팀 | 기본 모델 결정 로직 상세 설명 추가, 환경 변수명 수정 (DEFAULT_MODEL) |

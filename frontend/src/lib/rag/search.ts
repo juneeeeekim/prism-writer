@@ -687,6 +687,160 @@ export async function fullTextSearch(
 }
 
 // =============================================================================
+// [P2-01-02] Full Text Search with Rank (ts_rank 기반)
+// =============================================================================
+
+/**
+ * PostgreSQL ts_rank 기반 키워드 검색
+ * 
+ * @description
+ * 키워드 검색에 ts_rank() 점수를 부여하여 정량적 매칭 점수 제공.
+ * 가중 점수 합산(Weighted Score Fusion)에서 사용됨.
+ * 
+ * @param query - 검색 쿼리
+ * @param options - 검색 옵션
+ * @returns 검색 결과 배열 (점수 정규화됨)
+ * 
+ * @example
+ * ```typescript
+ * const results = await fullTextSearchWithRank("현상 욕구", { userId, topK: 10 })
+ * // results[0].score = 0.85 (정규화된 ts_rank 점수)
+ * ```
+ */
+export async function fullTextSearchWithRank(
+  query: string,
+  options: SearchOptions
+): Promise<SearchResult[]> {
+  const { userId, topK = DEFAULT_TOP_K, projectId } = options
+
+  // ---------------------------------------------------------------------------
+  // [Safety] 입력 검증
+  // ---------------------------------------------------------------------------
+  const searchQuery = query.trim()
+  if (!searchQuery) return []
+
+  // ---------------------------------------------------------------------------
+  // [Core] RPC 호출 (직접 await - Supabase builder 패턴)
+  // ---------------------------------------------------------------------------
+  const supabase = await createClient()
+
+  // [Note] withRetry는 Promise를 반환하는 함수에만 사용 가능
+  // Supabase RPC는 PostgrestFilterBuilder를 반환하므로 직접 await
+  const { data, error } = await supabase.rpc('search_chunks_with_rank', {
+    search_query: searchQuery,
+    user_id_param: userId,
+    project_id_param: projectId || null,
+    match_count: topK
+  })
+
+  if (error) {
+    console.error('[fullTextSearchWithRank] RPC error:', error)
+    throw new Error(`키워드 검색(ts_rank) 실패: ${error.message}`)
+  }
+
+  // ---------------------------------------------------------------------------
+  // [Transform] 결과 변환 (rank → score 정규화)
+  // ---------------------------------------------------------------------------
+  if (!data || data.length === 0) return []
+
+  // maxRank로 정규화 (0-1 범위)
+  const maxRank = Math.max(...data.map((d: any) => d.rank || 0), 0.001)  // [Safety] div by zero 방지
+
+  const results: SearchResult[] = data.map((item: any) => ({
+    chunkId: item.id,
+    documentId: item.document_id,
+    content: item.content,
+    score: (item.rank || 0) / maxRank,  // [0, 1] 정규화
+    metadata: item.metadata || {},
+    quality: calculateEvidenceQuality((item.rank || 0) / maxRank, 'keyword')
+  }))
+
+  console.log(`[fullTextSearchWithRank] Found ${results.length} results, max rank: ${maxRank.toFixed(4)}`)
+
+  return results
+}
+
+// =============================================================================
+// [P2-01-03] Weighted Score Fusion (가중 점수 합산)
+// =============================================================================
+
+/**
+ * 가중 점수 합산 알고리즘
+ * 
+ * @description
+ * RRF 대신 벡터/키워드 점수를 가중치로 합산하여 병합.
+ * 동일 청크가 양쪽에 있으면 점수를 합산.
+ * 
+ * @param vectorResults - 벡터 검색 결과
+ * @param keywordResults - 키워드 검색 결과 (ts_rank 정규화됨)
+ * @param vectorWeight - 벡터 가중치 (기본 0.7)
+ * @param keywordWeight - 키워드 가중치 (기본 0.3)
+ * @param topK - 반환할 결과 개수
+ * @returns 병합된 검색 결과
+ * 
+ * @example
+ * ```typescript
+ * const merged = weightedScoreFusion(vectorResults, keywordResults, 0.7, 0.3, 5)
+ * // 벡터에만 있는 청크: score = vectorScore * 0.7
+ * // 양쪽에 있는 청크: score = vectorScore * 0.7 + keywordScore * 0.3
+ * ```
+ */
+export function weightedScoreFusion(
+  vectorResults: SearchResult[],
+  keywordResults: SearchResult[],
+  vectorWeight: number = DEFAULT_VECTOR_WEIGHT,
+  keywordWeight: number = DEFAULT_KEYWORD_WEIGHT,
+  topK: number = DEFAULT_TOP_K
+): SearchResult[] {
+  // ---------------------------------------------------------------------------
+  // [Core] 점수 합산 맵
+  // ---------------------------------------------------------------------------
+  const scoreMap = new Map<string, { result: SearchResult; finalScore: number }>()
+
+  // ---------------------------------------------------------------------------
+  // [Step 1] 벡터 점수 합산
+  // ---------------------------------------------------------------------------
+  vectorResults.forEach((r) => {
+    scoreMap.set(r.chunkId, {
+      result: r,
+      finalScore: r.score * vectorWeight
+    })
+  })
+
+  // ---------------------------------------------------------------------------
+  // [Step 2] 키워드 점수 합산
+  // ---------------------------------------------------------------------------
+  keywordResults.forEach((r) => {
+    const existing = scoreMap.get(r.chunkId)
+    if (existing) {
+      // 양쪽에 존재: 점수 합산 (boost)
+      existing.finalScore += r.score * keywordWeight
+    } else {
+      // 키워드만 존재
+      scoreMap.set(r.chunkId, {
+        result: r,
+        finalScore: r.score * keywordWeight
+      })
+    }
+  })
+
+  // ---------------------------------------------------------------------------
+  // [Step 3] 정렬 및 반환
+  // ---------------------------------------------------------------------------
+  const merged = Array.from(scoreMap.values())
+    .sort((a, b) => b.finalScore - a.finalScore)
+    .slice(0, topK)
+    .map((entry) => ({
+      ...entry.result,
+      score: entry.finalScore
+    }))
+
+  console.log(`[weightedScoreFusion] Merged ${vectorResults.length}V + ${keywordResults.length}K → ${merged.length} results`)
+
+  return merged
+}
+
+// =============================================================================
 // RRF (Reciprocal Rank Fusion)
 // =============================================================================
 
@@ -847,34 +1001,64 @@ export async function hybridSearch(
   try {
     // -------------------------------------------------------------------------
     // 1. 병렬로 벡터 검색과 키워드 검색 실행
+    // [P2-01] Feature Flag에 따라 키워드 검색 함수 분기
     // -------------------------------------------------------------------------
     const searchStartTime = Date.now()
-    const [vectorResults, keywordResults] = await Promise.all([
-      vectorSearch(query, { ...baseOptions, topK: topK * 2 }), // 더 많은 결과 가져오기
-      fullTextSearch(query, { ...baseOptions, topK: topK * 2 }).catch(() => []), // 실패 시 빈 배열
-    ])
+
+    let vectorResults: SearchResult[]
+    let keywordResults: SearchResult[]
+
+    if (FEATURE_FLAGS.ENABLE_WEIGHTED_HYBRID_SEARCH) {
+      // [P2-01] Weighted Score Fusion 모드: fullTextSearchWithRank 사용
+      console.log('[HybridSearch] Using Weighted Score Fusion mode')
+      ;[vectorResults, keywordResults] = await Promise.all([
+        vectorSearch(query, { ...baseOptions, topK: topK * 2 }),
+        fullTextSearchWithRank(query, { ...baseOptions, topK: topK * 2 }).catch(() => [])
+      ])
+    } else {
+      // [Legacy] RRF 모드: 기존 fullTextSearch 사용
+      ;[vectorResults, keywordResults] = await Promise.all([
+        vectorSearch(query, { ...baseOptions, topK: topK * 2 }),
+        fullTextSearch(query, { ...baseOptions, topK: topK * 2 }).catch(() => [])
+      ])
+    }
+
     const searchLatencyMs = Date.now() - searchStartTime
 
     // -------------------------------------------------------------------------
-    // 2. 가중치 적용
+    // 2-3. 결과 병합
+    // [P2-01] Feature Flag에 따라 병합 알고리즘 분기
     // -------------------------------------------------------------------------
-    const weightedVectorResults = vectorResults.map((result) => ({
-      ...result,
-      score: result.score * vectorWeight,
-    }))
+    let mergedResults: SearchResult[]
 
-    const weightedKeywordResults = keywordResults.map((result) => ({
-      ...result,
-      score: result.score * keywordWeight,
-    }))
+    if (FEATURE_FLAGS.ENABLE_WEIGHTED_HYBRID_SEARCH) {
+      // [P2-01-03] Weighted Score Fusion (RRF 대체)
+      mergedResults = weightedScoreFusion(
+        vectorResults,
+        keywordResults,
+        vectorWeight,
+        keywordWeight,
+        topK
+      )
+    } else {
+      // -----------------------------------------------------------------------
+      // [Legacy] 가중치 적용 후 RRF 병합
+      // -----------------------------------------------------------------------
+      const weightedVectorResults = vectorResults.map((result) => ({
+        ...result,
+        score: result.score * vectorWeight,
+      }))
 
-    // -------------------------------------------------------------------------
-    // 3. RRF로 병합
-    // -------------------------------------------------------------------------
-    const mergedResults = reciprocalRankFusion(
-      [weightedVectorResults, weightedKeywordResults],
-      topK
-    )
+      const weightedKeywordResults = keywordResults.map((result) => ({
+        ...result,
+        score: result.score * keywordWeight,
+      }))
+
+      mergedResults = reciprocalRankFusion(
+        [weightedVectorResults, weightedKeywordResults],
+        topK
+      )
+    }
 
     // -------------------------------------------------------------------------
     // [Pipeline v5] 4. 결과 캐싱

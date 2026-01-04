@@ -302,6 +302,48 @@ export const FEATURE_FLAGS = {
    * - 롤백: OFF 시 핀 버튼 숨김
    */
   ENABLE_PIN_UNPIN: process.env.NEXT_PUBLIC_ENABLE_PIN_UNPIN !== 'false',
+
+  // ==========================================================================
+  // [P2-01] Search Quality Enhancement Feature Flags (2026-01-05 추가)
+  // ==========================================================================
+
+  /**
+   * 가중 하이브리드 검색 활성화 (P2-01)
+   * 환경 변수: NEXT_PUBLIC_ENABLE_WEIGHTED_HYBRID_SEARCH
+   * 기본값: false (점진적 롤아웃)
+   * 
+   * @description
+   * - RRF 대신 가중 점수 합산(Weighted Score Fusion) 사용
+   * - vectorWeight: 0.7, keywordWeight: 0.3 기본값
+   * - 롤백: OFF 시 기존 RRF 로직 유지
+   */
+  ENABLE_WEIGHTED_HYBRID_SEARCH: process.env.NEXT_PUBLIC_ENABLE_WEIGHTED_HYBRID_SEARCH === 'true',
+
+  /**
+   * Re-ranking 활성화 (P2-02)
+   * 환경 변수: NEXT_PUBLIC_ENABLE_RERANKING
+   * 기본값: false (LLM 비용 고려)
+   * 
+   * @description
+   * - 1차 검색 결과 상위 20개를 LLM으로 재평가
+   * - 쿼리-문서 관련도 정밀 재정렬
+   * - 롤백: OFF 시 rerank 건너뜀
+   */
+  ENABLE_RERANKING: process.env.NEXT_PUBLIC_ENABLE_RERANKING === 'true',
+
+  /**
+   * Re-ranking 사용 LLM 모델 (P2-02)
+   * 환경 변수: NEXT_PUBLIC_RERANK_MODEL
+   * 기본값: 'gemini'
+   */
+  RERANK_MODEL: (process.env.NEXT_PUBLIC_RERANK_MODEL || 'gemini') as 'gemini' | 'openai',
+
+  /**
+   * Re-ranking 대상 후보 수 (P2-02)
+   * 환경 변수: NEXT_PUBLIC_RERANK_TOP_CANDIDATES
+   * 기본값: 20
+   */
+  RERANK_TOP_CANDIDATES: parseInt(process.env.NEXT_PUBLIC_RERANK_TOP_CANDIDATES || '20'),
 } as const
 
 // =============================================================================
@@ -311,7 +353,7 @@ export const FEATURE_FLAGS = {
 /**
  * Feature Flag 활성화 여부 확인
  * 
- * @param flag - 확인할 플래그 이름
+ * @param flag - 확인할 플래그 이름 (boolean 플래그만)
  * @returns 플래그 활성화 여부
  * 
  * @example
@@ -321,8 +363,13 @@ export const FEATURE_FLAGS = {
  * }
  * ```
  */
-export function isFeatureEnabled(flag: keyof typeof FEATURE_FLAGS): boolean {
-  return FEATURE_FLAGS[flag]
+// [P2-01] 타입 수정: boolean 플래그만 허용 (RERANK_MODEL, RERANK_TOP_CANDIDATES 제외)
+type BooleanFeatureFlags = {
+  [K in keyof typeof FEATURE_FLAGS]: typeof FEATURE_FLAGS[K] extends boolean ? K : never
+}[keyof typeof FEATURE_FLAGS]
+
+export function isFeatureEnabled(flag: BooleanFeatureFlags): boolean {
+  return FEATURE_FLAGS[flag] as boolean
 }
 
 /**
