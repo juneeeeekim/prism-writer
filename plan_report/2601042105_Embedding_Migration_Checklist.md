@@ -82,7 +82,7 @@
 - `Key Variables`: `progress`, `totalDocs`, `currentDocName`
 - `Safety`: 브라우저 탭을 닫지 않도록 `window.onbeforeunload` 경고 추가.
 
-#### [ ] **ID(M-03)**: 검색 임계값(Threshold) 복구
+#### [x] **ID(M-03)**: 검색 임계값(Threshold) 복구 ✅ (2026-01-05 검증 완료 - 이미 0.5 표준값 적용됨)
 
 - `Target`: `frontend/src/components/Assistant/SmartSearchTab.tsx`
 - `Logic (Pseudo)`:
