@@ -18,6 +18,10 @@ import { useProject } from '@/contexts/ProjectContext'
 import type { UpgradePlan } from '@/lib/judge/types'
 import type { ChangePlan, Patch } from '@/lib/rag/types/patch'
 import { clsx } from 'clsx'
+// =============================================================================
+// [P-A01-04] 로딩 스켈레톤 컴포넌트 import
+// =============================================================================
+import { EvaluationSkeleton } from '@/components/ui/SearchResultSkeleton'
 // [PATTERN] PatternAnalysisSection 이동됨: ReferenceTab 으로 (참고자료 탭)
 
 
@@ -779,6 +783,13 @@ export default function EvaluationTab() {
             {/* 기준별 평가 탭 */}
             {activeEvalTab === 'detailed' && (
               <>
+                {/* =============================================================
+                    [P-A01-04] 기준별 평가 로딩 중 스켈레톤 표시
+                    isLoading이 true이고 result가 없을 때 (최초 로딩)
+                    ============================================================= */}
+                {isLoading && !result && (
+                  <EvaluationSkeleton />
+                )}
 
                 {/* 저장됨 표시 */}
                 {isSaved && result && (
@@ -786,14 +797,18 @@ export default function EvaluationTab() {
                     ✅ 평가 결과 저장됨
                   </div>
                 )}
-                <FeedbackPanel 
-                  evaluation={result}
-                  isLoading={isLoading}
-                  onEvaluate={handleEvaluate}
-                  onApplyPlan={handleApplyPlan}
-                  onRetryPlan={handleRetryPlan}
-                  onReevaluate={handleReevaluate}
-                />
+
+                {/* [P-A01-04] 결과가 있거나 로딩 중(재평가)일 때 FeedbackPanel 표시 */}
+                {(result || (isLoading && result)) && (
+                  <FeedbackPanel
+                    evaluation={result}
+                    isLoading={isLoading}
+                    onEvaluate={handleEvaluate}
+                    onApplyPlan={handleApplyPlan}
+                    onRetryPlan={handleRetryPlan}
+                    onReevaluate={handleReevaluate}
+                  />
+                )}
               </>
             )}
           </div>

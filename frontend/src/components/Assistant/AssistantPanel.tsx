@@ -14,6 +14,7 @@ import OutlineTab from './OutlineTab'
 import ReferenceTab from './ReferenceTab'
 import ChatTab from './ChatTab'
 import EvaluationTab from './EvaluationTab'
+import SmartSearchTab from './SmartSearchTab'  // [P2-02] 스마트 검색 탭 추가
 import ChatSessionList from './ChatSessionList'
 import ChatHistoryOnboarding from './ChatHistoryOnboarding'
 import { FEATURES } from '@/lib/features'
@@ -24,7 +25,8 @@ import { useProject } from '@/contexts/ProjectContext'
 // -----------------------------------------------------------------------------
 // Types
 // -----------------------------------------------------------------------------
-type TabId = 'outline' | 'reference' | 'chat' | 'evaluation'
+// [P2-02] TabId에 'search' 추가
+type TabId = 'outline' | 'reference' | 'chat' | 'evaluation' | 'search'
 
 interface Tab {
   id: TabId
@@ -34,14 +36,15 @@ interface Tab {
 
 // -----------------------------------------------------------------------------
 // Tab Configuration
-// [P6-01-A] 탭 순서 변경: 참고자료 → 목차 제안 → AI 채팅 → 평가
-// 이유: 새 프로젝트 생성 시 RAG 구축(문서 업로드)이 먼저 보이도록
+// [P6-01-A] 탭 순서 변경: 참고자료 → 목차 제안 → AI 채팅 → 평가 → 스마트 검색
+// [P2-02] 스마트 검색 탭 추가
 // -----------------------------------------------------------------------------
 const TABS: Tab[] = [
   { id: 'reference', label: '참고자료', icon: '📚' },
   { id: 'outline', label: '목차 제안', icon: '🗂️' },
   { id: 'chat', label: 'AI 채팅', icon: '💬' },
   { id: 'evaluation', label: '평가', icon: '📊' },
+  { id: 'search', label: '⚡ 스마트 검색', icon: '🔍' },  // [P2-02] 추가
 ]
 
 // -----------------------------------------------------------------------------
@@ -194,6 +197,16 @@ export default function AssistantPanel({ defaultTab = 'reference' }: AssistantPa
           className={`h-full ${activeTab !== 'evaluation' ? 'hidden' : ''}`}
         >
           <EvaluationTab />
+        </div>
+
+        {/* [P2-02] 스마트 검색 탭 - Always mounted to preserve search results */}
+        <div
+          id="panel-search"
+          role="tabpanel"
+          aria-labelledby="tab-search"
+          className={`h-full ${activeTab !== 'search' ? 'hidden' : ''}`}
+        >
+          <SmartSearchTab />
         </div>
       </div>
     </div>

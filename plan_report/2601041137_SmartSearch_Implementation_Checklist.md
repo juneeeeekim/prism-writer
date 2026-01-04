@@ -365,28 +365,18 @@
 
 ---
 
-## Git Commit Strategy
+## ✅ Git Commit Strategy (완료)
 
-```bash
-# Phase 1 완료 후
-git add .
-git commit -m "fix(rag): 스마트 검색에 projectId 파라미터 추가 (Phase 1)
+**실행된 커밋:**
 
-- RAG Search API에 projectId 파라미터 추가
-- 스마트 검색 페이지에 프로젝트 선택 드롭다운 추가
-- searchDocuments 함수 옵션 확장"
+```
+# Phase 1
+482887d feat(rag): Phase 1 - 스마트 검색에 프로젝트 격리 기능 추가
 
-git push origin main
-
-# Phase 2 완료 후
-git add .
-git commit -m "refactor(rag): 스마트 검색을 에디터 AssistantPanel로 이전 (Phase 2)
-
-- SmartSearchTab 컴포넌트 신규 생성
-- AssistantPanel에 스마트 검색 탭 추가
-- /rag 페이지를 /documents로 리다이렉트"
-
-git push origin main
+# Phase 2
+a93a4ab feat(rag): Phase 2 - 스마트 검색을 에디터 AssistantPanel로 통합
+c94551e fix(rag): Phase 2 누락 파일 추가 - SmartSearchTab 및 AssistantPanel
+12ec740 docs(rag): 스마트 검색 아키텍처 수정 기술 문서 추가
 ```
 
 ---

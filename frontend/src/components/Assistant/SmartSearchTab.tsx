@@ -12,6 +12,10 @@ import { useState } from 'react'
 import { useProject } from '@/contexts/ProjectContext'
 import { searchDocuments, RAGSearchError } from '@/lib/api/rag'
 import type { EvidencePack, EvidenceItem } from '@/types/rag'
+// =============================================================================
+// [P-A01-03] 로딩 스켈레톤 컴포넌트 import
+// =============================================================================
+import { SearchResultSkeleton } from '@/components/ui/SearchResultSkeleton'
 
 // =============================================================================
 // [P2-01] 타입 정의
@@ -177,10 +181,19 @@ export default function SmartSearchTab() {
 
       {/* =================================================================
           [P2-01] 검색 결과 표시
+          [P-A01-03] 로딩 중 스켈레톤 표시 추가
           ================================================================= */}
       <div className="flex-1 overflow-y-auto space-y-3">
+        {/* ===============================================================
+            [P-A01-03] 로딩 중 스켈레톤 표시
+            검색 API 호출 중일 때 SearchResultSkeleton 컴포넌트 표시
+            =============================================================== */}
+        {searchState.isLoading && (
+          <SearchResultSkeleton count={3} />
+        )}
+
         {/* Evidence Pack 결과 */}
-        {evidencePack && evidencePack.items.length > 0 && (
+        {!searchState.isLoading && evidencePack && evidencePack.items.length > 0 && (
           <div className="space-y-3">
             <h3 className="font-semibold text-gray-900 dark:text-white text-sm">
               📚 검색 결과 ({evidencePack.items.length}개)
