@@ -26,7 +26,7 @@ PostgreSQL의 `ts_rank()` 함수를 활용하여 키워드 매칭 점수를 정�
 
 ---
 
-### [P2-01-01] 키워드 검색 RPC 함수 생성
+### [x] [P2-01-01] 키워드 검색 RPC 함수 생성 ✅ (2026-01-05 구현 완료)
 
 - **ID**: P2-01-01
 - `Target`: `supabase/migrations/075_keyword_search_with_rank.sql` (신규)
@@ -72,11 +72,12 @@ PostgreSQL의 `ts_rank()` 함수를 활용하여 키워드 매칭 점수를 정�
 
 ---
 
-### [P2-01-02] fullTextSearchWithRank 함수 생성
+### [x] [P2-01-02] fullTextSearchWithRank 함수 생성 ✅ (2026-01-05 구현 완료)
 
 - **ID**: P2-01-02
 - `Target`: `frontend/src/lib/rag/search.ts` > `fullTextSearchWithRank()` (신규)
 - `Logic (Pseudo)`:
+
   ```typescript
   export async function fullTextSearchWithRank(
     query: string,
@@ -113,6 +114,7 @@ PostgreSQL의 `ts_rank()` 함수를 활용하여 키워드 매칭 점수를 정�
     }));
   }
   ```
+
 - `Key Variables`: `maxRank`, `search_query`, `withRetry()`
 - `Safety`:
   - `maxRank`가 0일 경우 division by zero 방지 → `Math.max(..., 0.001)`
@@ -120,7 +122,7 @@ PostgreSQL의 `ts_rank()` 함수를 활용하여 키워드 매칭 점수를 정�
 
 ---
 
-### [P2-01-03] hybridSearch에 가중 점수 합산 로직 추가
+### [x] [P2-01-03] hybridSearch에 가중 점수 합산 로직 추가 ✅ (2026-01-05 구현 완료)
 
 - **ID**: P2-01-03
 - `Target`: `frontend/src/lib/rag/search.ts` > `hybridSearch()` (수정)
@@ -178,7 +180,7 @@ PostgreSQL의 `ts_rank()` 함수를 활용하여 키워드 매칭 점수를 정�
 
 ---
 
-### [P2-01-04] Feature Flag: ENABLE_WEIGHTED_HYBRID_SEARCH
+### [x] [P2-01-04] Feature Flag: ENABLE_WEIGHTED_HYBRID_SEARCH ✅ (2026-01-05 구현 완료)
 
 - **ID**: P2-01-04
 - `Target`: `frontend/src/config/featureFlags.ts`
@@ -203,7 +205,7 @@ PostgreSQL의 `ts_rank()` 함수를 활용하여 키워드 매칭 점수를 정�
 
 ---
 
-### [P2-02-01] rerank 함수 생성
+### [x] [P2-02-01] rerank 함수 생성 ✅ (2026-01-05 구현 완료)
 
 - **ID**: P2-02-01
 - `Target`: `frontend/src/lib/rag/rerank.ts` (신규 파일)
@@ -265,7 +267,7 @@ PostgreSQL의 `ts_rank()` 함수를 활용하여 키워드 매칭 점수를 정�
 
 ---
 
-### [P2-02-02] hybridSearch에 rerank 통합
+### [x] [P2-02-02] hybridSearch에 rerank 통합 ✅ (2026-01-05 구현 완료)
 
 - **ID**: P2-02-02
 - `Target`: `frontend/src/lib/rag/search.ts` > `hybridSearch()` (수정)
@@ -293,7 +295,7 @@ PostgreSQL의 `ts_rank()` 함수를 활용하여 키워드 매칭 점수를 정�
 
 ---
 
-### [P2-02-03] Feature Flag: ENABLE_RERANKING
+### [x] [P2-02-03] Feature Flag: ENABLE_RERANKING ✅ (2026-01-05 구현 완료)
 
 - **ID**: P2-02-03
 - `Target`: `frontend/src/config/featureFlags.ts`
@@ -315,18 +317,23 @@ PostgreSQL의 `ts_rank()` 함수를 활용하여 키워드 매칭 점수를 정�
 
 ## Definition of Done (검증)
 
+> ⚠️ **주의**: SQL RPC 함수가 Supabase에 배포되어야 테스트 가능 (2026-01-05 대기 중)
+
 ### Hybrid Search (P2-01)
 
 - [ ] **Test (Unit)**: `fullTextSearchWithRank("현상")` 호출 시 rank 값이 0 이상인 결과 반환
+  - ⚠️ **상태**: SQL RPC 배포 대기 중 (2026-01-05 02:59)
 - [ ] **Test (Integration)**: `hybridSearch("현상 욕구 계획", { vectorWeight: 0.6, keywordWeight: 0.4 })` 호출 시:
   - 벡터 검색에 없고 키워드 검색에만 있는 결과가 상위에 포함되는지 확인
 - [ ] **Test (Accuracy)**: 테스트 쿼리 5개에 대해 MRR@5 (Mean Reciprocal Rank) 측정
   - 기준: Phase 1 완료 후 MRR보다 +10% 이상 향상
-- [ ] **Review**: `ts_rank` 사용 시 한글 검색 정확도 확인 (형태소 분석기 미사용 시 한계점 문서화)
+- [x] **Review**: `ts_rank` 사용 시 한글 검색 정확도 확인 (형태소 분석기 미사용 시 한계점 문서화)
+  - ✅ 'simple' config 사용으로 한글 기본 토큰화 지원 (형태소 분석 미지원)
 
 ### Re-ranking (P2-02)
 
 - [ ] **Test (Unit)**: `rerankResults(query, candidates)` 호출 시 LLM 응답 파싱 성공
+  - ⚠️ **상태**: Placeholder 구현 (LLM API 연동 예정)
 - [ ] **Test (Error)**: LLM 타임아웃 시 원본 결과 반환 확인
 - [ ] **Test (Accuracy)**: rerank 전/후 상위 3개 결과 비교
   - 정성 평가: "더 관련성 높은 문서가 상위로 이동했는가?"
@@ -334,10 +341,10 @@ PostgreSQL의 `ts_rank()` 함수를 활용하여 키워드 매칭 점수를 정�
 
 ### 공통
 
-- [ ] **Build**: `npm run build` 에러 없음
-- [ ] **Type Check**: `npx tsc --noEmit` 에러 없음
+- [x] **Build**: `npm run build` 에러 없음 ✅ (2026-01-05 Vercel 배포 성공)
+- [x] **Type Check**: `npx tsc --noEmit` 에러 없음 ✅ (Jest 테스트 제외)
 - [ ] **Console Logs**: `console.log` → `logger.info` 마이그레이션 완료
-- [ ] **JSDoc**: 신규 함수에 `@description`, `@param`, `@returns` 작성
+- [x] **JSDoc**: 신규 함수에 `@description`, `@param`, `@returns` 작성 ✅
 
 ---
 
