@@ -124,8 +124,6 @@ export async function POST(request: Request): Promise<NextResponse<SearchRespons
     console.log('[SearchDebug] ProjectId:', body.projectId)
     console.log('[SearchDebug] Threshold:', threshold)
 
-    const effectiveCategory = category || '*'
-
     // 쿼리 검증
     if (!query || query.trim().length === 0) {
       return NextResponse.json(
