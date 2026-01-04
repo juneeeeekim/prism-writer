@@ -20,6 +20,8 @@ export interface SearchOptions {
   threshold?: number
   /** [P1-02] 카테고리 필터 (선택 - 생략 시 전체 검색) */
   category?: string
+  /** [P1-06] 프로젝트 ID 필터 (프로젝트별 RAG 격리) */
+  projectId?: string
 }
 
 /** 검색 API 응답 */
@@ -87,7 +89,8 @@ export async function searchDocuments(
   query: string,
   options: SearchOptions
 ): Promise<SearchResult> {
-  const { topK = 5, threshold = 0.5, category } = options
+  // [P1-06] projectId 추가
+  const { topK = 5, threshold = 0.5, category, projectId } = options
 
   // ---------------------------------------------------------------------------
   // 입력 검증
@@ -108,6 +111,7 @@ export async function searchDocuments(
         topK,
         threshold,
         category,  // [보안] 카테고리 격리 필터
+        projectId, // [P1-06] 프로젝트별 RAG 격리
       }),
     })
 

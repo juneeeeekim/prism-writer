@@ -8,7 +8,7 @@
 
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import AuthHeader from '@/components/auth/AuthHeader'
 import { EvidenceCard, EvidenceList } from '@/components/rag/EvidenceCard'
 
@@ -66,9 +66,46 @@ export default function RAGSearchPage() {
   const [evidencePack, setEvidencePack] = useState<EvidencePack | null>(null)
 
   // ---------------------------------------------------------------------------
+  // [P1-03] 프로젝트 선택 상태
+  // ---------------------------------------------------------------------------
+  const [projects, setProjects] = useState<{id: string, name: string}[]>([])
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+  const [isLoadingProjects, setIsLoadingProjects] = useState(true)
+
+  // ---------------------------------------------------------------------------
+  // [P1-03] 프로젝트 목록 로드
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    async function loadProjects() {
+      try {
+        const res = await fetch('/api/projects')
+        if (res.ok) {
+          const data = await res.json()
+          const projectList = data.projects || []
+          setProjects(projectList)
+          // 첫 번째 프로젝트 자동 선택
+          if (projectList.length > 0) {
+            setSelectedProjectId(projectList[0].id)
+          }
+        }
+      } catch (err) {
+        console.error('[RAG Search] Failed to load projects:', err)
+      } finally {
+        setIsLoadingProjects(false)
+      }
+    }
+    loadProjects()
+  }, [])
+
+  // ---------------------------------------------------------------------------
   // 검색 핸들러 (2단계 파이프라인: 검색 → Judge)
   // ---------------------------------------------------------------------------
   const handleSearch = async () => {
+    // [P1-05] 프로젝트 미선택 시 에러 표시
+    if (!selectedProjectId) {
+      setSearchState(prev => ({ ...prev, error: '프로젝트를 먼저 선택해주세요.' }))
+      return
+    }
     if (!searchState.query.trim()) {
       setSearchState(prev => ({ ...prev, error: '질문을 입력해주세요.' }))
       return
@@ -85,10 +122,11 @@ export default function RAGSearchPage() {
       // -----------------------------------------------------------------
       let searchResult
       try {
+        // [P1-05] projectId 전달
         searchResult = await searchDocuments(searchState.query, {
           topK: 5,
           threshold: 0.5,
-          // category 생략 → 백엔드 기본값 '*' 적용
+          projectId: selectedProjectId,  // [P1-05] 프로젝트별 RAG 격리
         })
         setEvidencePack(searchResult.evidencePack)
       } catch (searchError) {
@@ -178,6 +216,33 @@ export default function RAGSearchPage() {
           </p>
         </div>
 
+        {/* =================================================================
+            [P1-04] 프로젝트 선택 드롭다운
+            ================================================================= */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-4">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            📁 프로젝트 선택
+          </label>
+          {isLoadingProjects ? (
+            <div className="text-gray-500">프로젝트 목록 로딩 중...</div>
+          ) : projects.length === 0 ? (
+            <div className="text-amber-600 dark:text-amber-400">
+              ⚠️ 프로젝트가 없습니다. 먼저 프로젝트를 생성해주세요.
+            </div>
+          ) : (
+            <select
+              value={selectedProjectId || ''}
+              onChange={(e) => setSelectedProjectId(e.target.value || null)}
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+            >
+              <option value="">프로젝트를 선택하세요</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          )}
+        </div>
+
         {/* 검색 입력 섹션 */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8">
           <div className="flex flex-col gap-4">
@@ -186,14 +251,14 @@ export default function RAGSearchPage() {
                 type="text"
                 value={searchState.query}
                 onChange={(e) => setSearchState(prev => ({ ...prev, query: e.target.value }))}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                onKeyDown={(e) => e.key === 'Enter' && selectedProjectId && handleSearch()}
                 placeholder="질문을 입력하세요..."
                 className="flex-1 px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               />
-              {/* [P2-02] 검색 버튼 - 로딩 텍스트 단순화 */}
+              {/* [P2-02] 검색 버튼 - 프로젝트 미선택 시 비활성화 */}
               <button
                 onClick={handleSearch}
-                disabled={searchState.isLoading}
+                disabled={searchState.isLoading || !selectedProjectId}
                 className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {searchState.isLoading ? (

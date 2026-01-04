@@ -27,6 +27,8 @@ interface SearchRequest {
   threshold?: number
   /** [Phase C] 카테고리 필터 (필수 - 격리 모드) */
   category?: string
+  /** [P1-01] 프로젝트 ID 필터 (프로젝트별 RAG 격리) */
+  projectId?: string
 }
 
 /** 검색 결과 아이템 (DB에서 반환되는 형식) */
@@ -163,6 +165,7 @@ export async function POST(request: Request): Promise<NextResponse<SearchRespons
     // ---------------------------------------------------------------------------
     // 4. match_document_chunks RPC 호출 (P2 Phase 1에서 생성된 함수)
     // [Phase C] C-02: user_id_param과 category_param 전달
+    // [P1-02] project_id_param 추가 - 프로젝트별 RAG 격리
     // ---------------------------------------------------------------------------
     const { data: searchResults, error: searchError } = await supabase.rpc(
       'match_document_chunks',
@@ -171,7 +174,8 @@ export async function POST(request: Request): Promise<NextResponse<SearchRespons
         match_threshold: threshold,
         match_count: validTopK,
         user_id_param: session.user.id,        // [Phase C] 사용자 ID 전달
-        category_param: effectiveCategory === '*' ? null : effectiveCategory  // [Option B] '*' → null (전체 검색)
+        category_param: effectiveCategory === '*' ? null : effectiveCategory,  // [Option B] '*' → null (전체 검색)
+        project_id_param: body.projectId || null  // [P1-02] 프로젝트 ID 전달 (null이면 RPC가 빈 결과 반환)
       }
     )
 
