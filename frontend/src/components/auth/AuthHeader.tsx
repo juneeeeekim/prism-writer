@@ -86,13 +86,7 @@ export default function AuthHeader({
             
             {/* 네비게이션 버튼 영역 */}
             <nav className="hidden sm:flex items-center gap-2 ml-4 border-l border-gray-200 dark:border-gray-700 pl-4">
-              <Link
-                href="/rag"
-                className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors flex items-center gap-1"
-                aria-label="RAG 검색"
-              >
-                🔍 RAG 검색
-              </Link>
+              {/* [P2-04] RAG 검색 링크 제거 - 스마트 검색은 에디터 내 AssistantPanel 탭으로 이전 */}
               
               {/* Phase 11: 내 문서 링크 */}
               <Link
