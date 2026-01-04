@@ -22,6 +22,11 @@ import { clsx } from 'clsx'
 // [P-A01-04] 로딩 스켈레톤 컴포넌트 import
 // =============================================================================
 import { EvaluationSkeleton } from '@/components/ui/SearchResultSkeleton'
+// =============================================================================
+// [P-A02-03] Empty State 컴포넌트 import
+// 평가 기록이 없을 때 친절한 안내 메시지 제공
+// =============================================================================
+import { NoEvaluationHistory } from '@/components/ui/EmptyState'
 // [PATTERN] PatternAnalysisSection 이동됨: ReferenceTab 으로 (참고자료 탭)
 
 
@@ -910,11 +915,14 @@ export default function EvaluationTab() {
         )
       })()}
 
-      {/* Phase 15: 평가 없음 상태 표시 */}
+      {/* =====================================================================
+          [P-A02-03] 평가 없음 Empty State
+          평가 기록이 없을 때 NoEvaluationHistory 컴포넌트 표시
+          - 친절한 안내 메시지와 평가 시작 가이드 제공
+          ===================================================================== */}
       {!isLoadingHistory && savedEvaluations.length === 0 && !result && !isLoading && (
-        <div className="mx-4 mb-4 p-4 text-center text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-          <p>📝 이 문서의 평가 기록이 없습니다.</p>
-          <p className="mt-1 text-xs">위의 '평가하기' 버튼을 눌러 평가를 시작하세요.</p>
+        <div className="mx-4 mb-4">
+          <NoEvaluationHistory />
         </div>
       )}
     </div>

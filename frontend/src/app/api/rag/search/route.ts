@@ -116,9 +116,15 @@ export async function POST(request: Request): Promise<NextResponse<SearchRespons
     const {
       query,
       topK = DEFAULT_TOP_K,
-      threshold = DEFAULT_THRESHOLD,
-      category = '*'  // [Option B] 기본값 '*' (전체 검색) - UI 단순화
+      threshold = 0.1, // [Diagnostic] Lower threshold to 0.1
+      category = '*'
     } = body
+
+    console.log('[SearchDebug] Query:', query)
+    console.log('[SearchDebug] ProjectId:', body.projectId)
+    console.log('[SearchDebug] Threshold:', threshold)
+
+    const effectiveCategory = category || '*'
 
     // 쿼리 검증
     if (!query || query.trim().length === 0) {

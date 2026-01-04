@@ -16,6 +16,11 @@ import type { EvidencePack, EvidenceItem } from '@/types/rag'
 // [P-A01-03] 로딩 스켈레톤 컴포넌트 import
 // =============================================================================
 import { SearchResultSkeleton } from '@/components/ui/SearchResultSkeleton'
+// =============================================================================
+// [P-A02-02] Empty State 컴포넌트 import
+// 검색 결과 없음, 초기 상태 등 빈 화면에 친절한 안내 제공
+// =============================================================================
+import { NoSearchResults, InitialSearchState } from '@/components/ui/EmptyState'
 
 // =============================================================================
 // [P2-01] 타입 정의
@@ -226,19 +231,24 @@ export default function SmartSearchTab() {
           </div>
         )}
 
-        {/* 검색 결과 없음 - 검색 완료 후 결과 없는 경우 */}
+        {/* ===============================================================
+            [P-A02-02] 검색 결과 없음 Empty State
+            검색 완료 후 결과가 없는 경우 NoSearchResults 컴포넌트 표시
+            - 친절한 안내 메시지와 업로드/재검색 버튼 제공
+            =============================================================== */}
         {!searchState.isLoading && evidencePack && evidencePack.items.length === 0 && (
-          <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-            <p>관련 문서를 찾지 못했습니다.</p>
-            <p className="text-sm mt-1">참고자료 탭에서 문서를 먼저 업로드해주세요.</p>
-          </div>
+          <NoSearchResults
+            onRetry={() => handleSearch()}
+          />
         )}
 
-        {/* 초기 상태 - 아직 검색 전 */}
+        {/* ===============================================================
+            [P-A02-02] 초기 검색 상태 Empty State
+            아직 검색을 시작하지 않은 상태에서 InitialSearchState 표시
+            - 검색 안내 메시지와 힌트 제공
+            =============================================================== */}
         {!evidencePack && !searchState.isLoading && !searchState.error && (
-          <div className="text-center text-gray-400 dark:text-gray-500 py-8">
-            <p>검색어를 입력하고 검색 버튼을 클릭하세요</p>
-          </div>
+          <InitialSearchState />
         )}
       </div>
     </div>

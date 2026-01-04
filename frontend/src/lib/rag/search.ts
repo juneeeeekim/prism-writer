@@ -15,6 +15,12 @@ import { type EvidenceQuality, EvidenceQualityGrade } from '@/types/rag' // P1-C
 import { LRUCache, hashText, createCacheKey } from '@/lib/cache/lruCache'
 import { type PatternType } from './patternExtractor' // [PATTERN] 패턴 타입
 import { FEATURE_FLAGS } from '../../config/featureFlags' // [PATTERN] Feature Flags
+// =============================================================================
+// [P-A04-02] 구조화된 로거 import
+// - 점진적 마이그레이션: 일부 핵심 로그만 logger 사용
+// - 나머지 console.log는 추후 마이그레이션 예정
+// =============================================================================
+import { logger } from '@/lib/utils/logger'
 
 // =============================================================================
 // 타입 정의
@@ -235,7 +241,13 @@ export async function vectorSearch(
   query: string,
   options: SearchOptions
 ): Promise<SearchResult[]> {
-  console.log('[vectorSearch] CALLED with query:', query.substring(0, 50), 'userId:', options.userId)
+  // -------------------------------------------------------------------------
+  // [P-A04-02] 구조화된 로거 사용 예시 (점진적 마이그레이션)
+  // -------------------------------------------------------------------------
+  logger.info('[vectorSearch]', 'CALLED', {
+    query: query.substring(0, 50),
+    userId: options.userId
+  })
   
   const { userId, topK = DEFAULT_TOP_K, documentId, minScore = 0, chunkType, category } = options
 
@@ -247,17 +259,17 @@ export async function vectorSearch(
   // ---------------------------------------------------------------------------
   const aclResult = await validateACL({ userId }, supabase)
   if (!aclResult.valid) {
-    console.log('[vectorSearch] ACL FAILED:', aclResult.error)
+    logger.warn('[vectorSearch]', 'ACL FAILED', { error: aclResult.error })
     throw new Error(aclResult.error || '접근 권한이 없습니다.')
   }
-  console.log('[vectorSearch] ACL PASSED, docs:', aclResult.allowedDocumentIds.length)
+  logger.debug('[vectorSearch]', 'ACL PASSED', { docsCount: aclResult.allowedDocumentIds.length })
 
   // ---------------------------------------------------------------------------
   // 1. [P7-02] 쿼리 임베딩 생성 (Retry + 차원 검증 + Graceful Degradation)
   // ---------------------------------------------------------------------------
   let queryEmbedding: number[]
   try {
-    console.log('[vectorSearch] Generating embedding...')
+    logger.debug('[vectorSearch]', 'Generating embedding...')
     queryEmbedding = await withRetry(
       () => embedText(query.trim()),
       'vectorSearch:embedText'
@@ -265,12 +277,15 @@ export async function vectorSearch(
 
     // 차원 검증 (OpenAI text-embedding-3-small: 1536)
     if (!queryEmbedding || queryEmbedding.length !== EMBEDDING_DIMENSION) {
-      console.error(`[vectorSearch] Invalid embedding dimension: ${queryEmbedding?.length}, expected: ${EMBEDDING_DIMENSION}`)
+      logger.error('[vectorSearch]', 'Invalid embedding dimension', {
+        actual: queryEmbedding?.length,
+        expected: EMBEDDING_DIMENSION
+      })
       return [] // Graceful Degradation: 빈 결과 반환
     }
-    console.log('[vectorSearch] Embedding generated, dim:', queryEmbedding.length)
+    logger.debug('[vectorSearch]', 'Embedding generated', { dim: queryEmbedding.length })
   } catch (err) {
-    console.error('[vectorSearch] Embedding FAILED:', err)
+    logger.error('[vectorSearch]', 'Embedding FAILED', { error: String(err) })
     return [] // Graceful Degradation: 500 에러 대신 빈 결과 반환
   }
 

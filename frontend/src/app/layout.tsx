@@ -8,6 +8,12 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import ToastContainer from '@/components/ui/ToastContainer'
+// =============================================================================
+// [P-A03-02] Vercel Analytics 컴포넌트 import
+// 페이지뷰, 사용자 행동 분석을 위한 Vercel Analytics
+// - 개발 환경에서는 자동 비활성화됨 (Vercel 환경 아니면 noop)
+// =============================================================================
+import { Analytics } from '@vercel/analytics/react'
 
 // -----------------------------------------------------------------------------
 // Metadata (SEO)
@@ -36,6 +42,14 @@ export default function RootLayout({
         
         {/* Toast 알림 컨테이너 (Phase 2) */}
         <ToastContainer />
+
+        {/* =====================================================================
+            [P-A03-02] Vercel Analytics
+            - Vercel 배포 환경에서 자동으로 페이지뷰 및 사용자 행동 추적
+            - 개발 환경(localhost)에서는 noop (데이터 수집 안함)
+            - Vercel 대시보드에서 실시간 분석 확인 가능
+            ===================================================================== */}
+        <Analytics />
       </body>
     </html>
   )
