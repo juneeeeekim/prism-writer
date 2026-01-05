@@ -15,6 +15,7 @@ import { type EvidenceQuality, EvidenceQualityGrade } from '@/types/rag' // P1-C
 import { LRUCache, hashText, createCacheKey } from '@/lib/cache/lruCache'
 import { type PatternType } from './patternExtractor' // [PATTERN] 패턴 타입
 import { FEATURE_FLAGS } from '../../config/featureFlags' // [PATTERN] Feature Flags
+import { rerankResults } from './rerank' // [P2-02] Re-ranking 모듈
 // =============================================================================
 // [P-A04-02] 구조화된 로거 import
 // - 점진적 마이그레이션: 일부 핵심 로그만 logger 사용
@@ -272,7 +273,7 @@ async function withRetry<T>(
       return await operation()
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err))
-      console.warn(`[${context}] Attempt ${attempt}/${MAX_RETRY_COUNT} failed:`, lastError.message)
+      logger.warn(`[${context}]`, `Attempt ${attempt}/${MAX_RETRY_COUNT} failed`, { error: lastError.message })
 
       if (attempt < MAX_RETRY_COUNT) {
         // Exponential Backoff: 200ms, 400ms, 800ms
@@ -431,13 +432,13 @@ export async function vectorSearch(
   // ---------------------------------------------------------------------------
   // 주석(시니어 개발자): ENABLE_PIPELINE_V4=false 시 v3 로직으로 즉시 롤백
   if (!PIPELINE_V4_FLAGS.useChunkTypeFilter) {
-    console.log('[vectorSearch] Pipeline v4 disabled - using v3 search')
+    logger.info('[vectorSearch]', 'Pipeline v4 disabled - using v3 search')
 
     // -------------------------------------------------------------------------
     // [P7-02] v3 RPC 호출 (Retry + Graceful Degradation)
     // -------------------------------------------------------------------------
     try {
-      console.log('[vectorSearch] Calling match_document_chunks RPC with:', {
+      logger.debug('[vectorSearch]', 'Calling match_document_chunks RPC', {
         user_id_param: userId,
         match_threshold: minScore,
         match_count: topK,
@@ -460,14 +461,14 @@ export async function vectorSearch(
         'vectorSearch:match_document_chunks'
       )
 
-      console.log('[vectorSearch] RPC result:', {
+      logger.debug('[vectorSearch]', 'RPC result', {
         hasError: !!v3Error,
         error: v3Error?.message,
         resultCount: v3Data?.length || 0,
       })
 
       if (v3Error) {
-        console.error('[vectorSearch] v3 RPC error:', v3Error.message)
+        logger.error('[vectorSearch]', 'v3 RPC error', { error: v3Error.message })
         return [] // Graceful Degradation
       }
 
@@ -496,7 +497,7 @@ export async function vectorSearch(
 
       return v3Results
     } catch (err) {
-      console.error('[vectorSearch] v3 RPC failed after retries:', err)
+      logger.error('[vectorSearch]', 'v3 RPC failed after retries', { error: String(err) })
       return [] // Graceful Degradation: 500 에러 대신 빈 결과 반환
     }
   }
@@ -520,7 +521,7 @@ export async function vectorSearch(
 
     if (error) {
       // 주석(주니어 개발자): v2 함수 없으면 기존 함수로 폴백
-      console.warn('[vectorSearch] search_similar_chunks_v2 실패, 기존 함수로 폴백:', error.message)
+      logger.warn('[vectorSearch]', 'search_similar_chunks_v2 실패, 기존 함수로 폴백', { error: error.message })
 
       // [P7-02] Fallback RPC with Retry
       const { data: fallbackData, error: fallbackError } = await withRetry(
@@ -536,7 +537,7 @@ export async function vectorSearch(
       )
 
       if (fallbackError) {
-        console.error('[vectorSearch] Fallback RPC error:', fallbackError.message)
+        logger.error('[vectorSearch]', 'Fallback RPC error', { error: fallbackError.message })
         return [] // Graceful Degradation
       }
 
@@ -584,7 +585,7 @@ export async function vectorSearch(
 
     return results
   } catch (err) {
-    console.error('[vectorSearch] v4 RPC failed after retries:', err)
+    logger.error('[vectorSearch]', 'v4 RPC failed after retries', { error: String(err) })
     return [] // Graceful Degradation: 500 에러 대신 빈 결과 반환
   }
 }
@@ -734,7 +735,7 @@ export async function fullTextSearchWithRank(
   })
 
   if (error) {
-    console.error('[fullTextSearchWithRank] RPC error:', error)
+    logger.error('[fullTextSearchWithRank]', 'RPC error', { error })
     throw new Error(`키워드 검색(ts_rank) 실패: ${error.message}`)
   }
 
@@ -755,7 +756,7 @@ export async function fullTextSearchWithRank(
     quality: calculateEvidenceQuality((item.rank || 0) / maxRank, 'keyword')
   }))
 
-  console.log(`[fullTextSearchWithRank] Found ${results.length} results, max rank: ${maxRank.toFixed(4)}`)
+  logger.debug('[fullTextSearchWithRank]', `Found ${results.length} results`, { maxRank: maxRank.toFixed(4) })
 
   return results
 }
@@ -835,7 +836,7 @@ export function weightedScoreFusion(
       score: entry.finalScore
     }))
 
-  console.log(`[weightedScoreFusion] Merged ${vectorResults.length}V + ${keywordResults.length}K → ${merged.length} results`)
+  logger.debug('[weightedScoreFusion]', `Merged ${vectorResults.length}V + ${keywordResults.length}K → ${merged.length} results`)
 
   return merged
 }
@@ -949,7 +950,7 @@ export async function hybridSearch(
   // [PATTERN] 패턴 기반 검색 분기
   // ---------------------------------------------------------------------------
   if (FEATURE_FLAGS.ENABLE_PATTERN_BASED_SEARCH && patternType && baseOptions.projectId) {
-    console.log(`[Search] Pattern-based search for type: ${patternType}`)
+    logger.info('[Search]', `Pattern-based search for type: ${patternType}`)
     return await patternBasedSearch(query, {
       ...baseOptions,
       topK,
@@ -973,7 +974,7 @@ export async function hybridSearch(
   // 캐시 적중 시 반환
   const cachedResult = searchCache.get(cacheKey)
   if (cachedResult) {
-    console.log(`[Search] Cache HIT for "${query}" (Category: ${baseOptions.category || 'all'})`)
+    logger.info('[Search]', `Cache HIT for "${query}"`, { category: baseOptions.category || 'all' })
 
     // -------------------------------------------------------------------------
     // [P-C03-02] 캐시 히트 로깅 (fire-and-forget)
@@ -993,7 +994,7 @@ export async function hybridSearch(
     return cachedResult
   }
 
-  console.log(`[Search] Cache MISS for "${query}" - Executing Hybrid Search...`)
+  logger.info('[Search]', `Cache MISS for "${query}" - Executing Hybrid Search...`)
 
   // ---------------------------------------------------------------------------
   // [P-C03-02] 검색 실행 with try-catch for error logging
@@ -1010,7 +1011,7 @@ export async function hybridSearch(
 
     if (FEATURE_FLAGS.ENABLE_WEIGHTED_HYBRID_SEARCH) {
       // [P2-01] Weighted Score Fusion 모드: fullTextSearchWithRank 사용
-      console.log('[HybridSearch] Using Weighted Score Fusion mode')
+      logger.info('[HybridSearch]', 'Using Weighted Score Fusion mode')
       ;[vectorResults, keywordResults] = await Promise.all([
         vectorSearch(query, { ...baseOptions, topK: topK * 2 }),
         fullTextSearchWithRank(query, { ...baseOptions, topK: topK * 2 }).catch(() => [])
@@ -1088,6 +1089,32 @@ export async function hybridSearch(
       },
     }).catch(() => {})  // fire-and-forget
 
+    // -------------------------------------------------------------------------
+    // [P2-02-02] Re-ranking (Feature Flag 기반)
+    // -------------------------------------------------------------------------
+    // 시니어 개발자 주석: rerank 실패 시에도 mergedResults 반환 (graceful degradation)
+    if (FEATURE_FLAGS.ENABLE_RERANKING && mergedResults.length > 0) {
+      try {
+        logger.info('[HybridSearch]', 'Applying Re-ranking', { 
+          candidateCount: mergedResults.length,
+          model: FEATURE_FLAGS.RERANK_MODEL 
+        })
+        
+        const rerankedResults = await rerankResults(query, mergedResults, {
+          model: FEATURE_FLAGS.RERANK_MODEL,
+          topK,
+        })
+        
+        return rerankedResults
+      } catch (rerankError) {
+        // 주니어 개발자 주석: rerank 실패 시 원본 결과 반환
+        logger.error('[HybridSearch]', 'Re-ranking failed, using original results', {
+          error: rerankError instanceof Error ? rerankError.message : String(rerankError)
+        })
+        return mergedResults
+      }
+    }
+
     return mergedResults
 
   } catch (error) {
@@ -1143,7 +1170,7 @@ async function patternBasedSearch(
 
   // [SAFETY] 필수 파라미터 검증
   if (!projectId) {
-    console.error('[PatternSearch] projectId is required for pattern-based search')
+    logger.error('[PatternSearch]', 'projectId is required for pattern-based search')
     return []
   }
 
@@ -1156,7 +1183,7 @@ async function patternBasedSearch(
     const embeddingLatencyMs = Date.now() - embeddingStartTime
 
     if (!queryEmbedding) {
-      console.error('[PatternSearch] Failed to generate embedding')
+      logger.error('[PatternSearch]', 'Failed to generate embedding')
 
       // [P-C03-02] 임베딩 실패 로깅
       logRAGSearch({
@@ -1192,7 +1219,7 @@ async function patternBasedSearch(
     const searchLatencyMs = Date.now() - searchStartTime
 
     if (error) {
-      console.error('[PatternSearch] RPC error:', error.message)
+      logger.error('[PatternSearch]', 'RPC error', { error: error.message })
 
       // [P-C03-02] RPC 에러 로깅
       logRAGSearch({
@@ -1211,12 +1238,12 @@ async function patternBasedSearch(
       }).catch(() => {})
 
       // 폴백: 기존 검색으로 대체
-      console.log('[PatternSearch] Falling back to standard vector search')
+      logger.info('[PatternSearch]', 'Falling back to standard vector search')
       return await vectorSearch(query, options)
     }
 
     if (!data || data.length === 0) {
-      console.log(`[PatternSearch] No results for pattern: ${patternType}`)
+      logger.debug('[PatternSearch]', `No results for pattern: ${patternType}`)
 
       // [P-C03-02] 결과 없음 로깅
       logRAGSearch({
@@ -1251,7 +1278,7 @@ async function patternBasedSearch(
       quality: calculateEvidenceQuality(item.similarity, 'vector'),
     }))
 
-    console.log(`[PatternSearch] Found ${results.length} results for pattern: ${patternType}`)
+    logger.info('[PatternSearch]', `Found ${results.length} results for pattern: ${patternType}`)
 
     // -------------------------------------------------------------------------
     // [P-C03-02] 성공 로깅 (fire-and-forget)
@@ -1273,7 +1300,7 @@ async function patternBasedSearch(
     return results
 
   } catch (err) {
-    console.error('[PatternSearch] Unexpected error:', err)
+    logger.error('[PatternSearch]', 'Unexpected error', { error: String(err) })
 
     // -------------------------------------------------------------------------
     // [P-C03-02] 예외 로깅 (fire-and-forget)
@@ -1352,7 +1379,7 @@ export async function searchByPattern(
   // 1. patternType null 체크 → hybridSearch 폴백
   // -------------------------------------------------------------------------
   if (!patternType) {
-    console.log('[searchByPattern] No patternType provided, falling back to hybridSearch')
+    logger.info('[searchByPattern]', 'No patternType provided, falling back to hybridSearch')
     return await hybridSearch(query, baseOptions)
   }
 
@@ -1360,7 +1387,7 @@ export async function searchByPattern(
   // 2. projectId 필수 체크 → hybridSearch 폴백
   // -------------------------------------------------------------------------
   if (!projectId) {
-    console.warn('[searchByPattern] projectId is required for pattern search, falling back to hybridSearch')
+    logger.warn('[searchByPattern]', 'projectId is required for pattern search, falling back to hybridSearch')
     return await hybridSearch(query, baseOptions)
   }
 
@@ -1368,7 +1395,7 @@ export async function searchByPattern(
   // 3. Feature Flag 체크
   // -------------------------------------------------------------------------
   if (!FEATURE_FLAGS.ENABLE_PATTERN_BASED_SEARCH) {
-    console.log('[searchByPattern] Pattern search disabled by feature flag, falling back to hybridSearch')
+    logger.info('[searchByPattern]', 'Pattern search disabled by feature flag, falling back to hybridSearch')
     return await hybridSearch(query, baseOptions)
   }
 
@@ -1376,7 +1403,7 @@ export async function searchByPattern(
   // 4. 패턴 기반 검색 실행 (Try-Catch로 폴백 보장)
   // -------------------------------------------------------------------------
   try {
-    console.log(`[searchByPattern] Searching for pattern: ${patternType}`)
+    logger.info('[searchByPattern]', `Searching for pattern: ${patternType}`)
     
     const results = await patternBasedSearch(query, {
       userId,
@@ -1388,14 +1415,14 @@ export async function searchByPattern(
 
     // 결과가 없으면 hybridSearch로 보완
     if (results.length === 0) {
-      console.log('[searchByPattern] No pattern results, supplementing with hybridSearch')
+      logger.info('[searchByPattern]', 'No pattern results, supplementing with hybridSearch')
       return await hybridSearch(query, { ...baseOptions, topK: Math.min(topK, 3) })
     }
 
     return results
 
   } catch (error) {
-    console.error('[searchByPattern] Pattern search failed, falling back to hybridSearch:', error)
+    logger.error('[searchByPattern]', 'Pattern search failed, falling back to hybridSearch', { error: String(error) })
     return await hybridSearch(query, baseOptions)
   }
 }
