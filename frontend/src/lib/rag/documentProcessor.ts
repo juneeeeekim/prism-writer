@@ -7,9 +7,11 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { chunkDocument, type DocumentChunk } from './chunking'
+import { agenticChunk } from './agenticChunking'
 import { embedBatch, estimateTokenCount, EMBEDDING_CONFIG } from './embedding'
 import { validateDocumentSize, validateUsage, trackUsage } from './costGuard'
 import { DocumentStatus } from '@/types/rag'
+import { FEATURE_FLAGS } from '@/config/featureFlags'
 
 // =============================================================================
 // PDF 파싱 라이브러리 - [Vercel Fix] 동적 import로 변경됨
@@ -333,15 +335,44 @@ export async function processDocument(
 
     // ---------------------------------------------------------------------------
     // 3. 문서 청킹
+    // [P3-01-03] Agentic Chunking 통합 (Feature Flag 기반)
     // ---------------------------------------------------------------------------
     console.log('[ProcessDocument] Step 3: Chunking document')
     await updateDocumentStatus(documentId, DocumentStatus.CHUNKING)
     
-    const chunks = chunkDocument(content, {
-      chunkSize: options.chunkSize,
-      overlap: options.overlap,
-      preserveHeaders: options.preserveHeaders,
-    })
+    let chunks: DocumentChunk[]
+
+    // -------------------------------------------------------------------------
+    // [P3-01] Agentic Chunking: LLM 기반 지능형 청킹
+    // 시니어 개발자 주석: 실패 시 반드시 기존 chunkDocument로 fallback
+    // -------------------------------------------------------------------------
+    if (FEATURE_FLAGS.ENABLE_AGENTIC_CHUNKING) {
+      try {
+        console.log('[ProcessDocument] Using Agentic Chunking (LLM-based)')
+        chunks = await agenticChunk(content, {
+          model: FEATURE_FLAGS.AGENTIC_CHUNKING_MODEL,
+          maxChunkTokens: options.chunkSize || 512,
+          preserveContext: true,
+        })
+        console.log(`[ProcessDocument] Agentic chunking completed: ${chunks.length} chunks`)
+      } catch (agenticError) {
+        // 주니어 개발자 주석: Agentic 실패 시 기존 로직으로 fallback
+        console.warn('[ProcessDocument] Agentic chunking failed, fallback to semantic:', agenticError)
+        chunks = chunkDocument(content, {
+          chunkSize: options.chunkSize,
+          overlap: options.overlap,
+          preserveHeaders: options.preserveHeaders,
+        })
+      }
+    } else {
+      // 기존 로직 유지
+      chunks = chunkDocument(content, {
+        chunkSize: options.chunkSize,
+        overlap: options.overlap,
+        preserveHeaders: options.preserveHeaders,
+      })
+    }
+
     console.log('[ProcessDocument] Chunks created:', chunks.length)
 
     if (chunks.length === 0) {

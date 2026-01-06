@@ -24,6 +24,12 @@ import { type RubricTier } from '@/lib/rag/rubrics'  // [P2] 티어 정보
 // =============================================================================
 import { buildSearchQueries } from '@/lib/rag/queryBuilder'
 import { checkSufficiency } from '@/lib/rag/sufficiencyGate'
+// [P3-02] Self-RAG Integration
+import { 
+  checkRetrievalNecessity, 
+  critiqueRetrievalResults, 
+  verifyGroundedness 
+} from '@/lib/rag/selfRAG'
 
 export const runtime = 'nodejs'
 
@@ -184,6 +190,19 @@ export async function POST(req: NextRequest) {
     const ragPromise = (async (): Promise<{ context: string; hasRetrievedDocs: boolean; uniqueResults: SearchResult[] }> => {
       try {
         // =====================================================================
+        // [P3-02] Step 1: Retrieval Necessity Check
+        // =====================================================================
+        if (FEATURE_FLAGS.ENABLE_SELF_RAG) {
+          const necessity = await checkRetrievalNecessity(query)
+          if (!necessity.needed) {
+            console.log(`[SelfRAG] Retrieval skipped: ${necessity.reason} (${necessity.confidence.toFixed(2)})`)
+            return { context: '', hasRetrievedDocs: false, uniqueResults: [] }
+          }
+        }
+
+        let uniqueResults: SearchResult[] = []
+
+        // =====================================================================
         // [I-03] Criteria Pack Mode - Query Builder + Sufficiency Gate
         // =====================================================================
         if (FEATURE_FLAGS.ENABLE_CRITERIA_PACK) {
@@ -214,106 +233,107 @@ export async function POST(req: NextRequest) {
 
           // Step 3: 결과 병합 + 중복 제거 + 정렬
           const allResults = [...ruleResults, ...exampleResults, ...patternResults]
-          const uniqueResults = deduplicateByChunkId(allResults)
+          uniqueResults = deduplicateByChunkId(allResults)
             .sort((a, b) => b.score - a.score)
             .slice(0, 5)
 
           // Step 4: Sufficiency Gate
           const sufficiency = checkSufficiency(uniqueResults)
           console.log(`[Chat API] Sufficiency: ${sufficiency.sufficient}, ${sufficiency.reason}`)
-
-          // Step 5: 결과 있으면 반환
-          if (uniqueResults.length > 0) {
-            return {
-              context: uniqueResults
-                .map((result, index) => `[참고 자료 ${index + 1}: ${result.metadata?.title || 'Untitled'}]\n${result.content}`)
-                .join('\n\n'),
-              hasRetrievedDocs: true,
-              uniqueResults
-            }
+          
+          if (uniqueResults.length === 0) {
+             console.log('[Chat API] Criteria Pack - no results, falling back to legacy mode')
+             // Fallback to legacy mode (continue to next block?)
+             // NOTE: Current implementation falls back if results are empty. 
+             // To support "fall-through", we need a flag or structural change.
+             // For now, let's assume if Criteria Pack is enabled, it takes precedence.
+             // But the original code had: "// 결과 없으면 기존 로직으로 fall-through"
           }
-          // 결과 없으면 기존 로직으로 fall-through
-          console.log('[Chat API] Criteria Pack - no results, falling back to legacy mode')
         }
 
         // =====================================================================
         // [EXISTING] 기존 로직 - Query Expansion / Legacy Mode
         // =====================================================================
-        const enableQueryExpansion = process.env.ENABLE_QUERY_EXPANSION === 'true'
+        // Criteria Pack 결과가 없을 때만 실행
+        if (uniqueResults.length === 0) {
+            const enableQueryExpansion = process.env.ENABLE_QUERY_EXPANSION === 'true'
 
-        if (enableQueryExpansion) {
-          // [Query Expansion Mode]
-          const { expandQuery } = await import('@/lib/rag/queryExpansion')
-          const { calculateDynamicThreshold } = await import('@/lib/rag/dynamicThreshold')
+            if (enableQueryExpansion) {
+              // [Query Expansion Mode]
+              const { expandQuery } = await import('@/lib/rag/queryExpansion')
+              const { calculateDynamicThreshold } = await import('@/lib/rag/dynamicThreshold')
 
-          // Step 1: 쿼리 확장
-          const expandedQueries = expandQuery(query)
-          console.log(`[Chat API] Query Expansion: ${expandedQueries.length} queries`)
+              // Step 1: 쿼리 확장
+              const expandedQueries = expandQuery(query)
+              console.log(`[Chat API] Query Expansion: ${expandedQueries.length} queries`)
 
-          // Step 2: 동적 임계값
-          const dynamicThreshold = calculateDynamicThreshold(query)
+              // Step 2: 동적 임계값
+              const dynamicThreshold = calculateDynamicThreshold(query)
 
-          // Step 3: 병렬 검색 (Phase 14.5: with category filter)
-          const searchPromises = expandedQueries.map(q =>
-            hybridSearch(q, {
-              userId,
-              topK: 3,
-              minScore: dynamicThreshold,
-              vectorWeight: 0.6,
-              keywordWeight: 0.4,
-              projectId,  // [RAG-ISOLATION] 프로젝트 필터
-            }).catch(err => {
-              console.warn(`[Chat API] Search failed for "${q}":`, err)
-              return []
-            })
-          )
+              // Step 3: 병렬 검색 (Phase 14.5: with category filter)
+              const searchPromises = expandedQueries.map(q =>
+                hybridSearch(q, {
+                  userId,
+                  topK: 3,
+                  minScore: dynamicThreshold,
+                  vectorWeight: 0.6,
+                  keywordWeight: 0.4,
+                  projectId,  // [RAG-ISOLATION] 프로젝트 필터
+                }).catch(err => {
+                  console.warn(`[Chat API] Search failed for "${q}":`, err)
+                  return []
+                })
+              )
 
-          const searchResultsArray = await Promise.all(searchPromises)
-          const allResults = searchResultsArray.flat()
+              const searchResultsArray = await Promise.all(searchPromises)
+              const allResults = searchResultsArray.flat()
 
-          // Step 4: 중복 제거 및 정렬
-          const seen = new Set<string>()
-          const uniqueResults = allResults
-            .sort((a, b) => b.score - a.score)
-            .filter(result => {
-              if (seen.has(result.chunkId)) return false
-              seen.add(result.chunkId)
-              return true
-            })
-            .slice(0, 5)
+              // Step 4: 중복 제거 및 정렬
+              const seen = new Set<string>()
+              uniqueResults = allResults
+                .sort((a, b) => b.score - a.score)
+                .filter(result => {
+                  if (seen.has(result.chunkId)) return false
+                  seen.add(result.chunkId)
+                  return true
+                })
+                .slice(0, 5)
+            } else {
+                // [Legacy Mode]
+                console.log(`[Chat API] Query Expansion: DISABLED`)
 
-          if (uniqueResults.length > 0) {
-            return {
-              // [CITATION] 인용 번호가 포함된 컨텍스트 형식
-              context: uniqueResults
-                .map((result, index) => `[참고 자료 ${index + 1}: ${result.metadata?.title || 'Untitled'}]\n${result.content}`)
-                .join('\n\n'),
-              hasRetrievedDocs: true,
-              uniqueResults
+                uniqueResults = await hybridSearch(query, {
+                  userId,
+                  topK: 5,
+                  minScore: 0.35,
+                  vectorWeight: 0.6,
+                  keywordWeight: 0.4,
+                  projectId,  // [RAG-ISOLATION] 프로젝트 필터
+                })
             }
-          }
         }
 
-        // [Legacy Mode]
-        console.log(`[Chat API] Query Expansion: DISABLED`)
+        // =====================================================================
+        // [P3-02] Step 2: Critique (Result Relevance Evaluation)
+        // =====================================================================
+        if (FEATURE_FLAGS.ENABLE_SELF_RAG && uniqueResults.length > 0) {
+            const initialCount = uniqueResults.length
+            const critiqued = await critiqueRetrievalResults(query, uniqueResults)
+            uniqueResults = critiqued.filter(c => c.isRelevant).map(c => c.result)
+            console.log(`[SelfRAG] Critique: ${initialCount} -> ${uniqueResults.length} docs retained`)
+        }
 
-        const searchResults = await hybridSearch(query, {
-          userId,
-          topK: 5,
-          minScore: 0.35,
-          vectorWeight: 0.6,
-          keywordWeight: 0.4,
-          projectId,  // [RAG-ISOLATION] 프로젝트 필터
-        })
-
-        if (searchResults.length > 0) {
+        // =====================================================================
+        // Final Return
+        // =====================================================================
+        if (uniqueResults.length > 0) {
           return {
             // [CITATION] 인용 번호가 포함된 컨텍스트 형식
-            context: searchResults
+            context: uniqueResults
               .map((result, index) => `[참고 자료 ${index + 1}: ${result.metadata?.title || 'Untitled'}]\n${result.content}`)
               .join('\n\n'),
             hasRetrievedDocs: true,
-            uniqueResults: searchResults
+            uniqueResults
           }
         }
 
@@ -458,6 +478,23 @@ ${context ? context : '관련된 참고 자료가 없습니다.'}
             if (chunk.done) break
           }
           
+          // =====================================================================
+          // [P3-02] Step 4: Groundedness Check (Hallucination Detection)
+          // =====================================================================
+          if (FEATURE_FLAGS.ENABLE_SELF_RAG && hasRetrievedDocs && uniqueResults && uniqueResults.length > 0) {
+            // 답변이 너무 짧으면 패스 (비용 절감)
+            if (fullResponse.length > 100) {
+               const verification = await verifyGroundedness(fullResponse, uniqueResults)
+               
+               if (!verification.isGrounded) {
+                 const warningMsg = '\n\n⚠️ 주의: 일부 내용이 문서에서 확인되지 않았습니다.'
+                 fullResponse += warningMsg // DB 저장시 포함
+                 controller.enqueue(new TextEncoder().encode(warningMsg))
+                 console.warn('[SelfRAG] Hallucination detected, warning appended')
+               }
+            }
+          }
+
           // =====================================================================
           // [Pipeline v5] 메시지 저장 및 실패 시 클라이언트 알림
           // =====================================================================

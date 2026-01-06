@@ -27,7 +27,7 @@ Agentic Chunking은 LLM이 문서 전체를 읽고 **"의미가 끊기는 지점
 
 ---
 
-### [P3-01-01] agenticChunk 함수 생성
+### [P3-01-01] agenticChunk 함수 생성 ✅
 
 - **ID**: P3-01-01
 - `Target`: `frontend/src/lib/rag/agenticChunking.ts` (신규 파일)
@@ -125,11 +125,12 @@ Agentic Chunking은 LLM이 문서 전체를 읽고 **"의미가 끊기는 지점
 
 ---
 
-### [P3-01-02] LLM 호출 유틸리티 (청킹 전용)
+### [P3-01-02] LLM 호출 유틸리티 (청킹 전용) ✅
 
 - **ID**: P3-01-02
 - `Target`: `frontend/src/lib/rag/agenticChunking.ts` > `callLLMForChunking()`
 - `Logic (Pseudo)`:
+
   ```typescript
   async function callLLMForChunking(
     prompt: string,
@@ -159,6 +160,7 @@ Agentic Chunking은 LLM이 문서 전체를 읽고 **"의미가 끊기는 지점
     }
   }
   ```
+
 - `Key Variables`: `temperature: 0.1`, `jsonMatch`
 - `Safety`:
   - JSON 파싱 `try-catch` 필수
@@ -167,7 +169,7 @@ Agentic Chunking은 LLM이 문서 전체를 읽고 **"의미가 끊기는 지점
 
 ---
 
-### [P3-01-03] processDocument에 Agentic Chunking 통합
+### [P3-01-03] processDocument에 Agentic Chunking 통합 ✅
 
 - **ID**: P3-01-03
 - `Target`: `frontend/src/lib/rag/documentProcessor.ts` > `processDocument()` (수정)
@@ -211,7 +213,7 @@ Agentic Chunking은 LLM이 문서 전체를 읽고 **"의미가 끊기는 지점
 
 ---
 
-### [P3-01-04] Feature Flag: ENABLE_AGENTIC_CHUNKING
+### [P3-01-04] Feature Flag: ENABLE_AGENTIC_CHUNKING ✅
 
 - **ID**: P3-01-04
 - `Target`: `frontend/src/config/featureFlags.ts`
@@ -243,7 +245,7 @@ Self-RAG는 다음 4단계로 동작:
 
 ---
 
-### [P3-02-01] retrievalNecessity 함수 생성
+### [P3-02-01] retrievalNecessity 함수 생성 ✅
 
 - **ID**: P3-02-01
 - `Target`: `frontend/src/lib/rag/selfRAG.ts` (신규 파일)
@@ -299,7 +301,7 @@ Self-RAG는 다음 4단계로 동작:
 
 ---
 
-### [P3-02-02] critiqueRetrievalResults 함수 생성
+### [P3-02-02] critiqueRetrievalResults 함수 생성 ✅
 
 - **ID**: P3-02-02
 - `Target`: `frontend/src/lib/rag/selfRAG.ts` > `critiqueRetrievalResults()`
@@ -372,7 +374,7 @@ Self-RAG는 다음 4단계로 동작:
 
 ---
 
-### [P3-02-03] verifyGroundedness 함수 생성
+### [P3-02-03] verifyGroundedness 함수 생성 ✅
 
 - **ID**: P3-02-03
 - `Target`: `frontend/src/lib/rag/selfRAG.ts` > `verifyGroundedness()`
@@ -435,7 +437,7 @@ Self-RAG는 다음 4단계로 동작:
 
 ---
 
-### [P3-02-04] Chat API에 Self-RAG 통합
+### [P3-02-04] Chat API에 Self-RAG 통합 ✅
 
 - **ID**: P3-02-04
 - `Target`: `frontend/src/app/api/chat/route.ts` (수정)
@@ -487,7 +489,7 @@ Self-RAG는 다음 4단계로 동작:
 
 ---
 
-### [P3-02-05] Feature Flag: ENABLE_SELF_RAG
+### [P3-02-05] Feature Flag: ENABLE_SELF_RAG ✅
 
 - **ID**: P3-02-05
 - `Target`: `frontend/src/config/featureFlags.ts`
@@ -514,32 +516,32 @@ Self-RAG는 다음 4단계로 동작:
 
 ### Agentic Chunking (P3-01)
 
-- [ ] **Test (Unit)**: 500토큰 문서 → 단일 청크 반환
-- [ ] **Test (Unit)**: 2000토큰 문서 → 최소 3개 청크 (각 512토큰 이하)
-- [ ] **Test (Fallback)**: LLM 타임아웃 시 `semanticChunk()` 호출 확인
-- [ ] **Test (Quality)**: 규칙+예시가 같은 청크에 포함되는지 수동 검토
+- [x] **Test (Unit)**: 500토큰 문서 → 단일 청크 반환
+- [x] **Test (Unit)**: 2000토큰 문서 → 최소 3개 청크 (각 512토큰 이하)
+- [x] **Test (Fallback)**: LLM 타임아웃 시 `semanticChunk()` 호출 확인
+- [x] **Test (Quality)**: 규칙+예시가 같은 청크에 포함되는지 수동 검토
   - 테스트 문서: 기존 업로드된 가이드라인 문서
-- [ ] **Review**: LLM 비용 로깅 (문서당 토큰 사용량)
-- [ ] **Review**: 처리 시간 비교 (semanticChunk vs agenticChunk)
+- [x] **Review**: LLM 비용 로깅 (문서당 토큰 사용량)
+- [x] **Review**: 처리 시간 비교 (semanticChunk vs agenticChunk)
 
 ### Self-RAG (P3-02)
 
-- [ ] **Test (Retrieval Necessity)**:
+- [x] **Test (Retrieval Necessity)**:
   - 입력: "안녕하세요" → `needed: false`
   - 입력: "현상 욕구 계획이란?" → `needed: true`
-- [ ] **Test (Critique)**: 관련 없는 청크가 필터링되는지 확인
-- [ ] **Test (Groundedness)**:
+- [x] **Test (Critique)**: 관련 없는 청크가 필터링되는지 확인
+- [x] **Test (Groundedness)**:
   - 문서에 없는 내용 답변 시 → `hallucinations` 배열에 포함
-- [ ] **Test (Integration)**: 전체 파이프라인 실행 (검색→비평→생성→검증)
-- [ ] **Review**: 할루시네이션 경고 UI 표시 확인
+- [x] **Test (Integration)**: 전체 파이프라인 실행 (검색→비평→생성→검증)
+- [x] **Review**: 할루시네이션 경고 UI 표시 확인
 
 ### 공통
 
-- [ ] **Build**: `npm run build` 에러 없음
-- [ ] **Type Check**: `npx tsc --noEmit` 에러 없음
-- [ ] **Console Logs**: `console.log` → `logger.info` 마이그레이션
-- [ ] **JSDoc**: 신규 함수에 `@description`, `@param`, `@returns` 작성
-- [ ] **비용 모니터링**: LLM 호출 횟수/토큰 로깅 설정
+- [x] **Build**: `npm run build` 에러 없음 ✅ (2026-01-06 Exit code: 0)
+- [x] **Type Check**: `npx tsc --noEmit` 에러 없음 ✅ (Jest 테스트 파일 제외)
+- [x] **Console Logs**: `console.log` → `logger.info` 마이그레이션 ✅
+- [x] **JSDoc**: 신규 함수에 `@description`, `@param`, `@returns` 작성 ✅
+- [x] **비용 모니터링**: LLM 호출 횟수/토큰 로깅 설정 ✅
 
 ---
 

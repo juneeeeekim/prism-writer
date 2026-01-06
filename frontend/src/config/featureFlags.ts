@@ -344,6 +344,66 @@ export const FEATURE_FLAGS = {
    * 기본값: 20
    */
   RERANK_TOP_CANDIDATES: parseInt(process.env.NEXT_PUBLIC_RERANK_TOP_CANDIDATES || '20'),
+
+  // ==========================================================================
+  // [P3-01] Agentic Chunking Feature Flags (2026-01-06 추가)
+  // ==========================================================================
+
+  /**
+   * Agentic Chunking 활성화 (P3-01)
+   * 환경 변수: NEXT_PUBLIC_ENABLE_AGENTIC_CHUNKING
+   * 기본값: false (LLM 비용 고려)
+   * 
+   * @description
+   * - LLM이 문서 구조를 분석하여 최적 분할 지점 결정
+   * - 실패 시 기존 semanticChunk() fallback
+   * - 롤백: OFF 시 기존 chunkDocument 로직 유지
+   */
+  ENABLE_AGENTIC_CHUNKING: process.env.NEXT_PUBLIC_ENABLE_AGENTIC_CHUNKING === 'true',
+
+  /**
+   * Agentic Chunking 사용 LLM 모델 (P3-01)
+   * 환경 변수: NEXT_PUBLIC_AGENTIC_CHUNKING_MODEL
+   * 기본값: 'gemini'
+   */
+  AGENTIC_CHUNKING_MODEL: (process.env.NEXT_PUBLIC_AGENTIC_CHUNKING_MODEL || 'gemini') as 'gemini' | 'openai',
+
+  // ==========================================================================
+  // [P3-02] Self-RAG Feature Flags (2026-01-06 추가)
+  // ==========================================================================
+
+  /**
+   * Self-RAG 활성화 (P3-02)
+   * 환경 변수: NEXT_PUBLIC_ENABLE_SELF_RAG
+   * 기본값: false (LLM 비용 고려)
+   * 
+   * @description
+   * - 4단계 자기 검증 RAG: 검색 필요 판단 → 관련도 평가 → 생성 → 근거 검증
+   * - 할루시네이션 탐지 및 경고 표시
+   * - 롤백: OFF 시 기존 검색 로직 유지
+   */
+  ENABLE_SELF_RAG: process.env.NEXT_PUBLIC_ENABLE_SELF_RAG === 'true',
+
+  /**
+   * Self-RAG 사용 LLM 모델 (P3-02)
+   * 환경 변수: NEXT_PUBLIC_SELF_RAG_MODEL
+   * 기본값: 'gemini'
+   */
+  SELF_RAG_MODEL: (process.env.NEXT_PUBLIC_SELF_RAG_MODEL || 'gemini') as 'gemini' | 'openai',
+
+  /**
+   * 검색 필요도 임계값 (P3-02)
+   * 환경 변수: NEXT_PUBLIC_SELF_RAG_RETRIEVAL_THRESHOLD
+   * 기본값: 0.5
+   */
+  SELF_RAG_RETRIEVAL_THRESHOLD: parseFloat(process.env.NEXT_PUBLIC_SELF_RAG_RETRIEVAL_THRESHOLD || '0.5'),
+
+  /**
+   * 관련도 필터 임계값 (P3-02)
+   * 환경 변수: NEXT_PUBLIC_SELF_RAG_CRITIQUE_THRESHOLD
+   * 기본값: 0.6
+   */
+  SELF_RAG_CRITIQUE_THRESHOLD: parseFloat(process.env.NEXT_PUBLIC_SELF_RAG_CRITIQUE_THRESHOLD || '0.6'),
 } as const
 
 // =============================================================================
