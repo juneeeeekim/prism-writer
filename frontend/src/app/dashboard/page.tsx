@@ -22,6 +22,8 @@ import { PROJECT_ICONS } from '@/types/project'
 // [P7-04-C] 삭제 확인 모달
 import DeleteConfirmModal from '@/components/modals/DeleteConfirmModal'
 
+import AuthHeader from '@/components/auth/AuthHeader'
+
 // =============================================================================
 // 페이지 컴포넌트 (ProjectProvider로 래핑)
 // =============================================================================
@@ -220,23 +222,24 @@ function DashboardContent() {
   // 메인 렌더링
   // ---------------------------------------------------------------------------
   return (
-    <div className="dashboard-container">
-      {/* -------------------------------------------------------------------
-          헤더 영역
-          ------------------------------------------------------------------- */}
-      <header className="dashboard-header">
-        <div className="dashboard-header-content">
-          <Link href="/" className="dashboard-logo">
-            💎 PRISM Writer
-          </Link>
-          <h1 className="dashboard-title">내 AI 코치 목록</h1>
-          <p className="dashboard-subtitle">
-            프로젝트별로 문서를 관리하고 AI 코치를 훈련시키세요
-          </p>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* 글로벌 헤더 추가 */}
+      <AuthHeader showLogo={true} showProjectSelector={true} />
+      
+      <div className="dashboard-container">
+        {/* -------------------------------------------------------------------
+            헤더 영역 (로고 제거, 타이틀만 유지)
+            ------------------------------------------------------------------- */}
+        <header className="dashboard-header">
+          <div className="dashboard-header-content">
+            <h1 className="dashboard-title">내 AI 코치 목록</h1>
+            <p className="dashboard-subtitle">
+              프로젝트별로 문서를 관리하고 AI 코치를 훈련시키세요
+            </p>
+          </div>
+        </header>
 
-      {/* -------------------------------------------------------------------
+        {/* -------------------------------------------------------------------
           [P8-SEARCH] 검색 및 정렬 툴바
           ------------------------------------------------------------------- */}
       <div className="dashboard-toolbar">
@@ -421,6 +424,7 @@ function DashboardContent() {
       <Link href="/trash" className="trash-link">
         🗑️ 휴지통
       </Link>
+    </div>
     </div>
   )
 }
