@@ -62,6 +62,16 @@ export default function UserManagementPage() {
 
   if (loading) return <div className="p-8">Loading users...</div>
 
+  if (error) return (
+    <div className="p-8">
+      <div className="bg-red-50 text-red-600 p-4 rounded-lg">
+        <h3 className="font-bold">Error Loading Users</h3>
+        <p>{error}</p>
+        <button onClick={() => window.location.reload()} className="mt-2 text-sm underline">Retry</button>
+      </div>
+    </div>
+  )
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-8">
       <div className="max-w-7xl mx-auto">
