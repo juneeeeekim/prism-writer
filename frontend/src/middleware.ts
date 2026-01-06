@@ -66,6 +66,24 @@ const PROTECTED_ROUTES: Array<{ pattern: RegExp; requirement: RouteRequirement }
       redirectTo: '/login?redirect=%2Fprofile',
     },
   },
+  // 대시보드 (로그인 필수, 역할 무관)
+  {
+    pattern: /^\/dashboard/,
+    requirement: {
+      minimumRole: 'pending',
+      requireApproval: false,
+      redirectTo: '/login?redirect=%2Fdashboard',
+    },
+  },
+  // 휴지통 (로그인 필수)
+  {
+    pattern: /^\/trash/,
+    requirement: {
+      minimumRole: 'pending',
+      requireApproval: false,
+      redirectTo: '/login?redirect=%2Ftrash',
+    },
+  },
   // 일반 에디터 (free 이상, 승인 필요)
   {
     pattern: /^\/editor/,
@@ -248,7 +266,7 @@ export async function middleware(req: NextRequest) {
 // =============================================================================
 /**
  * matcher: 미들웨어가 실행될 경로 패턴
- * - /editor, /admin, /profile 경로에 적용
+ * - /editor, /admin, /profile, /dashboard, /trash 경로에 적용
  * - 성능 최적화: 필요한 경로에만 미들웨어 실행
  */
 export const config = {
@@ -256,6 +274,8 @@ export const config = {
     '/editor/:path*',
     '/admin/:path*',
     '/profile/:path*',
+    '/dashboard/:path*',
+    '/trash/:path*',
   ],
 }
 
