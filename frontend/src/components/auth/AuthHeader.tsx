@@ -108,6 +108,13 @@ export default function AuthHeader({
                   >
                     🛡️ 관리자
                   </Link>
+                  <Link
+                    href="/admin/users"
+                    className="px-3 py-1.5 text-sm text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded transition-colors flex items-center gap-1 font-medium"
+                    aria-label="사용자 관리"
+                  >
+                    👥 사용자
+                  </Link>
 
                 </>
               )}

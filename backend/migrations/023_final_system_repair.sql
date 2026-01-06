@@ -57,15 +57,15 @@ USING (
 
 -- [3] 결과 검증 (이 쿼리의 결과가 보여야 정상입니다!)
 SELECT 
-  id, 
-  email, 
-  role, 
-  daily_request_limit, 
+  profiles.id, 
+  auth.users.email, 
+  profiles.role, 
+  profiles.daily_request_limit, 
   'Data Fixed Successfully' as status 
 FROM 
   public.profiles 
 LEFT JOIN 
   auth.users ON profiles.id = auth.users.id
 WHERE 
-  profiles.id = auth.uid() OR role = 'admin'
+  profiles.id = auth.uid() OR profiles.role = 'admin'
 LIMIT 5;
