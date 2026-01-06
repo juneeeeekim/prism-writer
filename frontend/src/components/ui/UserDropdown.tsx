@@ -114,13 +114,17 @@ export default function UserDropdown({
     ? '로딩 중...'
     : usage
       ? `오늘 ${usage.daily.requestCount}/${dailyRequestLimit}회`
-      : `오늘 0/${dailyRequestLimit}회`
+      : (dailyRequestLimit === 0 && role !== 'pending') 
+        ? '정보 없음' 
+        : `오늘 0/${dailyRequestLimit}회`
 
   const monthlyUsageText = usageLoading
     ? '로딩 중...'
     : usage
       ? `이번 달 ${usage.monthly.totalTokensUsed.toLocaleString()}/${monthlyTokenLimit.toLocaleString()}`
-      : `이번 달 0/${monthlyTokenLimit.toLocaleString()}`
+      : (monthlyTokenLimit === 0 && role !== 'pending')
+        ? '정보 없음'
+        : `이번 달 0/${monthlyTokenLimit.toLocaleString()}`
 
   // =============================================================================
   // Render
