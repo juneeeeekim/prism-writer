@@ -164,6 +164,21 @@ export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const adjustTextareaHeight = useCallback(() => {
+    const textarea = textareaRef.current
+    if (textarea) {
+      textarea.style.height = 'auto'
+      const newHeight = Math.min(textarea.scrollHeight, 200)
+      textarea.style.height = `${newHeight}px`
+      textarea.style.overflowY = newHeight >= 200 ? 'auto' : 'hidden'
+    }
+  }, [])
+
+  useEffect(() => {
+    adjustTextareaHeight()
+  }, [input, adjustTextareaHeight])
 
   // ---------------------------------------------------------------------------
   // Auto-scroll to bottom
@@ -270,6 +285,12 @@ export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
 
     setMessages((prev) => [...prev, userMessage])
     setInput('')
+    
+    // Reset textarea height
+    if (textareaRef.current) {
+      textareaRef.current.style.height = '50px'
+    }
+
     setIsLoading(true)
 
     // =========================================================================
@@ -613,6 +634,8 @@ export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
       <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
         <div className="flex space-x-2">
           <textarea
+            ref={textareaRef}
+            rows={1}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -622,7 +645,7 @@ export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
               }
             }}
             placeholder="메시지를 입력하세요..."
-            className="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-prism-primary bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 resize-none h-[50px]"
+            className="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-prism-primary bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 resize-none min-h-[50px] max-h-[200px]"
             disabled={isLoading}
           />
           <button
