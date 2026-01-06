@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm'
 import { useEditorState } from '@/hooks/useEditorState'
 import { useProject } from '@/contexts/ProjectContext'  // [FIX] 프로젝트 격리
 import { TIER_CONFIG, type RubricTier } from '@/lib/rag/rubrics'  // [P1-02] 티어 정보 표시
+import AdaptiveFeedbackButtons from '@/components/chat/AdaptiveFeedbackButtons'  // [P4-04-02] 적응형 피드백
 
 // =============================================================================
 // Constants (Pipeline v5 업그레이드)
@@ -592,6 +593,16 @@ export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
                     })}
                   </div>
                 </details>
+              )}
+              
+              {/* =========================================================== */}
+              {/* [P4-04-02] Adaptive Feedback Buttons - 프로젝트 격리 */}
+              {/* =========================================================== */}
+              {message.role === 'assistant' && projectId && (
+                <AdaptiveFeedbackButtons 
+                  messageId={message.id} 
+                  projectId={projectId} 
+                />
               )}
             </div>
         ))}

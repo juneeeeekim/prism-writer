@@ -480,11 +480,17 @@ ${context ? context : '관련된 참고 자료가 없습니다.'}
           
           // =====================================================================
           // [P3-02] Step 4: Groundedness Check (Hallucination Detection)
+          // [P4-03-04] 개인화 임계값 지원 추가
           // =====================================================================
           if (FEATURE_FLAGS.ENABLE_SELF_RAG && hasRetrievedDocs && uniqueResults && uniqueResults.length > 0) {
             // 답변이 너무 짧으면 패스 (비용 절감)
             if (fullResponse.length > 100) {
-               const verification = await verifyGroundedness(fullResponse, uniqueResults)
+               // [P4-03-04] 개인화 임계값을 위한 옵션 전달
+               const verification = await verifyGroundedness(fullResponse, uniqueResults, {
+                 supabase,    // [P4] Supabase 클라이언트
+                 userId,      // [P4] 사용자 ID
+                 projectId,   // [P4] 프로젝트 ID
+               })
                
                if (!verification.isGrounded) {
                  const warningMsg = '\n\n⚠️ 주의: 일부 내용이 문서에서 확인되지 않았습니다.'

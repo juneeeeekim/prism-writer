@@ -10,6 +10,8 @@ import { generateText } from '@/lib/llm/gateway'
 import { FEATURE_FLAGS } from '@/config/featureFlags'
 import { logger } from '@/lib/utils/logger'
 import type { SearchResult } from './search'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import { getProjectThreshold } from './projectPreferences'
 
 // =============================================================================
 // [P3-02] 타입 정의
@@ -28,6 +30,15 @@ export interface SelfRAGOptions {
   retrievalThreshold?: number
   /** 관련도 필터 임계값 (0.0-1.0) */
   critiqueThreshold?: number
+  // -------------------------------------------------------------------------
+  // [P4-03-03] 개인화 임계값 지원
+  // -------------------------------------------------------------------------
+  /** Supabase 클라이언트 (개인화 임계값 조회용) */
+  supabase?: SupabaseClient
+  /** 사용자 ID */
+  userId?: string
+  /** 프로젝트 ID */
+  projectId?: string
 }
 
 /**
@@ -274,6 +285,30 @@ export async function verifyGroundedness(
 ): Promise<GroundednessResult> {
   const { model = FEATURE_FLAGS.SELF_RAG_MODEL } = options
 
+  // -------------------------------------------------------------------------
+  // [P4-03-03] 개인화 임계값 조회
+  // -------------------------------------------------------------------------
+  let groundednessThreshold = 0.7  // 기본값
+
+  if (options.supabase && options.userId && options.projectId) {
+    try {
+      const prefs = await getProjectThreshold(
+        options.supabase,
+        options.userId,
+        options.projectId
+      )
+      groundednessThreshold = prefs.groundedness_threshold
+      logger.info('[SelfRAG]', 'Using personalized threshold', {
+        projectId: options.projectId,
+        threshold: groundednessThreshold,
+      })
+    } catch (err) {
+      logger.warn('[SelfRAG]', 'Failed to get personalized threshold, using default', {
+        error: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
+
   // 짧은 답변 또는 문서 없음 시 스킵
   if (answer.length < 50 || usedDocuments.length === 0) {
     logger.debug('[SelfRAG]', 'Skipping groundedness check (short answer or no docs)')
@@ -290,6 +325,7 @@ export async function verifyGroundedness(
   logger.debug('[SelfRAG]', 'Verifying groundedness', {
     answerLength: answer.length,
     documentCount: usedDocuments.length,
+    threshold: groundednessThreshold,  // [P4] 임계값 로깅
   })
 
   const prompt = `You are a fact-checker. Verify if the answer is grounded in the provided documents.
@@ -319,13 +355,14 @@ Return ONLY the JSON object, no other text.`
     const result = parseGroundednessResponse(response)
 
     logger.info('[SelfRAG]', 'Groundedness check completed', {
-      isGrounded: result.score >= 0.7,
+      isGrounded: result.score >= groundednessThreshold,  // [P4] 개인화 임계값 사용
       score: result.score,
+      threshold: groundednessThreshold,
       hallucinationCount: result.hallucinations?.length ?? 0,
     })
 
     return {
-      isGrounded: result.score >= 0.7,
+      isGrounded: result.score >= groundednessThreshold,  // [P4] 개인화 임계값 적용
       groundednessScore: result.score ?? 0.5,
       citations: result.citations ?? [],
       hallucinations: result.hallucinations ?? [],

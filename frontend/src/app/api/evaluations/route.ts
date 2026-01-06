@@ -10,6 +10,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import crypto from 'crypto'
+// [P4-05-01] Adaptive Threshold - 학습 이벤트 지원
+import { applyLearningEvent } from '@/lib/rag/projectPreferences'
 
 // =============================================================================
 // Helper: 텍스트 해시 생성
@@ -167,6 +169,31 @@ export async function POST(request: NextRequest) {
       projectId: data?.project_id,
       documentId: data?.document_id
     })
+
+    // =========================================================================
+    // [P4-05-01] 학습 이벤트 발생 - eval_override
+    // =========================================================================
+    // 평가가 저장될 때마다 학습 이벤트 발생 (사용자 피드백으로 간주)
+    // projectId가 있는 경우에만 학습 이벤트 적용
+    if (projectId) {
+      try {
+        await applyLearningEvent(
+          supabase,
+          user.id,
+          projectId,
+          'eval_override',
+          {
+            evaluationId: data?.id,
+            overallScore,
+            documentId,
+          }
+        )
+        console.log('[Evaluations API] P4: Learning event applied')
+      } catch (learningError) {
+        // 학습 이벤트 실패는 평가 저장에 영향 없음 (fail-safe)
+        console.warn('[Evaluations API] P4: Learning event failed, continuing:', learningError)
+      }
+    }
 
     return NextResponse.json({
       success: true,
