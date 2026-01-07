@@ -404,6 +404,22 @@ export const FEATURE_FLAGS = {
    * 기본값: 0.6
    */
   SELF_RAG_CRITIQUE_THRESHOLD: parseFloat(process.env.NEXT_PUBLIC_SELF_RAG_CRITIQUE_THRESHOLD || '0.6'),
+
+  // ==========================================================================
+  // [AI-STRUCTURER] AI Structurer Feature Flags (2026-01-08 추가)
+  // ==========================================================================
+
+  /**
+   * AI Structurer 기능 활성화 (P1-01)
+   * 환경 변수: NEXT_PUBLIC_ENABLE_AI_STRUCTURER
+   * 기본값: false (명시적 활성화 필요)
+   *
+   * @description
+   * - AI 기반 문서 구조화 기능 활성화
+   * - 환경 변수 미설정 시 자동 비활성화 (안전한 기본값)
+   * - 롤백: OFF 시 기존 수동 구조화 방식 유지
+   */
+  ENABLE_AI_STRUCTURER: process.env.NEXT_PUBLIC_ENABLE_AI_STRUCTURER === 'true',
 } as const
 
 // =============================================================================

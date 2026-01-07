@@ -161,10 +161,12 @@ export async function POST(request: NextRequest): Promise<NextResponse<HolisticE
     
     let evidenceContext = ''
     try {
+      // [RAG-ISOLATION] projectId 전달
       const evidenceResults = await vectorSearch(searchQuery, {
         userId,
         topK,
-        minScore: 0.5
+        minScore: 0.5,
+        projectId: projectId || null
       })
 
       if (evidenceResults.length > 0) {

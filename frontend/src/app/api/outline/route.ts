@@ -33,7 +33,10 @@ interface OutlineRequest {
   /** 최대 깊이 (기본 3) */
   maxDepth?: number
   /** 검색 결과 개수 (기본 10) */
+  /** 검색 결과 개수 (기본 10) */
   topK?: number
+  /** [RAG-ISOLATION] 프로젝트 ID (필수) */
+  projectId?: string
 }
 
 interface OutlineResponse {
@@ -102,7 +105,7 @@ export async function POST(
     // 3. 요청 파싱
     // -------------------------------------------------------------------------
     const body: OutlineRequest = await request.json()
-    const { topic, documentIds, maxDepth = DEFAULT_MAX_DEPTH, topK = DEFAULT_TOP_K } = body
+    const { topic, documentIds, maxDepth = DEFAULT_MAX_DEPTH, topK = DEFAULT_TOP_K, projectId } = body
 
     if (!topic || topic.trim().length < 2) {
       return NextResponse.json({
@@ -112,15 +115,24 @@ export async function POST(
       }, { status: 400 })
     }
 
+    if (!projectId) {
+       // [RAG-ISOLATION] 프로젝트 ID 필수 체크
+       // 기존 호환성을 위해 에러는 안 뱉고 빈 결과(일반 생성)로 유도할 수도 있으나,
+       // 아키텍처 원칙상 경고 로그 남김.
+       console.warn('[Outline API] Project ID missing. RAG search will be skipped/empty.')
+    }
+
     // -------------------------------------------------------------------------
     // 4. 참고자료 검색 (vectorSearch 연동)
     // -------------------------------------------------------------------------
     // 주석(주니어 개발자): 여기서 업로드된 참고자료(rag_chunks)를 검색합니다
     
+    // [RAG-ISOLATION] projectId 전달
     const searchResults = await vectorSearch(topic, {
       userId: user.id,
       topK,
       minScore: 0.3, // 유사도 임계값 완화 (0.5 -> 0.3)
+      projectId: projectId || null, // null이면 Strict Mode에 의해 결과 0개 반환 (Correct Behavior)
       // Note: documentId 단일 필터만 지원 (다중 문서는 추후 확장)
     })
 

@@ -38,6 +38,8 @@ interface EvaluateSingleRequest {
   // [P3-04] Template ID 파라미터 추가
   /** 특정 템플릿 ID (optional) */
   templateId?: string
+  /** [RAG-ISOLATION] 프로젝트 ID */
+  projectId?: string
 }
 
 /** 단일 평가 응답 */
@@ -92,7 +94,7 @@ export async function POST(
     // -------------------------------------------------------------------------
     const body = (await request.json()) as EvaluateSingleRequest
     // [P3-04] templateId 추가
-    const { userText, criteriaId, topK, templateId } = body
+    const { userText, criteriaId, topK, templateId, projectId } = body
 
     if (!userText || userText.length < MIN_TEXT_LENGTH) {
       return NextResponse.json(
@@ -183,11 +185,16 @@ export async function POST(
     // -------------------------------------------------------------------------
     // 4. 참고자료 검색 (RAG)
     // -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // 4. 참고자료 검색 (RAG)
+    // -------------------------------------------------------------------------
     const searchQuery = userText.substring(0, 200)
+    // [RAG-ISOLATION] projectId 전달
     const evidenceResults = await vectorSearch(searchQuery, {
       userId: user.id,
       topK: topK || DEFAULT_TOP_K,
       minScore: 0.6,
+      projectId: projectId || null,
     })
 
     const evidenceContext =

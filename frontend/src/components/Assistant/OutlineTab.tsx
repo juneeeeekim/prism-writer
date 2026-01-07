@@ -10,6 +10,7 @@
 
 import { useState, useEffect } from 'react'
 import { useEditorState, OutlineItem } from '@/hooks/useEditorState'
+import { useProject } from '@/contexts/ProjectContext' // [FIX] Import useProject
 
 // -----------------------------------------------------------------------------
 // Types
@@ -36,6 +37,9 @@ export default function OutlineTab() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(true)
   
   const { insertOutline } = useEditorState()
+  
+  // [RAG-ISOLATION] 프로젝트 ID 사용
+  const { currentProject } = useProject()
 
   // ---------------------------------------------------------------------------
   // Load Saved Outlines on Mount
@@ -109,6 +113,7 @@ export default function OutlineTab() {
       // P0 Fix: 내부 API Route 호출 (vectorSearch 연동됨)
       // 업로드된 참고자료를 기반으로 목차 생성
       // -----------------------------------------------------------------------
+      // [RAG-ISOLATION] 프로젝트 ID 전달하여 검색 격리 준수
       const response = await fetch('/api/outline', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -116,6 +121,7 @@ export default function OutlineTab() {
           topic: topic.trim(),
           maxDepth: 3,
           topK: 10,
+          projectId: currentProject?.id || null, // [FIX] 프로젝트 ID 전달
         }),
       })
 

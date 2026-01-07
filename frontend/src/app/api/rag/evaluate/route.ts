@@ -49,6 +49,9 @@ interface EvaluateRequest {
   // ==========================================================================
   /** 카테고리 필터 (null이면 전체 검색) */
   category?: string | null
+  
+  /** [RAG-ISOLATION] 프로젝트 ID (필수) */
+  projectId?: string
 }
 
 /** 평가 응답 */
@@ -120,7 +123,7 @@ export async function POST(
       )
     }
 
-    const { userText, rubricIds, searchQuery, topK, useV3, templateId } = body
+    const { userText, rubricIds, searchQuery, topK, useV3, templateId, projectId } = body
     // [P3-02] Feature Flags 중앙 관리 적용 (하드코딩 → FEATURE_FLAGS)
     const effectiveUseV3 = useV3 !== undefined ? useV3 : FEATURE_FLAGS.ENABLE_PIPELINE_V5
 
@@ -147,6 +150,10 @@ export async function POST(
         },
         { status: 400 }
       )
+    }
+
+    if (!projectId) {
+       console.warn('[Evaluate API] Project ID missing. RAG search will be skipped/empty.')
     }
 
     // ===========================================================================
@@ -203,6 +210,7 @@ export async function POST(
         topK: topK || DEFAULT_TOP_K,
         minScore: 0.6,
         category: body.category || null,  // [P1-02] 카테고리 격리 적용
+        projectId: projectId || null, // [RAG-ISOLATION] 프로젝트 격리
       })
 
       // 참고자료 컨텍스트 생성

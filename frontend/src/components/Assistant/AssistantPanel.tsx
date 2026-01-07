@@ -15,9 +15,11 @@ import ReferenceTab from './ReferenceTab'
 import ChatTab from './ChatTab'
 import EvaluationTab from './EvaluationTab'
 import SmartSearchTab from './SmartSearchTab'  // [P2-02] 스마트 검색 탭 추가
+import StructureTab from './StructureTab'  // [P4-01] AI Structurer 탭 추가
 import ChatSessionList from './ChatSessionList'
 import ChatHistoryOnboarding from './ChatHistoryOnboarding'
 import { FEATURES } from '@/lib/features'
+import { FEATURE_FLAGS } from '@/config/featureFlags'  // [P4-02] AI Structurer Feature Flag
 import { useEditorState } from '@/hooks/useEditorState'  // Phase 14.5: Category-Scoped
 // [P6-03] 온보딩 상태 기반 탭 필터링
 import { useProject } from '@/contexts/ProjectContext'
@@ -26,7 +28,8 @@ import { useProject } from '@/contexts/ProjectContext'
 // Types
 // -----------------------------------------------------------------------------
 // [P2-02] TabId에 'search' 추가
-type TabId = 'outline' | 'reference' | 'chat' | 'evaluation' | 'search'
+// [P4-02] TabId에 'structure' 추가 (AI Structurer)
+type TabId = 'outline' | 'reference' | 'chat' | 'evaluation' | 'search' | 'structure'
 
 interface Tab {
   id: TabId
@@ -38,6 +41,7 @@ interface Tab {
 // Tab Configuration
 // [P6-01-A] 탭 순서 변경: 참고자료 → 목차 제안 → AI 채팅 → 평가 → 스마트 검색
 // [P2-02] 스마트 검색 탭 추가
+// [P4-02] AI Structurer 탭 추가 (Feature Flag로 제어)
 // -----------------------------------------------------------------------------
 const TABS: Tab[] = [
   { id: 'reference', label: '참고자료', icon: '📚' },
@@ -45,6 +49,7 @@ const TABS: Tab[] = [
   { id: 'chat', label: 'AI 채팅', icon: '💬' },
   { id: 'evaluation', label: '평가', icon: '📊' },
   { id: 'search', label: '스마트 검색', icon: '🔍' },  // [P2-02] 추가
+  { id: 'structure', label: '구조', icon: '🧩' },  // [P4-02] AI Structurer
 ]
 
 // -----------------------------------------------------------------------------
@@ -75,13 +80,15 @@ export default function AssistantPanel({ defaultTab = 'reference' }: AssistantPa
 
   // ===========================================================================
   // [P6-03] 온보딩 상태 기반 탭 필터링
+  // [P4-02] AI Structurer Feature Flag 기반 필터링
   // ===========================================================================
   const { currentProject } = useProject()
   const isSetupCompleted = currentProject?.setup_completed ?? true  // 기본값 true (기존 프로젝트 호환)
 
   // 온보딩 미완료 시 참고자료 탭만 표시
+  // [P4-02] AI Structurer 탭은 Feature Flag로 제어
   const visibleTabs = isSetupCompleted
-    ? TABS
+    ? TABS.filter((tab) => tab.id !== 'structure' || FEATURE_FLAGS.ENABLE_AI_STRUCTURER)
     : TABS.filter((tab) => tab.id === 'reference')
 
   // 온보딩 미완료 시 activeTab이 참고자료가 아니면 강제 전환
@@ -286,6 +293,18 @@ export default function AssistantPanel({ defaultTab = 'reference' }: AssistantPa
         >
           <SmartSearchTab />
         </div>
+
+        {/* [P4-02] AI Structurer 탭 - Feature Flag로 제어 */}
+        {FEATURE_FLAGS.ENABLE_AI_STRUCTURER && (
+          <div
+            id="panel-structure"
+            role="tabpanel"
+            aria-labelledby="tab-structure"
+            className={`h-full ${activeTab !== 'structure' ? 'hidden' : ''}`}
+          >
+            <StructureTab />
+          </div>
+        )}
       </div>
     </div>
   )

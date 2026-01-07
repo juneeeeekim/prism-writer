@@ -293,6 +293,7 @@ export default function EvaluationTab() {
         body: JSON.stringify({
           userText: textToEvaluate,
           topK: 5,
+          projectId: projectId || null, // [RAG-ISOLATION] 프로젝트 격리
         }),
       })
 
@@ -549,19 +550,26 @@ export default function EvaluationTab() {
       console.warn('[EvaluationTab] 재평가 불가: 기존 평가 결과 없음')
       return null
     }
+
+    // [RAG-ISOLATION] 프로젝트 ID 필수 전달
+    if (!projectId) {
+      console.error('[EvaluationTab] 프로젝트 ID가 없습니다.')
+      return null
+    }
     
     try {
-      console.log(`[EvaluationTab] 개별 재평가 시작: ${criteriaId}`)
+      console.log(`[EvaluationTab] 개별 재평가 시작: ${criteriaId}, Project: ${projectId}`)
       
       const response = await fetch('/api/rag/evaluate-single', {
         method: 'POST',
         headers: getApiHeaders(),
         body: JSON.stringify({
           userText: textToEvaluate,
-          documentId: result?.document_id || 'unknown', // Use result?.document_id as currentDoc is not defined
+          documentId: result.document_id || 'unknown',
           criteriaId,
-          qualityLevel: options?.quality || 'standard', // P10-02: Pass quality param
-          topK: 5
+          qualityLevel: options?.quality || 'standard',
+          topK: 5,
+          projectId: projectId, // [RAG-ISOLATION]
         }),
       })
 
@@ -576,7 +584,6 @@ export default function EvaluationTab() {
       
       // -----------------------------------------------------------------------
       // Phase 8-D: result 상태 업데이트 (React setState 비동기 문제 해결)
-      // 새 객체를 변수에 저장 후 setResult와 saveEvaluation에 동일 객체 전달
       // -----------------------------------------------------------------------
       
       // 1. judgments 배열에서 해당 criteriaId 항목 교체
@@ -607,7 +614,7 @@ export default function EvaluationTab() {
       // 5. React 상태 업데이트
       setResult(updatedResult)
       
-      // 6. DB 저장 (새 객체 전달 - setState 비동기 문제 해결)
+      // 6. DB 저장
       try {
         await saveEvaluation(updatedResult, textToEvaluate)
         console.log('[EvaluationTab] 재평가 결과 DB 저장 완료')
@@ -625,7 +632,7 @@ export default function EvaluationTab() {
       console.error('[EvaluationTab] Reevaluate Error:', err)
       return null
     }
-  }, [content, result, saveEvaluation])
+  }, [content, result, projectId, saveEvaluation])
 
   // ---------------------------------------------------------------------------
   // 렌더링

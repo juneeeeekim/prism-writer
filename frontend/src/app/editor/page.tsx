@@ -195,7 +195,8 @@ function EditorContent() {
         body: JSON.stringify({
           userText: content,
           // templateId: template?.[0]?.document_id // 템플릿 ID가 있다면 전달
-          useV3: true // v3 평가 강제 (임시)
+          useV3: true, // v3 평가 강제 (임시)
+          projectId: projectId || null, // [RAG-ISOLATION] 프로젝트 ID 전달
         }),
       })
 
