@@ -513,6 +513,7 @@ export async function vectorSearch(
           user_id_param: userId,
           match_count: topK,
           chunk_type_filter: chunkType || null,  // NULL이면 모든 타입 검색
+          project_id_param: options.projectId || null, // [RAG-ISOLATION] 프로젝트 격리 필수
         })
         return result
       },
