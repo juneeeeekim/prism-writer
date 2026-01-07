@@ -16,6 +16,33 @@ import { useLLMUsage } from '@/hooks/useLLMUsage'
 import RoleBadge from './RoleBadge'
 
 // =============================================================================
+// v2.3: 동기화 시간 포매터 (P4-02)
+// =============================================================================
+/**
+ * 주어진 날짜로부터 현재까지의 시간 차이를 한국어로 포맷
+ * @param date 기준 날짜
+ * @returns "1분 전", "5분 전", "1시간 전" 등의 문자열
+ */
+function formatTimeAgo(date: Date): string {
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffSec = Math.floor(diffMs / 1000)
+  const diffMin = Math.floor(diffSec / 60)
+  const diffHour = Math.floor(diffMin / 60)
+  
+  if (diffSec < 60) {
+    return '방금'
+  } else if (diffMin < 60) {
+    return `${diffMin}분 전`
+  } else if (diffHour < 24) {
+    return `${diffHour}시간 전`
+  } else {
+    const diffDay = Math.floor(diffHour / 24)
+    return `${diffDay}일 전`
+  }
+}
+
+// =============================================================================
 // Props Interface
 // =============================================================================
 
@@ -32,6 +59,13 @@ interface UserDropdownProps {
   onSignOut: () => Promise<void>
   /** 로그아웃 진행 중 여부 */
   signingOut?: boolean
+  // ==========================================================================
+  // v2.3: UI 피드백 (P4-02, P4-03)
+  // ==========================================================================
+  /** 마지막 동기화 시간 */
+  lastSyncedAt?: Date | null
+  /** 프로필 새로고침 함수 (P4-03) */
+  onRefreshProfile?: () => Promise<void>
 }
 
 // =============================================================================
@@ -65,15 +99,18 @@ export default function UserDropdown({
   monthlyTokenLimit,
   onSignOut,
   signingOut = false,
+  lastSyncedAt,
+  onRefreshProfile,
 }: UserDropdownProps) {
   // =============================================================================
   // State & Refs
   // =============================================================================
   const [isOpen, setIsOpen] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false) // P4-03: 새로고침 상태
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // 사용량 조회
-  const { usage, loading: usageLoading } = useLLMUsage()
+  // 사용량 조회 (P4-03: refetch 추가)
+  const { usage, loading: usageLoading, refetch: refetchUsage } = useLLMUsage()
 
   // =============================================================================
   // 외부 클릭 감지 (드롭다운 닫기)
@@ -173,6 +210,12 @@ export default function UserDropdown({
               <span className="text-xs text-gray-500 dark:text-gray-400">현재 등급</span>
               <RoleBadge role={role} size="md" />
             </div>
+            {/* P4-02: 마지막 동기화 시간 표시 */}
+            {lastSyncedAt && (
+              <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                {formatTimeAgo(lastSyncedAt)} 동기화
+              </div>
+            )}
           </div>
 
           {/* ---------------------------------------------------------------
@@ -207,6 +250,29 @@ export default function UserDropdown({
                 </span>
               </div>
             </div>
+            {/* ---------------------------------------------------------------
+                P4-03: 수동 새로고침 버튼
+                --------------------------------------------------------------- */}
+            {onRefreshProfile && (
+              <button
+                onClick={async () => {
+                  setIsRefreshing(true)
+                  try {
+                    await Promise.all([
+                      onRefreshProfile(),
+                      refetchUsage()
+                    ])
+                  } finally {
+                    setIsRefreshing(false)
+                  }
+                }}
+                disabled={isRefreshing}
+                className="mt-2 w-full flex items-center justify-center gap-1 px-2 py-1 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className={isRefreshing ? 'animate-spin' : ''}>🔄</span>
+                {isRefreshing ? '새로고침 중...' : '새로고침'}
+              </button>
+            )}
           </div>
 
           {/* ---------------------------------------------------------------

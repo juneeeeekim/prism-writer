@@ -56,7 +56,8 @@ export default function AuthHeader({
   onExport,
 }: AuthHeaderProps) {
   // v2.0: 추가 필드 (role, dailyRequestLimit, monthlyTokenLimit)
-  const { user, loading, signOut, signingOut, role, isAdmin, dailyRequestLimit, monthlyTokenLimit } = useAuth()
+  // v2.3: lastSyncedAt, refreshProfile 추가 (P4-02, P4-03)
+  const { user, loading, signOut, signingOut, role, isAdmin, dailyRequestLimit, monthlyTokenLimit, lastSyncedAt, refreshProfile } = useAuth()
 
   return (
     <header
@@ -169,6 +170,8 @@ export default function AuthHeader({
             monthlyTokenLimit={monthlyTokenLimit}
             onSignOut={signOut}
             signingOut={signingOut}
+            lastSyncedAt={lastSyncedAt}
+            onRefreshProfile={refreshProfile}
           />
         ) : (
           // 비로그인 상태

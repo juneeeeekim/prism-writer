@@ -8,7 +8,7 @@
 
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -55,6 +55,11 @@ interface UseAuthReturn {
   monthlyTokenLimit: number
   /** 프로필 새로고침 함수 */
   refreshProfile: () => Promise<void>
+  // ==========================================================================
+  // v2.3: UI 피드백 (P4-01)
+  // ==========================================================================
+  /** 마지막 동기화 시간 */
+  lastSyncedAt: Date | null
 }
 
 /**
@@ -93,15 +98,24 @@ export function useAuth(): UseAuthReturn {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [profileLoading, setProfileLoading] = useState(false)
   
+  // v2.3: 마지막 동기화 시간 (P4-01)
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null)
+  
   const router = useRouter()
   const supabase = createClient()
 
+  // v2.2: 폴링 인터벌 (P3-02: Realtime 연결 상태에 따라 동적 변경)
+  // 기본값: 1분(60초), Realtime 연결 성공 시: 5분(300초)으로 변경
+  const pollIntervalRef = useRef(60000)
+
   // =============================================================================
-  // v2.0: 프로필 조회 함수
+  // v2.0: 프로필 조회 함수 (v2.1: isPolling 파라미터 추가 - P1-02)
   // =============================================================================
-  const fetchProfile = useCallback(async (userId: string) => {
+  // isPolling이 true면 에러 발생 시 기존 profile 유지 (덮어쓰기 금지)
+  // =============================================================================
+  const fetchProfile = useCallback(async (userId: string, isPolling: boolean = false) => {
     setProfileLoading(true)
-    console.log('[useAuth] fetchProfile 시작, userId:', userId)
+    console.debug('[useAuth] fetchProfile 시작, userId:', userId, 'isPolling:', isPolling)
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -110,19 +124,27 @@ export function useAuth(): UseAuthReturn {
         .single()
       
       // 디버깅: 조회 결과 출력
-      console.log('[useAuth] 프로필 조회 결과:', { data, error })
+      console.debug('[useAuth] 프로필 조회 결과:', { data, error })
       
       if (error) {
         // 프로필이 없는 경우 (트리거 실패 등)
         console.warn('프로필 조회 실패:', error.message, error.code, error.details)
-        setProfile(null)
+        // P1-02: 폴링 중 에러 시 기존 profile 유지
+        if (!isPolling) {
+          setProfile(null)
+        }
       } else if (data) {
-        console.log('[useAuth] 프로필 데이터 매핑:', data)
+        console.debug('[useAuth] 프로필 데이터 매핑:', data)
         setProfile(mapProfileRowToUserProfile(data as ProfileRow))
+        // P4-01: 프로필 조회 성공 시 마지막 동기화 시간 기록
+        setLastSyncedAt(new Date())
       }
     } catch (error) {
       console.error('프로필 조회 오류:', error)
-      setProfile(null)
+      // P1-02: 폴링 중 에러 시 기존 profile 유지
+      if (!isPolling) {
+        setProfile(null)
+      }
     } finally {
       setProfileLoading(false)
     }
@@ -256,6 +278,138 @@ export function useAuth(): UseAuthReturn {
   }, [supabase.auth])
 
   // =============================================================================
+  // v2.1: 자동 폴링 - 프로필 정보 주기적 갱신 (P1-01)
+  // =============================================================================
+  // 목적: 관리자가 DB에서 역할/할당량 변경 시 1분 내 UI에 반영
+  // 참조: plan_report/2601070733_Auth_Data_Sync_체크리스트.md
+  // =============================================================================
+  useEffect(() => {
+    // SSR 환경 체크
+    if (typeof document === 'undefined') return
+    // 로그인 상태가 아니면 폴링 불필요
+    if (!user?.id) return
+
+    // ---------------------------------------------------------------------
+    // 상수 정의 (P3-02: pollIntervalRef 사용으로 동적 변경 지원)
+    // ---------------------------------------------------------------------
+    let intervalId: ReturnType<typeof setInterval> | null = null
+
+    // ---------------------------------------------------------------------
+    // 폴링 시작 함수
+    // ---------------------------------------------------------------------
+    const startPolling = () => {
+      if (intervalId) return // 이미 실행 중이면 중복 방지
+      intervalId = setInterval(() => {
+        console.debug('[useAuth] 자동 폴링: 프로필 갱신 시작, 인터벌:', pollIntervalRef.current, 'ms')
+        // P1-02: isPolling=true로 호출하여 에러 시 기존 profile 유지
+        fetchProfile(user.id, true)
+      }, pollIntervalRef.current)
+    }
+
+    // ---------------------------------------------------------------------
+    // 폴링 중지 함수
+    // ---------------------------------------------------------------------
+    const stopPolling = () => {
+      if (intervalId) {
+        clearInterval(intervalId)
+        intervalId = null
+      }
+    }
+
+    // ---------------------------------------------------------------------
+    // 탭 활성화/비활성화 감지
+    // ---------------------------------------------------------------------
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // 탭 비활성화 → 폴링 중지 (불필요한 API 호출 방지)
+        console.debug('[useAuth] 탭 비활성화: 폴링 중지')
+        stopPolling()
+      } else {
+        // 탭 활성화 → 즉시 1회 조회 + 폴링 재개
+        console.debug('[useAuth] 탭 활성화: 즉시 조회 + 폴링 재개')
+        // P1-02: isPolling=true로 호출하여 에러 시 기존 profile 유지
+        fetchProfile(user.id, true)
+        startPolling()
+      }
+    }
+
+    // ---------------------------------------------------------------------
+    // 초기화: 폴링 시작 + 이벤트 리스너 등록
+    // ---------------------------------------------------------------------
+    startPolling()
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    // ---------------------------------------------------------------------
+    // Cleanup: 폴링 중지 + 이벤트 리스너 해제
+    // ---------------------------------------------------------------------
+    return () => {
+      stopPolling()
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [user?.id, fetchProfile])
+
+  // =============================================================================
+  // v2.2: Supabase Realtime 구독 - 프로필 변경 즉시 반영 (P3-01)
+  // =============================================================================
+  // 목적: 관리자가 DB에서 역할/할당량 변경 시 10초 내 UI에 즉시 반영
+  // 참조: plan_report/2601070733_Auth_Data_Sync_체크리스트.md
+  // 주의: 구독 실패 시 폴링(P1-01)이 Fallback으로 동작
+  // =============================================================================
+  useEffect(() => {
+    // 로그인 상태가 아니면 구독 불필요
+    if (!user?.id) return
+
+    // -------------------------------------------------------------------------
+    // Realtime 채널 생성 및 구독
+    // -------------------------------------------------------------------------
+    console.debug('[useAuth] Realtime 구독 시작, userId:', user.id)
+    
+    const channel = supabase
+      .channel(`profile-sync-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`
+        },
+        (payload) => {
+          // -----------------------------------------------------------------------
+          // 프로필 변경 감지 시 즉시 상태 업데이트
+          // -----------------------------------------------------------------------
+          console.debug('[useAuth] Realtime 프로필 변경 감지:', payload)
+          if (payload.new) {
+            setProfile(mapProfileRowToUserProfile(payload.new as ProfileRow))
+          }
+        }
+      )
+      .subscribe((status) => {
+        // -----------------------------------------------------------------------
+        // 구독 상태에 따른 폴링 인터벌 조정 (P3-02)
+        // -----------------------------------------------------------------------
+        console.debug('[useAuth] Realtime 구독 상태:', status)
+        if (status === 'SUBSCRIBED') {
+          // 성공: Realtime이 실시간 처리하므로 폴링 주기 5분으로 연장 (백업용)
+          console.debug('[useAuth] Realtime 연결 성공, 폴링 인터벌 5분으로 연장')
+          pollIntervalRef.current = 300000 // 5분
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          // 실패: 폴링이 메인이므로 1분 유지
+          console.warn('[useAuth] Realtime 연결 실패, 폴링 모드 유지 (1분 인터벌)')
+          pollIntervalRef.current = 60000 // 1분
+        }
+      })
+
+    // -------------------------------------------------------------------------
+    // Cleanup: 채널 구독 해제 (메모리 누수 방지)
+    // -------------------------------------------------------------------------
+    return () => {
+      console.debug('[useAuth] Realtime 구독 해제')
+      supabase.removeChannel(channel)
+    }
+  }, [user?.id, supabase])
+
+  // =============================================================================
   // v2.0: 파생 상태 계산
   // =============================================================================
   const role = profile?.role ?? null
@@ -281,6 +435,8 @@ export function useAuth(): UseAuthReturn {
     dailyRequestLimit,
     monthlyTokenLimit,
     refreshProfile,
+    // v2.3: UI 피드백 (P4-01)
+    lastSyncedAt,
   }
 }
 
