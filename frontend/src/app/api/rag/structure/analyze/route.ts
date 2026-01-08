@@ -40,6 +40,8 @@ interface AnalyzeRequest {
   projectId: string
   /** 템플릿 ID (선택) - 없으면 기본 구조 사용 */
   templateId?: string
+  /** [S1-01] 분석 대상 문서 ID 목록 (선택) - 없으면 전체 분석 */
+  targetDocIds?: string[]
 }
 
 /**
@@ -129,7 +131,22 @@ export async function POST(
     // [P2-01-02] 요청 바디 파싱 및 검증
     // -------------------------------------------------------------------------
     const body: AnalyzeRequest = await request.json()
-    const { projectId, templateId } = body
+    const { projectId, templateId, targetDocIds } = body
+
+    // -------------------------------------------------------------------------
+    // [S1-01] targetDocIds 유효성 검증
+    // -------------------------------------------------------------------------
+    if (targetDocIds !== undefined && !Array.isArray(targetDocIds)) {
+      return NextResponse.json(
+        {
+          success: false,
+          suggestion: null,
+          message: 'targetDocIds는 문자열 배열이어야 합니다.',
+          error: 'BAD_REQUEST',
+        },
+        { status: 400 }
+      )
+    }
 
     // projectId 필수 (083 격리 정책)
     if (!projectId) {
@@ -186,6 +203,41 @@ export async function POST(
     }
 
     // -------------------------------------------------------------------------
+    // [S1-01] Context-Aware 문서 분류 (선택 분석 모드)
+    // -------------------------------------------------------------------------
+    // targetDocIds가 있으면 '선택 분석', 없으면 '전체 분석'
+    let targetDocs = documents
+    let contextDocs: typeof documents = []
+
+    if (targetDocIds && targetDocIds.length > 0) {
+      // 선택 분석 모드: 선택된 문서 = 분석 대상, 나머지 = 배경 지식
+      targetDocs = documents.filter((d) => targetDocIds.includes(d.id))
+      contextDocs = documents.filter((d) => !targetDocIds.includes(d.id))
+
+      // 선택한 문서가 실제로 존재하는지 확인
+      if (targetDocs.length === 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            suggestion: null,
+            message: '선택한 문서가 프로젝트에 없습니다.',
+            error: 'NOT_FOUND',
+          },
+          { status: 404 }
+        )
+      }
+
+      console.log(
+        `[StructureAnalyze] Selective Mode: ${targetDocs.length} targets, ${contextDocs.length} context`
+      )
+    } else {
+      // 전체 분석 모드 (기존 동작 유지)
+      console.log(
+        `[StructureAnalyze] Full Mode: ${documents.length} documents`
+      )
+    }
+
+    // -------------------------------------------------------------------------
     // [P2-01-05] 템플릿 기준 조회 (선택)
     // -------------------------------------------------------------------------
     let rubricCriteria: (TemplateSchema | DefaultStructureItem)[] = templateId
@@ -198,9 +250,34 @@ export async function POST(
     }
 
     // -------------------------------------------------------------------------
-    // [P2-01-06] LLM 프롬프트 생성
+    // [P2-01-06] LLM 프롬프트 생성 (with Context-Aware)
     // -------------------------------------------------------------------------
-    const prompt = buildStructurePrompt(documents, rubricCriteria)
+    // [S1-01] 기본 프롬프트 생성 (분석 대상 문서만)
+    let prompt = buildStructurePrompt(targetDocs, rubricCriteria)
+
+    // [S1-01] 배경 지식 섹션 추가 (선택 분석 모드일 때)
+    if (contextDocs.length > 0) {
+      const contextSection = contextDocs
+        .map((d) => {
+          const summary = d.content?.slice(0, 200) || '내용 없음'
+          return `- ${d.title}: ${summary}...`
+        })
+        .join('\n')
+
+      // 프롬프트 앞부분에 배경 지식 삽입
+      prompt = `
+[참고 배경 정보 - 분석 대상 아님]
+아래는 분석 대상이 아닌 다른 문서들의 요약입니다. 전체 맥락을 파악하는 데 참고하세요.
+${contextSection}
+
+---
+${prompt}
+
+[중요 지시사항]
+위 '참고 배경 정보'는 순서 변경 대상이 아닙니다. 
+오직 '[집중 분석 대상]' 문서들의 순서만 조정하세요.
+`
+    }
 
     // -------------------------------------------------------------------------
     // [P2-01-07] LLM 호출 (Graceful Degradation)

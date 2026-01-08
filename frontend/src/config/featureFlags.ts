@@ -419,7 +419,7 @@ export const FEATURE_FLAGS = {
    * - 환경 변수 미설정 시 자동 비활성화 (안전한 기본값)
    * - 롤백: OFF 시 기존 수동 구조화 방식 유지
    */
-  ENABLE_AI_STRUCTURER: process.env.NEXT_PUBLIC_ENABLE_AI_STRUCTURER === 'true',
+  ENABLE_AI_STRUCTURER: process.env.NEXT_PUBLIC_ENABLE_AI_STRUCTURER !== 'false',
 } as const
 
 // =============================================================================

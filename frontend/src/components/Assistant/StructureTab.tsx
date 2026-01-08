@@ -16,12 +16,14 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useProject } from '@/contexts/ProjectContext'
+import { useToast } from '@/hooks/useToast'
 import type {
   StructureSuggestion,
   DocumentSummary,
   OrderSuggestion,
   GapSuggestion,
 } from '@/lib/rag/structureHelpers'
+import DocumentCard from '@/components/structure/DocumentCard'
 
 // =============================================================================
 // [P4-01] 타입 정의
@@ -66,6 +68,7 @@ export default function StructureTab() {
   // [P4-01-01] State
   // ===========================================================================
   const { currentProject } = useProject()
+  const toast = useToast() // [S2-03] Toast 알림용
 
   // 문서 목록
   const [documents, setDocuments] = useState<DocumentSummary[]>([])
@@ -83,6 +86,25 @@ export default function StructureTab() {
 
   // 성공 메시지
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  // ===========================================================================
+  // [S2-01] 선택 분석 모드 상태
+  // ===========================================================================
+  const [isSelectionMode, setIsSelectionMode] = useState(false)
+  const [selectedDocIds, setSelectedDocIds] = useState<string[]>([])
+
+  /** [S2-01] 선택 모드 토글 */
+  const toggleSelectionMode = () => {
+    setIsSelectionMode((prev) => !prev)
+    setSelectedDocIds([]) // 모드 변경 시 선택 초기화
+  }
+
+  /** [S2-01] 문서 선택 토글 */
+  const toggleDocumentSelection = (docId: string) => {
+    setSelectedDocIds((prev) =>
+      prev.includes(docId) ? prev.filter((id) => id !== docId) : [...prev, docId]
+    )
+  }
 
   // ===========================================================================
   // [P4-01-02] 문서 로드
@@ -123,19 +145,38 @@ export default function StructureTab() {
       return
     }
 
+    // [S2-03] Safety: 선택 모드인데 선택된 문서가 없을 때 Toast 경고
+    if (isSelectionMode && selectedDocIds.length === 0) {
+      toast.warning('분석할 문서를 선택해주세요.')
+      return
+    }
+
     setIsAnalyzing(true)
     setError(null)
     setSuggestion(null)
     setSuccessMessage(null)
 
     try {
+      // [S2-01] 선택 모드일 때 targetDocIds 전달
+      const payload: {
+        projectId: string
+        templateId?: string
+        targetDocIds?: string[]
+      } = {
+        projectId: currentProject.id,
+        // templateId: 선택된 템플릿 ID (향후 구현)
+      }
+
+      // 선택 분석 모드일 때만 targetDocIds 추가
+      if (isSelectionMode && selectedDocIds.length > 0) {
+        payload.targetDocIds = selectedDocIds
+        console.log(`[StructureTab] Selective Mode: ${selectedDocIds.length} docs selected`)
+      }
+
       const res = await fetch('/api/rag/structure/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId: currentProject.id,
-          // templateId: 선택된 템플릿 ID (향후 구현)
-        }),
+        body: JSON.stringify(payload),
       })
 
       const data: AnalyzeResponse = await res.json()
@@ -227,29 +268,46 @@ export default function StructureTab() {
             AI가 문서 순서와 구조를 분석하여 최적의 배치를 제안합니다.
           </p>
         </div>
-        <button
-          onClick={handleAnalyze}
-          disabled={isAnalyzing || !currentProject?.id || documents.length === 0}
-          className={`
-            px-4 py-2 rounded-lg font-medium transition-colors
-            ${isAnalyzing || !currentProject?.id || documents.length === 0
-              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              : 'bg-prism-primary text-white hover:bg-prism-primary/90'
-            }
-          `}
-        >
-          {isAnalyzing ? (
-            <span className="flex items-center gap-2">
-              <span className="animate-spin">⏳</span>
-              분석 중...
-            </span>
-          ) : (
-            <span className="flex items-center gap-2">
-              <span>🧩</span>
-              AI 분석
-            </span>
-          )}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* [S2-01] 선택 분석 모드 토글 버튼 */}
+          <button
+            onClick={toggleSelectionMode}
+            className={`
+              px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border
+              ${isSelectionMode
+                ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-700'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700'
+              }
+            `}
+          >
+            {isSelectionMode ? '✅ 선택 모드' : '📋 전체 모드'}
+          </button>
+          
+          {/* AI 분석 버튼 */}
+          <button
+            onClick={handleAnalyze}
+            disabled={isAnalyzing || !currentProject?.id || documents.length === 0 || (isSelectionMode && selectedDocIds.length === 0)}
+            className={`
+              px-4 py-2 rounded-lg font-medium transition-colors
+              ${isAnalyzing || !currentProject?.id || documents.length === 0 || (isSelectionMode && selectedDocIds.length === 0)
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-prism-primary text-white hover:bg-prism-primary/90'
+              }
+            `}
+          >
+            {isAnalyzing ? (
+              <span className="flex items-center gap-2">
+                <span className="animate-spin">⏳</span>
+                분석 중...
+              </span>
+            ) : (
+              <span className="flex items-center gap-2">
+                <span>🧩</span>
+                {isSelectionMode ? `선택 분석 (${selectedDocIds.length})` : 'AI 분석'}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* =====================================================================
@@ -405,17 +463,43 @@ export default function StructureTab() {
       )}
 
       {/* =====================================================================
-          [P4-01-06-F] 분석 전 상태
+          [P4-01-06-F] 분석 전 상태 - 문서 목록 표시 (선택 가능)
           ===================================================================== */}
       {!isLoadingDocs && documents.length > 0 && !suggestion && !isAnalyzing && (
-        <div className="flex-1 flex flex-col items-center justify-center text-gray-500">
-          <span className="text-4xl mb-4">🧩</span>
-          <p className="text-lg font-medium">AI 분석을 시작하세요</p>
-          <p className="text-sm text-center mt-2">
-            {documents.length}개의 문서가 있습니다.
-            <br />
-            AI가 최적의 순서와 구조를 분석합니다.
-          </p>
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* 안내 메시지 */}
+          <div className="text-center py-4 border-b border-gray-200 dark:border-gray-700">
+            <span className="text-4xl mb-2">🧩</span>
+            <p className="text-lg font-medium text-gray-800 dark:text-gray-200">
+              {isSelectionMode 
+                ? `분석할 문서를 선택하세요 (${selectedDocIds.length}/${documents.length})`
+                : 'AI 분석을 시작하세요'
+              }
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              {documents.length}개의 문서가 있습니다.
+              {isSelectionMode && ' 원하는 문서를 클릭하여 선택하세요.'}
+            </p>
+          </div>
+
+          {/* [S2-02] 문서 카드 목록 */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            {documents.map((doc, index) => (
+              <DocumentCard
+                key={doc.id}
+                id={doc.id}
+                order={index + 1}
+                title={doc.title}
+                isSelectionMode={isSelectionMode}
+                isSelected={selectedDocIds.includes(doc.id)}
+                onClick={() => {
+                  if (isSelectionMode) {
+                    toggleDocumentSelection(doc.id)
+                  }
+                }}
+              />
+            ))}
+          </div>
         </div>
       )}
     </div>

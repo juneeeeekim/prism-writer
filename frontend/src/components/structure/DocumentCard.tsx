@@ -31,6 +31,8 @@ export interface DocumentCardProps {
   assignedTag?: string
   /** 태그 할당 이유 */
   reason?: string
+  /** [S2-02] 선택 분석 모드 여부 */
+  isSelectionMode?: boolean
   /** 선택 상태 */
   isSelected?: boolean
   /** 드래그 상태 */
@@ -63,6 +65,7 @@ function DocumentCard({
   title,
   assignedTag,
   reason,
+  isSelectionMode = false,
   isSelected = false,
   isDragging = false,
   onClick,
@@ -72,7 +75,8 @@ function DocumentCard({
       data-document-id={id}
       onClick={onClick}
       className={`
-        flex items-start gap-3 p-3 rounded-lg border transition-all cursor-pointer
+        relative flex items-start gap-3 p-3 rounded-lg border transition-all cursor-pointer
+        ${isSelectionMode ? 'pl-10' : ''}
         ${isDragging
           ? 'opacity-50 scale-105 shadow-lg'
           : 'opacity-100 scale-100'
@@ -91,6 +95,39 @@ function DocumentCard({
         }
       }}
     >
+      {/* =====================================================================
+          [S2-02] 선택 모드 체크박스
+          ===================================================================== */}
+      {isSelectionMode && (
+        <div
+          className="absolute top-2 left-2 z-10"
+          onClick={(e) => {
+            e.stopPropagation() // 카드 클릭 이벤트 버블링 방지
+            onClick?.()
+          }}
+        >
+          <div
+            className={`
+              w-5 h-5 rounded border-2 flex items-center justify-center transition-colors cursor-pointer
+              ${isSelected
+                ? 'bg-prism-primary border-prism-primary'
+                : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-500 hover:border-prism-primary'
+              }
+            `}
+          >
+            {isSelected && (
+              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fillRule="evenodd"
+                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* =====================================================================
           [P4-03-A] 순서 번호 배지
           ===================================================================== */}
