@@ -9,6 +9,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import type { ReorderRequest } from '@/types/document'
+// [P4-01-C] Adaptive RAG 피드백 연동용 import
+import { applyLearningEvent } from '@/lib/rag/projectPreferences'
 
 export async function POST(req: NextRequest) {
   try {
@@ -77,6 +79,9 @@ export async function POST(req: NextRequest) {
 interface ReorderByProjectRequest {
   projectId: string
   orderedDocIds: string[]
+  // [P4-01-A] AI Structurer 피드백 연동용 필드 (2026-01-09 추가)
+  suggestionId?: string   // AI 제안 ID (있으면 피드백 연동)
+  isModified?: boolean    // 사용자가 순서를 변경했는지
 }
 
 interface ReorderByProjectResponse {
@@ -163,6 +168,41 @@ export async function PATCH(req: NextRequest) {
     // -------------------------------------------------------------------------
     // [DnD-B01-05] 성공 응답
     // -------------------------------------------------------------------------
+
+    // -------------------------------------------------------------------------
+    // [P4-01-B] Adaptive RAG 피드백 연동 (2026-01-09 추가)
+    // suggestionId가 있으면 피드백 시스템에 학습 이벤트 전송
+    // -------------------------------------------------------------------------
+    if (body.suggestionId && updatedCount > 0) {
+      try {
+        // 1. structure_suggestions 테이블 업데이트
+        await supabase
+          .from('structure_suggestions')
+          .update({
+            is_applied: true,
+            applied_at: new Date().toISOString(),
+            is_modified: body.isModified ?? false,
+          })
+          .eq('id', body.suggestionId)
+          .eq('user_id', user.id)  // 보안: 본인 것만 수정
+
+        // 2. 피드백 시스템에 학습 이벤트 전송
+        const signalType = body.isModified ? 'structure_modify' : 'structure_accept'
+        await applyLearningEvent(
+          supabase,
+          user.id,
+          projectId,
+          signalType,
+          { suggestionId: body.suggestionId }
+        )
+
+        console.log('[DocumentReorder PATCH] 피드백 연동 성공:', signalType)
+      } catch (feedbackError) {
+        // 피드백 연동 실패해도 순서 적용은 성공으로 처리
+        console.warn('[DocumentReorder PATCH] 피드백 연동 실패 (순서 적용은 완료):', feedbackError)
+      }
+    }
+
     return NextResponse.json({
       success: true,
       updatedCount

@@ -35,6 +35,7 @@ import DocumentCard from '@/components/structure/DocumentCard'
 interface AnalyzeResponse {
   success: boolean
   suggestion: StructureSuggestion | null
+  suggestionId?: string  // [P5-01-B] DB에 저장된 제안 ID
   message?: string
   error?: string
 }
@@ -88,6 +89,11 @@ export default function StructureTab() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   // ===========================================================================
+  // [P5-01-A] AI Structurer 피드백 연동용 suggestionId (2026-01-09 추가)
+  // ===========================================================================
+  const [suggestionId, setSuggestionId] = useState<string | null>(null)
+
+  // ===========================================================================
   // [DnD-F01] 드래그 앤 드롭 상태 관리
   // ===========================================================================
   /** 사용자가 조정한 순서 (AI 제안 또는 드래그 결과) */
@@ -114,6 +120,7 @@ export default function StructureTab() {
     setReorderedDocs([])
     setSuccessMessage(null)
     setError(null)
+    setSuggestionId(null)  // [P5-01-C] suggestionId도 초기화
   }
 
   /** [S2-01] 문서 선택 토글 */
@@ -244,6 +251,11 @@ export default function StructureTab() {
 
       setSuggestion(data.suggestion)
 
+      // [P5-01-B] suggestionId 저장 (Adaptive RAG 피드백 연동용)
+      if (data.suggestionId) {
+        setSuggestionId(data.suggestionId)
+      }
+
       // -----------------------------------------------------------------------
       // [DnD-F02] AI 분석 결과를 reorderedDocs에 반영
       // - suggestedOrder의 docId 순서대로 documents 재정렬
@@ -302,13 +314,22 @@ export default function StructureTab() {
 
       // -----------------------------------------------------------------------
       // [DnD-B01] API 호출: PATCH /api/documents/reorder
+      // [P5-02-A] suggestionId와 isModified 추가 (Adaptive RAG 피드백 연동)
       // -----------------------------------------------------------------------
+
+      // isModified 계산: AI 제안 순서와 현재 순서 비교
+      const isModified = suggestion?.suggestedOrder?.some(
+        (item, index) => item.docId !== orderedDocIds[index]
+      ) ?? false
+
       const res = await fetch('/api/documents/reorder', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId: currentProject.id,
           orderedDocIds,
+          suggestionId,  // [P5-02-A] AI 제안 ID
+          isModified,    // [P5-02-A] 사용자가 순서 변경했는지
         }),
       })
 

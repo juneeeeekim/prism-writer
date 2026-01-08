@@ -95,6 +95,14 @@ export const SIGNAL_CONFIG = {
   chat_helpful: { weight: 0.3, adjustment: -0.02 },   // 👍 도움됨: 유연하게
   chat_not_helpful: { weight: 0.3, adjustment: 0 },   // 👎 아니요: 중립
   chat_hallucination: { weight: 0.5, adjustment: 0.05 }, // 🚨 틀린 정보: 엄격하게
+
+  // ==========================================================================
+  // [P2-01] Structure 피드백 (2026-01-09 추가)
+  // AI Structurer 결과에 대한 사용자 피드백
+  // ==========================================================================
+  structure_accept: { weight: 0.4, adjustment: -0.02 },   // AI 제안 그대로 수락: 유연하게
+  structure_modify: { weight: 0.3, adjustment: 0.01 },    // AI 제안 수정 후 적용: 약간 엄격
+  structure_reject: { weight: 0.4, adjustment: 0.02 },    // AI 제안 무시: 엄격하게
 } as const
 
 /**
@@ -354,6 +362,10 @@ export function getSignalDescription(signalType: SignalType): string {
     chat_helpful: '채팅 도움됨',
     chat_not_helpful: '채팅 아니요',
     chat_hallucination: '틀린 정보 신고',
+    // [P2-01] Structure 피드백 설명 추가 (2026-01-09)
+    structure_accept: 'AI 구조 제안 수락',
+    structure_modify: 'AI 구조 제안 수정 후 적용',
+    structure_reject: 'AI 구조 제안 무시',
   }
   return descriptions[signalType]
 }

@@ -54,6 +54,8 @@ interface AnalyzeResponse {
   success: boolean
   /** 구조 제안 결과 (null이면 문서 없음) */
   suggestion: StructureSuggestion | null
+  /** [P3-01] DB에 저장된 제안 ID (DB 저장 실패 시 undefined) */
+  suggestionId?: string
   /** 메시지 */
   message?: string
   /** 에러 코드 */
@@ -427,9 +429,45 @@ ${prompt}
     // -------------------------------------------------------------------------
     const suggestion = parseAnalysisResult(llmResponse)
 
+    // -------------------------------------------------------------------------
+    // [P3-01-B] DB에 분석 결과 저장 (Adaptive RAG 피드백 연동용)
+    // -------------------------------------------------------------------------
+    let suggestionId: string | undefined
+
+    try {
+      const isSelectiveMode = Array.isArray(targetDocIds) && targetDocIds.length > 0
+
+      const { data: savedSuggestion, error: saveError } = await supabase
+        .from('structure_suggestions')
+        .insert({
+          project_id: projectId,
+          user_id: session.user.id,
+          template_id: templateId || null,
+          target_doc_ids: targetDocIds || [],
+          is_selective_mode: isSelectiveMode,
+          suggested_order: suggestion.suggestedOrder,
+          gaps: suggestion.gaps || [],
+          overall_summary: null,  // StructureSuggestion에 overallSummary 없음, 추후 확장 대비
+          doc_count: documents.length,
+        })
+        .select('id')
+        .single()
+
+      if (!saveError && savedSuggestion) {
+        suggestionId = savedSuggestion.id
+        console.log('[StructureAnalyze] DB 저장 성공:', suggestionId)
+      } else {
+        console.warn('[StructureAnalyze] DB 저장 실패 (분석은 계속):', saveError?.message)
+      }
+    } catch (dbError) {
+      // DB 저장 실패해도 분석 결과는 정상 반환 (서비스 중단 방지)
+      console.warn('[StructureAnalyze] DB 저장 예외 (분석은 계속):', dbError)
+    }
+
     return NextResponse.json({
       success: true,
       suggestion,
+      suggestionId,  // [P3-01] DB에 저장된 제안 ID (undefined일 수 있음)
       message: `${documents.length}개 문서 분석 완료`,
     })
   } catch (error) {
