@@ -109,6 +109,11 @@ export default function StructureTab() {
   const toggleSelectionMode = () => {
     setIsSelectionMode((prev) => !prev)
     setSelectedDocIds([]) // 모드 변경 시 선택 초기화
+    // [FIX] 모드 전환 시 이전 분석 결과 초기화 → 재분석 가능
+    setSuggestion(null)
+    setReorderedDocs([])
+    setSuccessMessage(null)
+    setError(null)
   }
 
   /** [S2-01] 문서 선택 토글 */
