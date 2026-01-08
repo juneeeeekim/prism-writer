@@ -236,13 +236,16 @@ export async function fetchProjectTemplate(
 ): Promise<TemplateSchema[] | null> {
   // ---------------------------------------------------------------------------
   // [RAG-STRUCTURE-01] 프로젝트의 템플릿 조회 (승인된 것 우선)
-  // 정렬: approved → draft → pending → rejected (알파벳 오름차순)
+  // - rejected 템플릿은 아예 제외 (거부된 템플릿 사용 방지)
+  // - 정렬: approved → draft → pending (알파벳 오름차순)
+  // - 동일 status 내에서는 최신 생성순
   // ---------------------------------------------------------------------------
   const { data: template, error: templateError } = await supabase
     .from('rag_templates')
     .select('criteria_json, name, status')
     .eq('project_id', projectId)
-    .order('status', { ascending: true }) // approved(a) > draft(d) > pending(p) > rejected(r)
+    .in('status', ['approved', 'pending', 'draft']) // rejected 제외
+    .order('status', { ascending: true }) // approved(a) > draft(d) > pending(p)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
