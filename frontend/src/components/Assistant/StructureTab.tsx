@@ -88,6 +88,18 @@ export default function StructureTab() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   // ===========================================================================
+  // [DnD-F01] 드래그 앤 드롭 상태 관리
+  // ===========================================================================
+  /** 사용자가 조정한 순서 (AI 제안 또는 드래그 결과) */
+  const [reorderedDocs, setReorderedDocs] = useState<DocumentSummary[]>([])
+  /** 드래그 중 여부 */
+  const [isDraggingCard, setIsDraggingCard] = useState(false)
+  /** 드래그 시작 위치 인덱스 */
+  const [dragSourceIndex, setDragSourceIndex] = useState<number | null>(null)
+  /** 드롭 대상 위치 인덱스 */
+  const [dragTargetIndex, setDragTargetIndex] = useState<number | null>(null)
+
+  // ===========================================================================
   // [S2-01] 선택 분석 모드 상태
   // ===========================================================================
   const [isSelectionMode, setIsSelectionMode] = useState(false)
@@ -104,6 +116,47 @@ export default function StructureTab() {
     setSelectedDocIds((prev) =>
       prev.includes(docId) ? prev.filter((id) => id !== docId) : [...prev, docId]
     )
+  }
+
+  // ===========================================================================
+  // [DnD-F03] 드래그 앤 드롭 이벤트 핸들러
+  // ===========================================================================
+  
+  /** [DnD-F03] 드래그 시작 */
+  const handleDragStart = (index: number) => {
+    setIsDraggingCard(true)
+    setDragSourceIndex(index)
+  }
+
+  /** [DnD-F03] 드래그 오버 (드롭 가능 영역 진입) */
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault() // 필수! 없으면 드롭 불가
+    if (dragSourceIndex !== index) {
+      setDragTargetIndex(index)
+    }
+  }
+
+  /** [DnD-F03] 드래그 종료 (드롭) */
+  const handleDrop = () => {
+    if (dragSourceIndex === null || dragTargetIndex === null) return
+    if (dragSourceIndex === dragTargetIndex) {
+      resetDragState()
+      return
+    }
+
+    const newOrder = [...reorderedDocs]
+    const [movedItem] = newOrder.splice(dragSourceIndex, 1)
+    newOrder.splice(dragTargetIndex, 0, movedItem)
+
+    setReorderedDocs(newOrder)
+    resetDragState()
+  }
+
+  /** [DnD-F03] 드래그 상태 초기화 */
+  const resetDragState = () => {
+    setIsDraggingCard(false)
+    setDragSourceIndex(null)
+    setDragTargetIndex(null)
   }
 
   // ===========================================================================
@@ -170,7 +223,6 @@ export default function StructureTab() {
       // 선택 분석 모드일 때만 targetDocIds 추가
       if (isSelectionMode && selectedDocIds.length > 0) {
         payload.targetDocIds = selectedDocIds
-        console.log(`[StructureTab] Selective Mode: ${selectedDocIds.length} docs selected`)
       }
 
       const res = await fetch('/api/rag/structure/analyze', {
@@ -186,6 +238,20 @@ export default function StructureTab() {
       }
 
       setSuggestion(data.suggestion)
+
+      // -----------------------------------------------------------------------
+      // [DnD-F02] AI 분석 결과를 reorderedDocs에 반영
+      // - suggestedOrder의 docId 순서대로 documents 재정렬
+      // - .find() 결과가 undefined일 수 있으므로 .filter(Boolean) 필수
+      // -----------------------------------------------------------------------
+      if (data.suggestion?.suggestedOrder) {
+        const orderedDocs = data.suggestion.suggestedOrder
+          .map((order) => documents.find((d) => d.id === order.docId))
+          .filter(Boolean) as DocumentSummary[]
+
+        setReorderedDocs(orderedDocs)
+      }
+
       if (data.message) {
         setSuccessMessage(data.message)
       }
@@ -199,10 +265,22 @@ export default function StructureTab() {
 
   // ===========================================================================
   // [P4-01-04] 순서 적용
+  // [DnD-F05] reorderedDocs 기반으로 순서 저장 (2026-01-08 수정)
   // ===========================================================================
   const handleApplyOrder = async () => {
-    if (!currentProject?.id || !suggestion?.suggestedOrder?.length) {
-      setError('적용할 제안이 없습니다.')
+    // -------------------------------------------------------------------------
+    // [DnD-F05] Safety: currentProject?.id Null 체크
+    // -------------------------------------------------------------------------
+    if (!currentProject?.id) {
+      toast.error('프로젝트가 선택되지 않았습니다.')
+      return
+    }
+
+    // -------------------------------------------------------------------------
+    // [DnD-F05] Safety: reorderedDocs 빈 배열 저장 방지
+    // -------------------------------------------------------------------------
+    if (reorderedDocs.length === 0) {
+      toast.error('저장할 순서가 없습니다.')
       return
     }
 
@@ -211,11 +289,17 @@ export default function StructureTab() {
     setSuccessMessage(null)
 
     try {
-      // 제안된 순서대로 문서 ID 배열 생성
-      const orderedDocIds = suggestion.suggestedOrder.map((item) => item.docId)
+      // -----------------------------------------------------------------------
+      // [DnD-F05] reorderedDocs에서 순서대로 문서 ID 배열 생성
+      // - AI 분석 결과 또는 사용자 드래그 결과가 반영된 순서
+      // -----------------------------------------------------------------------
+      const orderedDocIds = reorderedDocs.map((doc) => doc.id)
 
-      const res = await fetch('/api/rag/structure/apply', {
-        method: 'POST',
+      // -----------------------------------------------------------------------
+      // [DnD-B01] API 호출: PATCH /api/documents/reorder
+      // -----------------------------------------------------------------------
+      const res = await fetch('/api/documents/reorder', {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId: currentProject.id,
@@ -223,18 +307,29 @@ export default function StructureTab() {
         }),
       })
 
-      const data: ApplyResponse = await res.json()
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || data.error || '순서 적용에 실패했습니다.')
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.error || '순서 저장에 실패했습니다.')
       }
 
-      setSuccessMessage(data.message || '순서가 적용되었습니다.')
-      // 문서 목록 새로고침
-      await loadDocuments()
+      // -----------------------------------------------------------------------
+      // [DnD-F05] 성공 시 Toast 알림 + 상태 업데이트
+      // -----------------------------------------------------------------------
+      toast.success('순서가 저장되었습니다!')
+      setSuccessMessage('문서 순서가 성공적으로 적용되었습니다.')
+
+      // -----------------------------------------------------------------------
+      // [DnD-F05 & DnD-F06] documents 상태 업데이트 및 동기화
+      // - StructureTab 내부: setDocuments()로 로컬 상태 즉시 반영
+      // - "내 문서" 페이지 (/documents): 별도 페이지이므로 페이지 진입 시
+      //   fetchList() → API(/api/documents/list)에서 sort_order 순 조회됨
+      // - ProjectContext는 documents를 관리하지 않으므로 추가 연동 불필요
+      // -----------------------------------------------------------------------
+      setDocuments(reorderedDocs)
     } catch (err) {
-      console.error('[StructureTab] 순서 적용 실패:', err)
-      setError(err instanceof Error ? err.message : '순서 적용 실패')
+      console.error('[handleApplyOrder] Error:', err)
+      toast.error('순서 저장에 실패했습니다.')
+      setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
       setIsApplying(false)
     }
@@ -366,23 +461,45 @@ export default function StructureTab() {
       )}
 
       {/* =====================================================================
-          [P4-01-06-E] AI 제안 결과
+          [P4-01-06-E] AI 제안 결과 + [DnD-F04] 드래그 가능 카드
           ===================================================================== */}
       {suggestion && suggestion.suggestedOrder.length > 0 && (
         <div className="flex-1 overflow-y-auto space-y-4">
           {/* 제안된 순서 */}
           <div>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-              제안된 문서 순서
+              제안된 문서 순서 {reorderedDocs.length > 0 && '(드래그로 순서 변경 가능)'}
             </h3>
             <div className="space-y-2">
-              {suggestion.suggestedOrder.map((item: OrderSuggestion, index: number) => {
-                const doc = documents.find((d) => d.id === item.docId)
+              {/* ---------------------------------------------------------------
+                  [DnD-F04] reorderedDocs 기반 드래그 가능 카드 렌더링
+                  - reorderedDocs가 있으면 드래그 가능, 없으면 기존 로직
+                  --------------------------------------------------------------- */}
+              {(reorderedDocs.length > 0 ? reorderedDocs : suggestion.suggestedOrder.map(item => documents.find(d => d.id === item.docId)).filter(Boolean) as DocumentSummary[]).map((doc, index) => {
+                // AI 분석 결과에서 해당 문서의 태그/이유 찾기
+                const orderInfo = suggestion.suggestedOrder.find(o => o.docId === doc.id)
                 return (
                   <div
-                    key={item.docId}
-                    className="flex items-start gap-3 p-3 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600"
+                    key={doc.id}
+                    draggable={reorderedDocs.length > 0}
+                    onDragStart={() => reorderedDocs.length > 0 && handleDragStart(index)}
+                    onDragOver={(e) => reorderedDocs.length > 0 && handleDragOver(e, index)}
+                    onDrop={() => reorderedDocs.length > 0 && handleDrop()}
+                    onDragEnd={() => reorderedDocs.length > 0 && resetDragState()}
+                    className={`
+                      flex items-start gap-3 p-3 bg-white dark:bg-gray-700 rounded-lg border 
+                      transition-all cursor-grab active:cursor-grabbing
+                      ${dragTargetIndex === index ? 'border-t-4 border-prism-primary' : 'border-gray-200 dark:border-gray-600'}
+                      ${isDraggingCard && dragSourceIndex === index ? 'opacity-50 scale-95 shadow-lg' : ''}
+                      ${reorderedDocs.length > 0 ? 'hover:shadow-md' : ''}
+                    `}
                   >
+                    {/* 드래그 핸들 아이콘 */}
+                    {reorderedDocs.length > 0 && (
+                      <div className="flex-shrink-0 text-gray-400 dark:text-gray-500 text-lg cursor-grab">
+                        ⠿
+                      </div>
+                    )}
                     {/* 순서 번호 */}
                     <div className="flex-shrink-0 w-8 h-8 bg-prism-primary text-white rounded-full flex items-center justify-center font-bold text-sm">
                       {index + 1}
@@ -390,16 +507,16 @@ export default function StructureTab() {
                     {/* 문서 정보 */}
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-gray-800 dark:text-gray-200 truncate">
-                        {doc?.title || '제목 없음'}
+                        {doc.title || '제목 없음'}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                         <span className="inline-block px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded">
-                          {item.assignedTag}
+                          {orderInfo?.assignedTag || '태그 없음'}
                         </span>
                       </p>
-                      {item.reason && (
+                      {orderInfo?.reason && (
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
-                          {item.reason}
+                          {orderInfo.reason}
                         </p>
                       )}
                     </div>

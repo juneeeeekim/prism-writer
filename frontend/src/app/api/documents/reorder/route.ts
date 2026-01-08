@@ -64,3 +64,116 @@ export async function POST(req: NextRequest) {
     )
   }
 }
+
+// =============================================================================
+// [DnD-B01] PATCH: Project-based Document Reorder
+// =============================================================================
+// 역할: 프로젝트 기반 문서 순서 일괄 업데이트 (Drag & Drop용)
+// 입력: { projectId: string, orderedDocIds: string[] }
+// 출력: { success: boolean, updatedCount: number }
+// 생성일: 2026-01-08
+// =============================================================================
+
+interface ReorderByProjectRequest {
+  projectId: string
+  orderedDocIds: string[]
+}
+
+interface ReorderByProjectResponse {
+  success: boolean
+  updatedCount: number
+  error?: string
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    // -------------------------------------------------------------------------
+    // [DnD-B01-01] 인증 확인
+    // -------------------------------------------------------------------------
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' } as ReorderByProjectResponse,
+        { status: 401 }
+      )
+    }
+    
+    // -------------------------------------------------------------------------
+    // [DnD-B01-02] 요청 본문 파싱 및 검증
+    // -------------------------------------------------------------------------
+    const body: ReorderByProjectRequest = await req.json()
+    const { projectId, orderedDocIds } = body
+
+    // Safety: projectId 검증
+    if (!projectId || typeof projectId !== 'string') {
+      return NextResponse.json(
+        { error: 'Invalid projectId', success: false, updatedCount: 0 } as ReorderByProjectResponse,
+        { status: 400 }
+      )
+    }
+
+    // Safety: orderedDocIds 배열 검증
+    if (!Array.isArray(orderedDocIds) || orderedDocIds.length === 0) {
+      return NextResponse.json(
+        { error: 'orderedDocIds must be a non-empty array', success: false, updatedCount: 0 } as ReorderByProjectResponse,
+        { status: 400 }
+      )
+    }
+    
+    // -------------------------------------------------------------------------
+    // [DnD-B01-03] 프로젝트 소유권 확인
+    // -------------------------------------------------------------------------
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('id')
+      .eq('id', projectId)
+      .eq('user_id', user.id)
+      .single()
+
+    if (projectError || !project) {
+      return NextResponse.json(
+        { error: 'Project not found or access denied', success: false, updatedCount: 0 } as ReorderByProjectResponse,
+        { status: 404 }
+      )
+    }
+    
+    // -------------------------------------------------------------------------
+    // [DnD-B01-04] Batch Update sort_order
+    // - 순서대로 1, 2, 3... 으로 업데이트
+    // - 개별 실패 시에도 전체 롤백하지 않음 (부분 성공 허용)
+    // -------------------------------------------------------------------------
+    let updatedCount = 0
+
+    for (let i = 0; i < orderedDocIds.length; i++) {
+      const { error: updateError } = await supabase
+        .from('user_documents')
+        .update({ sort_order: i + 1 })
+        .eq('id', orderedDocIds[i])
+        .eq('project_id', projectId)
+
+      if (!updateError) {
+        updatedCount++
+      } else {
+        console.warn(`[DocumentReorder PATCH] Failed to update doc ${orderedDocIds[i]}:`, updateError.message)
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // [DnD-B01-05] 성공 응답
+    // -------------------------------------------------------------------------
+    return NextResponse.json({
+      success: true,
+      updatedCount
+    } as ReorderByProjectResponse)
+
+  } catch (error) {
+    console.error('[DocumentReorder PATCH] Error:', error)
+    return NextResponse.json(
+      { error: 'Failed to reorder documents', success: false, updatedCount: 0 } as ReorderByProjectResponse,
+      { status: 500 }
+    )
+  }
+}
+

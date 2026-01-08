@@ -65,8 +65,8 @@ interface AnalyzeResponse {
 /** LLM 호출 타임아웃 (30초) */
 const LLM_TIMEOUT_MS = 30000
 
-/** LLM 최대 토큰 수 */
-const LLM_MAX_TOKENS = 2000
+/** LLM 최대 토큰 수 (2000 -> 8192 상향 조정) */
+const LLM_MAX_TOKENS = 8192
 
 // =============================================================================
 // [P2-01] POST: 구조 분석 API
@@ -301,7 +301,8 @@ ${prompt}
           suggestedOrder: [],
           gaps: [],
         },
-        message: 'LLM 분석에 실패했습니다. 나중에 다시 시도해주세요.',
+        // [DEBUG] 에러 상세 내용을 메시지에 포함
+        message: `LLM 분석 실패: ${llmError instanceof Error ? llmError.message : String(llmError)}`,
       })
     }
 
