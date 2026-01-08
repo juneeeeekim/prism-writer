@@ -70,6 +70,9 @@ const LLM_TIMEOUT_MS = 30000
 /** LLM 최대 토큰 수 (2000 -> 8192 상향 조정) */
 const LLM_MAX_TOKENS = 8192
 
+/** [Phase 2/3] 참고자료 최대 문자 수 (~7,500 토큰) */
+const MAX_EVIDENCE_CHARS = 30000
+
 // =============================================================================
 // [P2-01] POST: 구조 분석 API
 // =============================================================================
@@ -266,32 +269,99 @@ export async function POST(
     }
 
     // -------------------------------------------------------------------------
-    // [RAG-STRUCTURE] 참고자료 검색 (프로젝트 격리)
-    // 문서 구조 관련 참고자료를 검색하여 LLM 컨텍스트에 포함
+    // [RAG-STRUCTURE] 적응형 참고자료 검색 (Phase 2/3)
+    // - Phase 2: 프로젝트 전체 청크 조회
+    // - Phase 3: 적응형 분기 (소규모=전체 사용, 대규모=벡터 검색)
     // -------------------------------------------------------------------------
     let evidenceContext = ''
     try {
-      // 검색 쿼리: 분석 대상 문서의 제목들 + "문서 구조" 키워드
-      const docTitles = targetDocs.map(d => d.title).join(', ')
-      const searchQuery = `문서 구조 순서 배치 ${docTitles}`.substring(0, 200)
+      // -----------------------------------------------------------------------
+      // [Phase 2] 프로젝트의 모든 참고자료 청크 조회
+      // -----------------------------------------------------------------------
+      const { data: allChunks, error: chunksError } = await supabase
+        .from('document_chunks')
+        .select(`
+          id,
+          content,
+          document_id,
+          chunk_index,
+          metadata,
+          user_documents!inner(
+            id,
+            title,
+            project_id
+          )
+        `)
+        .eq('user_documents.project_id', projectId)
+        .order('chunk_index', { ascending: true })
+        .limit(100)
 
-      const evidenceResults = await vectorSearch(searchQuery, {
-        userId: session.user.id,
-        topK: 5,
-        minScore: 0.5, // 구조 관련 참고자료는 넓게 검색
-        projectId: projectId,
-      })
-
-      if (evidenceResults.length > 0) {
-        evidenceContext = evidenceResults
-          .map((r, i) => `[참고자료 ${i + 1}] ${r.content}`)
-          .join('\n\n')
-        console.log(`[StructureAnalyze] 참고자료 ${evidenceResults.length}개 검색 완료`)
-      } else {
-        console.log('[StructureAnalyze] 검색된 참고자료 없음')
+      if (chunksError) {
+        throw new Error(`청크 조회 실패: ${chunksError.message}`)
       }
+
+      // 전체 청크 문자 수 계산
+      const totalChars = (allChunks || []).reduce((sum, c) => sum + (c.content?.length || 0), 0)
+      let selectedChunks: Array<{ content: string; metadata?: Record<string, unknown> }> = []
+
+      // -----------------------------------------------------------------------
+      // [Phase 3] 적응형 분기
+      // -----------------------------------------------------------------------
+      if (totalChars <= MAX_EVIDENCE_CHARS) {
+        // -------------------------------------------------------------------
+        // [Case A] 전체 사용 가능 - 검색 불필요 (소규모 프로젝트)
+        // -------------------------------------------------------------------
+        selectedChunks = (allChunks || []).map(c => ({
+          content: c.content || '',
+          metadata: c.metadata as Record<string, unknown> | undefined
+        }))
+        console.log(`[StructureAnalyze] 전체 참고자료 사용 (${selectedChunks.length}개, ${totalChars}자)`)
+
+      } else {
+        // -------------------------------------------------------------------
+        // [Case B] 벡터 검색으로 관련 청크 선별 (대규모 프로젝트)
+        // -------------------------------------------------------------------
+        const docContents = targetDocs
+          .map(d => (d.content || '').substring(0, 200))
+          .join(' ')
+
+        // 하드코딩 없이 문서 내용만 사용
+        const evidenceResults = await vectorSearch(docContents.substring(0, 300), {
+          userId: session.user.id,
+          topK: 20,
+          minScore: 0.25,
+          projectId: projectId,
+        })
+
+        // 토큰 제한 내에서 청크 선택
+        let charCount = 0
+        selectedChunks = evidenceResults
+          .filter(r => {
+            if (charCount + r.content.length > MAX_EVIDENCE_CHARS) return false
+            charCount += r.content.length
+            return true
+          })
+          .map(r => ({
+            content: r.content,
+            metadata: r.metadata as Record<string, unknown> | undefined
+          }))
+
+        console.log(`[StructureAnalyze] 벡터 검색 사용 (${selectedChunks.length}개, ${charCount}자)`)
+      }
+
+      // -----------------------------------------------------------------------
+      // [Step 3] 컨텍스트 생성
+      // -----------------------------------------------------------------------
+      if (selectedChunks.length > 0) {
+        evidenceContext = selectedChunks
+          .map((c, i) => `[참고자료 ${i + 1}] ${c.content}`)
+          .join('\n\n')
+      } else {
+        console.log('[StructureAnalyze] 참고자료 없음')
+      }
+
     } catch (searchError) {
-      // RAG 검색 실패 시 Graceful Degradation (기본 분석 계속 진행)
+      // Graceful Degradation - 실패해도 기본 분석 계속
       console.warn('[StructureAnalyze] 참고자료 검색 실패 (계속 진행):', searchError)
     }
 
