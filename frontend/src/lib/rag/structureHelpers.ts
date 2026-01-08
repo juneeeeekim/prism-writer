@@ -214,6 +214,61 @@ export async function fetchTemplateCriteria(
 }
 
 // =============================================================================
+// [RAG-STRUCTURE] fetchProjectTemplate - 프로젝트 연결 템플릿 자동 조회
+// =============================================================================
+
+/**
+ * 프로젝트에 연결된 템플릿의 구조 기준을 조회합니다.
+ *
+ * @description
+ * 시니어 개발자 주석:
+ * - rag_templates 테이블에서 project_id로 템플릿 조회
+ * - 가장 최근 승인된 템플릿 또는 가장 최근 생성된 템플릿 사용
+ * - 없으면 null 반환 (기본 구조 사용하도록)
+ *
+ * @param projectId - 프로젝트 ID
+ * @param supabase - Supabase 클라이언트
+ * @returns 템플릿 기준 배열 또는 null
+ */
+export async function fetchProjectTemplate(
+  projectId: string,
+  supabase: SupabaseClient
+): Promise<TemplateSchema[] | null> {
+  // ---------------------------------------------------------------------------
+  // [RAG-STRUCTURE-01] 프로젝트의 템플릿 조회 (승인된 것 우선)
+  // 정렬: approved → draft → pending → rejected (알파벳 오름차순)
+  // ---------------------------------------------------------------------------
+  const { data: template, error: templateError } = await supabase
+    .from('rag_templates')
+    .select('criteria_json, name, status')
+    .eq('project_id', projectId)
+    .order('status', { ascending: true }) // approved(a) > draft(d) > pending(p) > rejected(r)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (templateError) {
+    console.warn('[fetchProjectTemplate] 템플릿 조회 실패:', templateError.message)
+    return null
+  }
+
+  if (!template) {
+    // 프로젝트에 템플릿이 없는 경우
+    return null
+  }
+
+  console.log(`[fetchProjectTemplate] 템플릿 "${template.name}" (${template.status}) 적용`)
+
+  // ---------------------------------------------------------------------------
+  // [RAG-STRUCTURE-02] 구조 카테고리 우선 필터링
+  // ---------------------------------------------------------------------------
+  const criteria = (template.criteria_json || []) as TemplateSchema[]
+  const structureCriteria = criteria.filter(c => c.category === 'structure')
+
+  return structureCriteria.length > 0 ? structureCriteria : criteria
+}
+
+// =============================================================================
 // [P2-03] buildStructurePrompt - LLM 프롬프트 생성
 // =============================================================================
 
@@ -225,14 +280,17 @@ export async function fetchTemplateCriteria(
  * - 문서 내용을 500자로 제한하여 토큰 절약
  * - JSON 출력 형식을 명시하여 파싱 용이성 확보
  * - 루브릭 기준이 있으면 해당 기준으로, 없으면 기본 구조로 분석
+ * - [RAG-STRUCTURE] 참고자료 컨텍스트를 활용하여 더 정확한 분석
  *
  * @param documents - 분석할 문서 목록
  * @param rubricCriteria - 루브릭 기준 (TemplateSchema 또는 DefaultStructureItem)
+ * @param evidenceContext - [RAG-STRUCTURE] 참고자료 컨텍스트 (선택)
  * @returns LLM 프롬프트 문자열
  */
 export function buildStructurePrompt(
   documents: DocumentSummary[],
-  rubricCriteria: (TemplateSchema | DefaultStructureItem)[]
+  rubricCriteria: (TemplateSchema | DefaultStructureItem)[],
+  evidenceContext?: string
 ): string {
   // ---------------------------------------------------------------------------
   // [P2-03-01] 문서 목록 포맷팅 (500자 제한)
@@ -259,12 +317,25 @@ export function buildStructurePrompt(
     .join('\n')
 
   // ---------------------------------------------------------------------------
-  // [P2-03-03] 최종 프롬프트 조합
+  // [P2-03-03] 참고자료 섹션 구성 (RAG-STRUCTURE)
+  // ---------------------------------------------------------------------------
+  const evidenceSection = evidenceContext
+    ? `
+[참고자료 (업로드된 스크립트 작성 가이드)]
+아래는 사용자가 업로드한 참고자료입니다. 이 자료에 명시된 구조 기준이 있다면 우선적으로 따르세요.
+${evidenceContext}
+
+---
+`
+    : ''
+
+  // ---------------------------------------------------------------------------
+  // [P2-03-04] 최종 프롬프트 조합
   // ---------------------------------------------------------------------------
   return `당신은 글 구조 전문가입니다.
-아래 문서들을 분석하고, 주어진 '구조 기준(Rubric)'에 따라 최적의 순서를 제안하세요.
-**절대로 일반적인 서론/본론/결론으로 분류하지 마세요.** 아래 기준만 사용하세요.
-
+아래 문서들을 분석하고, 주어진 '구조 기준(Rubric)'과 '참고자료'에 따라 최적의 순서를 제안하세요.
+${evidenceContext ? '**중요: 참고자료에 명시된 구조 기준이 있다면 그것을 우선적으로 따르세요.**' : '**절대로 일반적인 서론/본론/결론으로 분류하지 마세요.** 아래 기준만 사용하세요.'}
+${evidenceSection}
 [구조 기준 (Rubric)]
 ${rubricDescription}
 
@@ -277,19 +348,20 @@ ${docList}
 \`\`\`json
 {
   "suggestedOrder": [
-    { "docId": "문서ID", "assignedTag": "기준명", "reason": "이 기준을 선택한 이유" }
+    { "docId": "문서ID", "assignedTag": "기준명", "reason": "이 기준을 선택한 이유 (참고자료 근거 포함)" }
   ],
   "gaps": [
-    { "afterDocId": "문서ID 또는 null", "missingElement": "누락된 요소", "suggestion": "보완 제안" }
+    { "afterDocId": "문서ID 또는 null", "missingElement": "누락된 요소", "suggestion": "보완 제안 (참고자료 기반)" }
   ]
 }
 \`\`\`
 
 주의사항:
 1. suggestedOrder의 docId는 반드시 위 문서 목록의 실제 ID를 사용하세요.
-2. assignedTag는 반드시 [구조 기준]에 있는 카테고리명을 사용하세요.
+2. assignedTag는 [구조 기준] 또는 [참고자료]에 있는 카테고리명을 사용하세요.
 3. gaps가 없으면 빈 배열 []로 표시하세요.
-4. afterDocId가 null이면 맨 처음에 누락된 요소입니다.`
+4. afterDocId가 null이면 맨 처음에 누락된 요소입니다.
+5. reason에는 참고자료에서 해당 판단의 근거를 인용하세요.`
 }
 
 // =============================================================================

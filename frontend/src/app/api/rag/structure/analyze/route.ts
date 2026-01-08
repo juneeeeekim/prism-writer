@@ -17,9 +17,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { generateText } from '@/lib/llm/gateway'
 import { FEATURE_FLAGS } from '@/config/featureFlags'
+import { vectorSearch } from '@/lib/rag/search'
 import {
   fetchProjectDocuments,
   fetchTemplateCriteria,
+  fetchProjectTemplate,
   getDefaultStructure,
   buildStructurePrompt,
   parseAnalysisResult,
@@ -238,22 +240,66 @@ export async function POST(
     }
 
     // -------------------------------------------------------------------------
-    // [P2-01-05] 템플릿 기준 조회 (선택)
+    // [P2-01-05] 템플릿 기준 조회 (자동 + 수동)
+    // [RAG-STRUCTURE] 프로젝트에 연결된 템플릿 자동 조회
     // -------------------------------------------------------------------------
-    let rubricCriteria: (TemplateSchema | DefaultStructureItem)[] = templateId
-      ? await fetchTemplateCriteria(templateId, supabase)
-      : []
+    let rubricCriteria: (TemplateSchema | DefaultStructureItem)[] = []
 
-    // 템플릿 기준이 없으면 기본 구조 사용
+    // 1. 명시적 templateId가 있으면 해당 템플릿 사용
+    if (templateId) {
+      rubricCriteria = await fetchTemplateCriteria(templateId, supabase)
+    }
+
+    // 2. templateId가 없으면 프로젝트에 연결된 템플릿 자동 조회
+    if (rubricCriteria.length === 0) {
+      const projectTemplate = await fetchProjectTemplate(projectId, supabase)
+      if (projectTemplate) {
+        rubricCriteria = projectTemplate
+        console.log(`[StructureAnalyze] 프로젝트 템플릿 자동 적용: ${rubricCriteria.length}개 기준`)
+      }
+    }
+
+    // 3. 템플릿 기준이 없으면 기본 구조 사용
     if (rubricCriteria.length === 0) {
       rubricCriteria = getDefaultStructure()
+      console.log('[StructureAnalyze] 기본 구조(서론/본론/결론) 사용')
     }
 
     // -------------------------------------------------------------------------
-    // [P2-01-06] LLM 프롬프트 생성 (with Context-Aware)
+    // [RAG-STRUCTURE] 참고자료 검색 (프로젝트 격리)
+    // 문서 구조 관련 참고자료를 검색하여 LLM 컨텍스트에 포함
     // -------------------------------------------------------------------------
-    // [S1-01] 기본 프롬프트 생성 (분석 대상 문서만)
-    let prompt = buildStructurePrompt(targetDocs, rubricCriteria)
+    let evidenceContext = ''
+    try {
+      // 검색 쿼리: 분석 대상 문서의 제목들 + "문서 구조" 키워드
+      const docTitles = targetDocs.map(d => d.title).join(', ')
+      const searchQuery = `문서 구조 순서 배치 ${docTitles}`.substring(0, 200)
+
+      const evidenceResults = await vectorSearch(searchQuery, {
+        userId: session.user.id,
+        topK: 5,
+        minScore: 0.5, // 구조 관련 참고자료는 넓게 검색
+        projectId: projectId,
+      })
+
+      if (evidenceResults.length > 0) {
+        evidenceContext = evidenceResults
+          .map((r, i) => `[참고자료 ${i + 1}] ${r.content}`)
+          .join('\n\n')
+        console.log(`[StructureAnalyze] 참고자료 ${evidenceResults.length}개 검색 완료`)
+      } else {
+        console.log('[StructureAnalyze] 검색된 참고자료 없음')
+      }
+    } catch (searchError) {
+      // RAG 검색 실패 시 Graceful Degradation (기본 분석 계속 진행)
+      console.warn('[StructureAnalyze] 참고자료 검색 실패 (계속 진행):', searchError)
+    }
+
+    // -------------------------------------------------------------------------
+    // [P2-01-06] LLM 프롬프트 생성 (with Context-Aware + RAG Evidence)
+    // -------------------------------------------------------------------------
+    // [S1-01] 기본 프롬프트 생성 (분석 대상 문서 + 참고자료 컨텍스트)
+    let prompt = buildStructurePrompt(targetDocs, rubricCriteria, evidenceContext)
 
     // [S1-01] 배경 지식 섹션 추가 (선택 분석 모드일 때)
     if (contextDocs.length > 0) {
