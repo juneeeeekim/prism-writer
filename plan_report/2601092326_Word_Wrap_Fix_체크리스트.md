@@ -71,3 +71,7 @@
 - [x] Test: `ShadowWriter`에 긴 URL 붙여넣기 시 줄바꿈 확인
 - [x] Test: `ResearchCard` 및 `ChatPanel`의 긴 텍스트가 컨테이너를 넘치지 않는지 확인
 - [x] Review: 불필요한 콘솔 로그 없음 확인
+
+## [Completion]
+
+- [x] **Project Upgrade Deployed**: 모든 코드 수정 및 배포 완료.

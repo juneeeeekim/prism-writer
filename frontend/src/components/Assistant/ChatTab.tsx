@@ -497,9 +497,9 @@ export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
               }`}
             >
               {message.role === 'user' ? (
-                <p className="whitespace-pre-wrap">{message.content}</p>
+                <p className="whitespace-pre-wrap break-words">{message.content}</p>
               ) : (
-                <div className="prose dark:prose-invert max-w-none text-sm">
+                <div className="prose dark:prose-invert max-w-none text-sm break-words">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{

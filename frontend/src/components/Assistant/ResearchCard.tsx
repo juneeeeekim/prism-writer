@@ -97,14 +97,14 @@ export default function ResearchCard({ result, onInsert }: ResearchCardProps) {
       {/* -----------------------------------------------------------------------
           [P2-02-03] Title
           ----------------------------------------------------------------------- */}
-      <h4 className="font-bold text-gray-800 dark:text-gray-200 line-clamp-2 mb-2">
+      <h4 className="font-bold text-gray-800 dark:text-gray-200 line-clamp-2 mb-2 break-words">
         {result.title}
       </h4>
 
       {/* -----------------------------------------------------------------------
           [P2-02-04] Source
           ----------------------------------------------------------------------- */}
-      <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+      <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 break-all">
         📍 {result.source}
       </p>
 
@@ -113,14 +113,14 @@ export default function ResearchCard({ result, onInsert }: ResearchCardProps) {
           ----------------------------------------------------------------------- */}
       <blockquote className="border-l-4 border-prism-primary pl-3 my-3 text-sm italic 
                              text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700/50 
-                             py-2 rounded-r">
+                             py-2 rounded-r break-words">
         "{result.keyFact}"
       </blockquote>
 
       {/* -----------------------------------------------------------------------
           [P2-02-06] Summary
           ----------------------------------------------------------------------- */}
-      <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3 mb-3">
+      <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3 mb-3 break-words">
         {result.summary}
       </p>
 
