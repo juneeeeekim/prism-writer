@@ -1,10 +1,10 @@
 // =============================================================================
 // PRISM Writer - Outline Map Component (React Flow)
 // =============================================================================
-// 파일: frontend/src/components/Structure/OutlineMap.tsx
+// 파일: frontend/src/components/structure/OutlineMap.tsx
 // 역할: 구조 분석 결과를 마인드맵/플로우차트 형태로 시각화
 // 기능: 노드 드래그로 문서 순서 변경
-// 참고: [Shadow Writer 체크리스트 P4-02]
+// 참고: [Structure Map Enhancement P1-01, P1-02]
 // =============================================================================
 
 'use client'
@@ -20,10 +20,12 @@ import ReactFlow, {
   BackgroundVariant,
   MarkerType,
   type NodeDragHandler,
+  Handle,
+  Position,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 
-import type { StructureSuggestion, OrderSuggestion } from '@/lib/rag/structureHelpers'
+import type { StructureSuggestion, OrderSuggestion, DocumentSummary } from '@/lib/rag/structureHelpers'
 
 // =============================================================================
 // Types
@@ -36,12 +38,15 @@ interface OutlineMapProps {
   onOrderChange: (newOrder: string[]) => void
   /** 읽기 전용 모드 */
   readOnly?: boolean
+  /** [P1-02] 문서 목록 (제목 조회용) */
+  documents: DocumentSummary[]
 }
 
 /** 노드 데이터 타입 */
 interface NodeData {
   docId: string
-  label: string
+  label: string // Fallback or short label
+  title: string // Full document title
   tag: string
   reason: string
   index: number
@@ -52,16 +57,10 @@ interface NodeData {
 // =============================================================================
 
 /** 노드 간 수평 간격 */
-const NODE_GAP_X = 200
+const NODE_GAP_X = 220 // Custom Node 너비 고려하여 증가
 
 /** 노드 시작 Y 위치 */
 const NODE_START_Y = 100
-
-/** 노드 너비 */
-const NODE_WIDTH = 150
-
-/** 노드 높이 */
-const NODE_HEIGHT = 80
 
 /** 태그별 색상 */
 const TAG_COLORS: Record<string, string> = {
@@ -75,46 +74,69 @@ const TAG_COLORS: Record<string, string> = {
 }
 
 // =============================================================================
+// [P1-01] Custom Node Component
+// =============================================================================
+
+const CustomNode = ({ data }: { data: NodeData }) => {
+  return (
+    <div className="flex flex-col w-[180px] bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transform transition-all hover:shadow-lg">
+      <Handle type="target" position={Position.Left} className="!bg-gray-400" />
+      
+      {/* Header: Tag */}
+      <div 
+        className="px-3 py-1.5 text-white font-bold text-sm text-center"
+        style={{ backgroundColor: TAG_COLORS[data.tag] || TAG_COLORS.default }}
+      >
+        {data.tag}
+      </div>
+      
+      {/* Body: Title */}
+      <div className="p-3 text-xs text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 text-center break-words leading-tight flex items-center justify-center min-h-[50px]">
+        {data.title || data.label || '제목 없음'}
+      </div>
+      
+      <Handle type="source" position={Position.Right} className="!bg-gray-400" />
+    </div>
+  )
+}
+
+// =============================================================================
 // Helper: 노드 변환
 // =============================================================================
 
 /**
  * OrderSuggestion 배열을 React Flow 노드로 변환
+ * [P1-02] documents 인자 추가하여 제목 조회
  */
-function convertToNodes(orders: OrderSuggestion[]): Node<NodeData>[] {
+function convertToNodes(
+  orders: OrderSuggestion[], 
+  documents: DocumentSummary[]
+): Node<NodeData>[] {
   if (!orders || orders.length === 0) return []
 
-  return orders.map((order, index) => ({
-    id: order.docId,
-    type: 'default',
-    position: {
-      x: index * NODE_GAP_X + 50,
-      y: NODE_START_Y,
-    },
-    data: {
-      docId: order.docId,
-      label: order.assignedTag || `문서 ${index + 1}`,
-      tag: order.assignedTag,
-      reason: order.reason,
-      index,
-    },
-    style: {
-      background: TAG_COLORS[order.assignedTag] || TAG_COLORS.default,
-      color: 'white',
-      border: 'none',
-      borderRadius: '8px',
-      padding: '10px',
-      width: NODE_WIDTH,
-      height: NODE_HEIGHT,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontWeight: 'bold',
-      fontSize: '14px',
-      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-    },
-    draggable: true,
-  }))
+  return orders.map((order, index) => {
+    // 문서 제목 찾기
+    const doc = documents.find(d => d.id === order.docId)
+    const title = doc?.title || '제목 없음'
+
+    return {
+      id: order.docId,
+      type: 'custom', // [P1-01] Use Custom Node
+      position: {
+        x: index * NODE_GAP_X + 50,
+        y: NODE_START_Y,
+      },
+      data: {
+        docId: order.docId,
+        label: order.assignedTag || `문서 ${index + 1}`,
+        title, // [P1-02] Inject Title
+        tag: order.assignedTag,
+        reason: order.reason,
+        index,
+      },
+      draggable: true,
+    }
+  })
 }
 
 /**
@@ -141,33 +163,25 @@ function generateEdges(nodes: Node<NodeData>[]): Edge[] {
 }
 
 // =============================================================================
-// Custom Node Component (선택사항 - 향후 확장용)
-// =============================================================================
-
-// const CustomNode = ({ data }: { data: NodeData }) => {
-//   return (
-//     <div className="custom-node">
-//       <div className="font-bold">{data.label}</div>
-//       <div className="text-xs opacity-80">{data.reason}</div>
-//     </div>
-//   )
-// }
-
-// =============================================================================
-// Main Component: Outline Map
+// Main Component: OutlineMap
 // =============================================================================
 
 export default function OutlineMap({
   suggestion,
   onOrderChange,
   readOnly = false,
+  documents, // [P1-02] Receive valid documents
 }: OutlineMapProps) {
+  
+  // [P1-02] Define Node Types (Memoized)
+  const nodeTypes = useMemo(() => ({ custom: CustomNode }), [])
+
   // ---------------------------------------------------------------------------
   // 노드 및 엣지 초기화
   // ---------------------------------------------------------------------------
   const initialNodes = useMemo(
-    () => convertToNodes(suggestion?.suggestedOrder || []),
-    [suggestion]
+    () => convertToNodes(suggestion?.suggestedOrder || [], documents),
+    [suggestion, documents]
   )
 
   const initialEdges = useMemo(
@@ -228,13 +242,14 @@ export default function OutlineMap({
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <div className="outline-map-container h-[400px] border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+    <div className="outline-map-container h-[400px] border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-900/50">
       <ReactFlow
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeDragStop={onNodeDragStop}
+        nodeTypes={nodeTypes} // [P1-02] Use Custom Node Types
         fitView
         fitViewOptions={{ padding: 0.3 }}
         minZoom={0.5}
@@ -254,14 +269,14 @@ export default function OutlineMap({
           variant={BackgroundVariant.Dots}
           gap={20}
           size={1}
-          color="#e5e7eb"
+          color="#aaafb5" // 조금 더 진하게
         />
       </ReactFlow>
 
       {/* 안내 메시지 */}
       {!readOnly && nodes.length > 1 && (
         <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 
-                        bg-black/60 text-white text-xs px-3 py-1 rounded-full">
+                        bg-black/60 text-white text-xs px-3 py-1 rounded-full pointer-events-none">
           💡 노드를 드래그하여 순서를 변경하세요
         </div>
       )}
@@ -269,7 +284,4 @@ export default function OutlineMap({
   )
 }
 
-// =============================================================================
-// Named Export
-// =============================================================================
 export { OutlineMap }

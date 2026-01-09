@@ -530,6 +530,7 @@ export default function StructureTab() {
           {viewMode === 'map' && (
             <OutlineMap
               suggestion={suggestion}
+              documents={documents} // [P1-03] Pass documents for title lookup
               onOrderChange={(newOrder) => {
                 // 새 순서를 reorderedDocs에 반영
                 const orderedDocs = newOrder
