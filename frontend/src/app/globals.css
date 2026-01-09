@@ -7,6 +7,24 @@
 @tailwind utilities;
 
 /* -----------------------------------------------------------------------------
+   [P1-01] Global Word Break Fix
+   ----------------------------------------------------------------------------- */
+@layer base {
+  html {
+    /* 기본적으로 모든 텍스트는 컨테이너 너비를 넘어가면 줄바꿈 */
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* 예외: 코드 블록 등은 줄바꿈 하지 않음 */
+  pre,
+  code {
+    word-break: normal;
+    overflow-wrap: normal;
+  }
+}
+
+/* -----------------------------------------------------------------------------
    CSS Variables (Light & Dark Mode)
    ----------------------------------------------------------------------------- */
 :root {
@@ -89,6 +107,12 @@ body {
 .dark .w-md-editor {
   --color-canvas-default: #1f2937;
   --color-fg-default: #f9fafb;
+}
+
+/* [P1-02] Markdown Editor Text Wrap Override */
+.w-md-editor-text {
+  word-break: break-word !important;
+  white-space: pre-wrap !important;
 }
 
 /* -----------------------------------------------------------------------------
@@ -1264,8 +1288,13 @@ body {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 /* -----------------------------------------------------------------------------
@@ -1351,7 +1380,8 @@ body {
   background: white;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1),
+    0 8px 10px -6px rgba(0, 0, 0, 0.1);
   z-index: 50;
   overflow: hidden;
   animation: dropdownFadeIn 0.15s ease;

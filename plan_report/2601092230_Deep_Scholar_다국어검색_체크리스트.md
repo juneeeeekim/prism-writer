@@ -48,7 +48,7 @@
 
 ### P1-01: tavilyClient.ts - 도메인 분리
 
-- [ ] **P1-01-A**: 국제 학술 도메인 상수 추가
+- [x] **P1-01-A**: 국제 학술 도메인 상수 추가 ✅ (2026-01-09 완료)
   - `Target`: `frontend/src/lib/research/tavilyClient.ts`
   - `Logic`:
     ```typescript
@@ -80,7 +80,7 @@
 
 ### P1-02: route.ts - language 파라미터 추가
 
-- [ ] **P1-02-A**: ResearchRequest 타입에 language 추가
+- [x] **P1-02-A**: ResearchRequest 타입에 language 추가 ✅ (2026-01-09 완료)
   - `Target`: `frontend/src/app/api/research/route.ts`
   - `Logic`:
     ```typescript
@@ -92,7 +92,7 @@
     }
     ```
 
-- [ ] **P1-02-B**: 언어별 도메인 선택 로직
+- [x] **P1-02-B**: 언어별 도메인 선택 로직 ✅ (2026-01-09 완료)
   - `Logic`:
     ```typescript
     // 언어에 따른 도메인 설정
@@ -114,7 +114,7 @@
 
 ### P1-03: queryGenerator.ts - 언어별 쿼리 생성
 
-- [ ] **P1-03-A**: 언어 파라미터 추가 및 프롬프트 분기
+- [x] **P1-03-A**: 언어 파라미터 추가 및 프롬프트 분기 ✅ (2026-01-09 완료)
   - `Target`: `frontend/src/lib/research/queryGenerator.ts`
   - `Logic`:
     ```typescript
@@ -136,14 +136,14 @@
 
 ### P2-01: ResearchPanel.tsx - 언어 선택 UI
 
-- [ ] **P2-01-A**: 언어 상태 추가
+- [x] **P2-01-A**: 언어 상태 추가 ✅ (2026-01-09 완료)
   - `Target`: `frontend/src/components/Assistant/ResearchPanel.tsx`
   - `Logic`:
     ```typescript
     const [language, setLanguage] = useState<'ko' | 'en' | 'all'>('all')
     ```
 
-- [ ] **P2-01-B**: 언어 선택 버튼 그룹 UI
+- [x] **P2-01-B**: 언어 선택 버튼 그룹 UI ✅ (2026-01-09 완료)
   - `Logic`:
     ```tsx
     <div className="flex gap-2 mb-3">
@@ -168,7 +168,7 @@
     </div>
     ```
 
-- [ ] **P2-01-C**: API 호출에 language 전달
+- [x] **P2-01-C**: API 호출에 language 전달 ✅ (2026-01-09 완료)
   - `Logic`:
     ```typescript
     body: JSON.stringify({
@@ -182,21 +182,24 @@
 
 ## Phase 3: 빌드 및 테스트
 
-- [ ] **P3-01-A**: 빌드 검증 (`npm run build`)
-- [ ] **P3-01-B**: Git 커밋 및 푸시
+- [x] **P3-01-A**: 빌드 검증 (`npm run build`) ✅ (2026-01-09 완료)
+  - 빌드 성공, syntax 오류 0개
+- [x] **P3-01-B**: Git 커밋 및 푸시 ✅ (2026-01-09 완료)
+  - Commit: 89c93f5 (6 files changed, 420 insertions)
 
 ---
 
 ## Definition of Done
 
-- [ ] 언어 선택 버튼 3개 (한국어/English/모든 언어) 표시
-- [ ] 한국어 선택 시 .go.kr, .ac.kr 등 한국 도메인만 검색
-- [ ] English 선택 시 arxiv, pubmed, nature 등 국제 도메인만 검색
-- [ ] 모든 언어 선택 시 전체 도메인 검색
-- [ ] 빌드 성공, syntax 오류 0개
-- [ ] 기존 기능 회귀 없음
+- [x] 언어 선택 버튼 3개 (한국어/English/모든 언어) 표시 ✅
+- [x] 한국어 선택 시 .go.kr, .ac.kr 등 한국 도메인만 검색 ✅
+- [x] English 선택 시 arxiv, pubmed, nature 등 국제 도메인만 검색 ✅
+- [x] 모든 언어 선택 시 전체 도메인 검색 ✅
+- [x] 빌드 성공, syntax 오류 0개 ✅
+- [x] 기존 기능 회귀 없음 ✅
 
 ---
 
 **작성자**: RAG 검색 전문가
 **예상 완료 시간**: 30분
+**실제 완료 시간**: 2026-01-09 (약 20분)

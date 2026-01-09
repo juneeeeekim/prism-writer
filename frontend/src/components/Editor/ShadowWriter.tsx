@@ -289,7 +289,8 @@ export default function ShadowWriter({
                      bg-white dark:bg-gray-900 
                      text-gray-900 dark:text-white
                      placeholder-gray-400 dark:placeholder-gray-500
-                     text-base leading-relaxed"
+                     text-base leading-relaxed
+                     break-words whitespace-pre-wrap"
           aria-label="글 입력 영역"
           aria-describedby="char-counter suggestion-hint"
         />
