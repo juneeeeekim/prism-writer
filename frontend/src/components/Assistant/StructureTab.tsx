@@ -24,6 +24,8 @@ import type {
   GapSuggestion,
 } from '@/lib/rag/structureHelpers'
 import DocumentCard from '@/components/structure/DocumentCard'
+// [P4-03] Dynamic Outline Map 시각화 컴포넌트
+import OutlineMap from '@/components/structure/OutlineMap'
 
 // =============================================================================
 // [P4-01] 타입 정의
@@ -84,6 +86,9 @@ export default function StructureTab() {
 
   // 에러 상태
   const [error, setError] = useState<string | null>(null)
+
+  // [P4-03] 뷰 모드 상태 (list | map)
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list')
 
   // 성공 메시지
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -403,7 +408,36 @@ export default function StructureTab() {
           >
             {isSelectionMode ? '✅ 선택 모드' : '📋 전체 모드'}
           </button>
-          
+
+          {/* [P4-03] 뷰 모드 토글 (리스트/맵) */}
+          <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`
+                px-3 py-1.5 text-sm font-medium transition-colors
+                ${viewMode === 'list'
+                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }
+              `}
+              title="리스트 뷰"
+            >
+              📋 리스트
+            </button>
+            <button
+              onClick={() => setViewMode('map')}
+              className={`
+                px-3 py-1.5 text-sm font-medium transition-colors border-l border-gray-300 dark:border-gray-600
+                ${viewMode === 'map'
+                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }
+              `}
+              title="맵 뷰 (React Flow)"
+            >
+              🗺️ 맵
+            </button>
+          </div>
           {/* AI 분석 버튼 */}
           <button
             onClick={handleAnalyze}
@@ -488,14 +522,32 @@ export default function StructureTab() {
 
       {/* =====================================================================
           [P4-01-06-E] AI 제안 결과 + [DnD-F04] 드래그 가능 카드
+          [P4-03] 뷰 모드에 따라 리스트/맵 렌더링
           ===================================================================== */}
       {suggestion && suggestion.suggestedOrder.length > 0 && (
         <div className="flex-1 overflow-y-auto space-y-4">
-          {/* 제안된 순서 */}
-          <div>
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-              제안된 문서 순서 {reorderedDocs.length > 0 && '(드래그로 순서 변경 가능)'}
-            </h3>
+          {/* [P4-03] 맵 뷰 모드 */}
+          {viewMode === 'map' && (
+            <OutlineMap
+              suggestion={suggestion}
+              onOrderChange={(newOrder) => {
+                // 새 순서를 reorderedDocs에 반영
+                const orderedDocs = newOrder
+                  .map(docId => documents.find(d => d.id === docId))
+                  .filter(Boolean) as DocumentSummary[]
+                setReorderedDocs(orderedDocs)
+              }}
+            />
+          )}
+
+          {/* [P4-03] 리스트 뷰 모드 (기존 UI 유지) */}
+          {viewMode === 'list' && (
+            <>
+              {/* 제안된 순서 */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  제안된 문서 순서 {reorderedDocs.length > 0 && '(드래그로 순서 변경 가능)'}
+                </h3>
             <div className="space-y-2">
               {/* ---------------------------------------------------------------
                   [DnD-F04] reorderedDocs 기반 드래그 가능 카드 렌더링
@@ -602,6 +654,8 @@ export default function StructureTab() {
               )}
             </button>
           </div>
+          </>
+          )}
         </div>
       )}
 

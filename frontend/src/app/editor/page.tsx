@@ -28,11 +28,13 @@ import { createClient } from '@/lib/supabase/client'
 // ---------------------------------------------------------------------------
 // Pipeline v5: 중앙 집중 Feature Flag 사용
 // ---------------------------------------------------------------------------
-import { isFeatureEnabled, getUILayoutType, logFeatureFlags } from '@/config/featureFlags'
+import { isFeatureEnabled, getUILayoutType, logFeatureFlags, FEATURE_FLAGS } from '@/config/featureFlags'
 // [P5-07-A] 프로젝트 Context Provider
 import { ProjectProvider, useProject } from '@/contexts/ProjectContext'
 // [P6-04] Full-screen Onboarding
 import OnboardingGuide from '@/components/Assistant/Studio/OnboardingGuide'
+// [SHADOW-WRITER] Shadow Writer 에디터 (P3-01)
+import ShadowWriterEditor from '@/components/Editor/ShadowWriterEditor'
 
 // -----------------------------------------------------------------------------
 // Editor Page Component (ProjectProvider 래핑)
@@ -245,7 +247,14 @@ function EditorContent() {
                 isLoading={false} 
               />
             }
-            centerPanel={<MarkdownEditor />}
+            centerPanel={
+              // [SHADOW-WRITER] Feature Flag로 에디터 분기
+              FEATURE_FLAGS.ENABLE_SHADOW_WRITER ? (
+                <ShadowWriterEditor />
+              ) : (
+                <MarkdownEditor />
+              )
+            }
             rightPanel={
               <FeedbackPanel 
                 evaluation={evaluationResult}
@@ -256,7 +265,14 @@ function EditorContent() {
           />
         ) : (
           <DualPaneContainer
-            editorPane={<MarkdownEditor />}
+            editorPane={
+              // [SHADOW-WRITER] Feature Flag로 에디터 분기
+              FEATURE_FLAGS.ENABLE_SHADOW_WRITER ? (
+                <ShadowWriterEditor />
+              ) : (
+                <MarkdownEditor />
+              )
+            }
             assistantPane={
               // [P6-03-A] 새 프로젝트 여부에 따라 기본 탭 결정
               <AssistantPanel defaultTab={defaultAssistantTab as 'reference' | 'outline' | 'chat' | 'evaluation'} />

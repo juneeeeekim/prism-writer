@@ -420,6 +420,30 @@ export const FEATURE_FLAGS = {
    * - 롤백: OFF 시 기존 수동 구조화 방식 유지
    */
   ENABLE_AI_STRUCTURER: process.env.NEXT_PUBLIC_ENABLE_AI_STRUCTURER !== 'false',
+
+  // ==========================================================================
+  // [SHADOW-WRITER] Shadow Writer Feature Flags (2026-01-09 추가)
+  // ==========================================================================
+
+  /**
+   * Shadow Writer 기능 활성화 (실시간 문장 완성)
+   * 환경 변수: NEXT_PUBLIC_ENABLE_SHADOW_WRITER
+   * 기본값: false (명시적 활성화 필요)
+   *
+   * @description
+   * - 에디터에서 Ghost Text로 다음 문장 제안
+   * - Tab 키로 제안 수락, Escape로 취소
+   * - 롤백: OFF 시 기존 TextEditor 사용
+   */
+  ENABLE_SHADOW_WRITER: process.env.NEXT_PUBLIC_ENABLE_SHADOW_WRITER === 'true',
+
+  /**
+   * Shadow Writer Trigger Mode (비용 제어)
+   * 환경 변수: NEXT_PUBLIC_SHADOW_WRITER_TRIGGER_MODE
+   * 기본값: 'sentence-end' (문장 끝에서만 호출 - 권장)
+   * 옵션: 'auto' | 'sentence-end' | 'manual'
+   */
+  SHADOW_WRITER_TRIGGER_MODE: (process.env.NEXT_PUBLIC_SHADOW_WRITER_TRIGGER_MODE || 'sentence-end') as 'auto' | 'sentence-end' | 'manual',
 } as const
 
 // =============================================================================
