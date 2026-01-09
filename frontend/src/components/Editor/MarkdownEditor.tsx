@@ -129,10 +129,20 @@ export default function MarkdownEditor() {
           Markdown Editor
           ----------------------------------------------------------------------- */}
       <div 
+        id="markdown-editor-container"
         className="flex-1 overflow-hidden" 
         data-color-mode="light"
-        style={{ fontSize: `${fontSize}px` }} // [Font Size Control] 스타일 적용
       >
+        {/* [Fix] 라이브러리 내부 스타일 강제 오버라이드 */}
+        <style>{`
+          #markdown-editor-container .w-md-editor-text,
+          #markdown-editor-container .w-md-editor-text-pre,
+          #markdown-editor-container textarea,
+          #markdown-editor-container .wmde-markdown {
+            font-size: ${fontSize}px !important;
+            line-height: 1.6 !important;
+          }
+        `}</style>
         <MDEditor
           value={content}
           onChange={(value) => setContent(value || '')}
