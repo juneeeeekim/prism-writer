@@ -135,10 +135,8 @@ export default function MarkdownEditor() {
       >
         {/* [Fix] 라이브러리 내부 스타일 강제 오버라이드 */}
         <style>{`
-          #markdown-editor-container .w-md-editor-text,
-          #markdown-editor-container .w-md-editor-text-pre,
-          #markdown-editor-container textarea,
-          #markdown-editor-container .wmde-markdown {
+          #markdown-editor-container .w-md-editor-text-pre > code,
+          #markdown-editor-container .w-md-editor-text-input {
             font-size: ${fontSize}px !important;
             line-height: 1.6 !important;
           }
