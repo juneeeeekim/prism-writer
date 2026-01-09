@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { useEditorState } from '@/hooks/useEditorState'
 import { useAutosave, type SaveStatus } from '@/hooks/useAutosave'  // Pipeline v5: Autosave
@@ -39,6 +39,12 @@ export default function MarkdownEditor() {
   const projectId = currentProject?.id ?? null
 
   const { content, setContent, title, setTitle } = useEditorState()
+
+  // [Font Size Control] 폰트 크기 조절 (기본값 16px)
+  const [fontSize, setFontSize] = useState<number>(16)
+
+  const handleZoomIn = () => setFontSize(prev => Math.min(prev + 1, 32))
+  const handleZoomOut = () => setFontSize(prev => Math.max(prev - 1, 12)) 
 
   // =========================================================================
   // [Pipeline v5] Autosave 훅 통합
@@ -84,22 +90,49 @@ export default function MarkdownEditor() {
       {/* -----------------------------------------------------------------------
           Title Input
           ----------------------------------------------------------------------- */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center gap-4">
         <input
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="제목을 입력하세요..."
-          className="w-full text-2xl font-bold bg-transparent border-none outline-none
-                     text-gray-900 dark:text-white placeholder-gray-400"
+          className="flex-1 text-2xl font-bold bg-transparent border-none outline-none
+                     text-gray-900 dark:text-white placeholder-gray-400 min-w-0"
           aria-label="글 제목"
         />
+        
+        {/* [Font Size Control] 폰트 크기 조절 UI */}
+        <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 border border-gray-200 dark:border-gray-700">
+          <button
+            onClick={handleZoomOut}
+            disabled={fontSize <= 12}
+            className="w-7 h-7 flex items-center justify-center rounded hover:bg-white dark:hover:bg-gray-700 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors disabled:opacity-50"
+            title="글자 축소"
+          >
+            -
+          </button>
+          <span className="text-xs font-medium text-gray-500 dark:text-gray-400 min-w-[32px] text-center select-none">
+            {fontSize}px
+          </span>
+          <button
+            onClick={handleZoomIn}
+            disabled={fontSize >= 32}
+            className="w-7 h-7 flex items-center justify-center rounded hover:bg-white dark:hover:bg-gray-700 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors disabled:opacity-50"
+            title="글자 확대"
+          >
+            +
+          </button>
+        </div>
       </div>
 
       {/* -----------------------------------------------------------------------
           Markdown Editor
           ----------------------------------------------------------------------- */}
-      <div className="flex-1 overflow-hidden" data-color-mode="light">
+      <div 
+        className="flex-1 overflow-hidden" 
+        data-color-mode="light"
+        style={{ fontSize: `${fontSize}px` }} // [Font Size Control] 스타일 적용
+      >
         <MDEditor
           value={content}
           onChange={(value) => setContent(value || '')}
