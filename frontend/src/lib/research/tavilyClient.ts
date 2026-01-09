@@ -104,6 +104,49 @@ export const TRUSTED_EDU_DOMAINS = [
 ]
 
 // =============================================================================
+// [다국어 검색 P1-01] 언어별 도메인 분리 (2026-01-09 추가)
+// =============================================================================
+
+/**
+ * 국제 학술 도메인 (영어권)
+ * - arXiv, PubMed, Nature, Science 등 세계적 학술지
+ * - .edu (미국 교육기관)
+ * - .gov (미국 정부기관)
+ */
+export const INTERNATIONAL_ACADEMIC_DOMAINS = [
+  'arxiv.org',
+  'pubmed.ncbi.nlm.nih.gov',
+  'nature.com',
+  'science.org',
+  'ieee.org',
+  'acm.org',
+  'sciencedirect.com',
+  'springer.com',
+  'wiley.com',
+  'scholar.google.com',
+  '.edu',
+  '.gov',
+  '.gov.uk',
+  '.ac.uk',
+  'europa.eu',
+]
+
+/**
+ * 한국 학술 도메인
+ * - 한국 정부(.go.kr), 대학(.ac.kr)
+ * - DBpia, RISS, KCI 등 한국 학술 DB
+ */
+export const KOREAN_ACADEMIC_DOMAINS = [
+  '.go.kr',
+  '.ac.kr',
+  'dbpia.co.kr',
+  'riss.kr',
+  'kci.go.kr',
+  'kiss.kstudy.com',
+  'scholar.kyobobook.co.kr',
+]
+
+// =============================================================================
 // Main Function: searchTavily
 // =============================================================================
 

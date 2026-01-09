@@ -13,20 +13,18 @@ import { logger } from '@/lib/utils/logger'
 // Constants
 // =============================================================================
 
+// =============================================================================
+// [다국어 검색 P1-03] 언어별 쿼리 생성 프롬프트 (2026-01-09 수정)
+// =============================================================================
+
 /**
- * 검색 쿼리 생성 프롬프트
- *
- * @description
- * [시니어 개발자 주석]
- * - 영어 쿼리로 변환 (더 많은 학술 결과 확보)
- * - 10단어 이내 간결하게
- * - 연도, 통계 키워드 포함
+ * 영어 검색 쿼리 생성 프롬프트
  */
-const QUERY_GENERATION_PROMPT = `당신은 학술 검색 전문가입니다.
-사용자의 요청과 문맥을 바탕으로 Google Scholar, arXiv 등에서 검색할 최적의 영어 검색 쿼리를 생성하세요.
+const ENGLISH_QUERY_PROMPT = `당신은 학술 검색 전문가입니다.
+사용자의 요청과 문맥을 바탕으로 Google Scholar, arXiv, PubMed 등에서 검색할 최적의 영어 검색 쿼리를 생성하세요.
 
 [규칙]
-1. 검색 쿼리는 영어로 작성 (더 많은 결과를 위해)
+1. 검색 쿼리는 반드시 영어로 작성
 2. 핵심 키워드 + 연도 + 통계/논문/데이터 관련 키워드 포함
 3. 10단어 이내로 간결하게
 4. 반드시 검색 쿼리만 출력 (설명 금지)
@@ -38,6 +36,32 @@ const QUERY_GENERATION_PROMPT = `당신은 학술 검색 전문가입니다.
 {context}
 
 [검색 쿼리]`
+
+/**
+ * 한국어 검색 쿼리 생성 프롬프트
+ */
+const KOREAN_QUERY_PROMPT = `당신은 한국 학술 검색 전문가입니다.
+사용자의 요청과 문맥을 바탕으로 RISS, DBpia, KCI 등 한국 학술 DB에서 검색할 최적의 한국어 검색 쿼리를 생성하세요.
+
+[규칙]
+1. 검색 쿼리는 반드시 한국어로 작성
+2. 핵심 키워드 + 연도 + 논문/통계/정책 관련 키워드 포함
+3. 10단어 이내로 간결하게
+4. 반드시 검색 쿼리만 출력 (설명 금지)
+
+[사용자 요청]
+{userQuery}
+
+[현재 문맥]
+{context}
+
+[검색 쿼리]`
+
+/**
+ * 기존 프롬프트 (하위 호환성 유지)
+ * @deprecated 대신 ENGLISH_QUERY_PROMPT 또는 KOREAN_QUERY_PROMPT 사용
+ */
+const QUERY_GENERATION_PROMPT = ENGLISH_QUERY_PROMPT
 
 // =============================================================================
 // Main Function: generateSearchQuery
@@ -51,30 +75,47 @@ const QUERY_GENERATION_PROMPT = `당신은 학술 검색 전문가입니다.
  * - LLM을 사용하여 자연어 요청을 검색 쿼리로 변환
  * - context는 500자로 제한 (토큰 과다 사용 방지)
  * - LLM 실패 시 원본 쿼리 반환 (fallback)
+ * - [다국어 검색 P1-03] language 파라미터 추가 (2026-01-09)
  *
  * @param userQuery - 사용자 요청 (예: "이 주장에 대한 통계 찾아줘")
  * @param context - 에디터 현재 문맥 (드래그한 텍스트 등)
- * @returns 영어 검색 쿼리
+ * @param language - 검색 언어 ('ko' | 'en' | 'all'), 기본값 'all'
+ * @returns 검색 쿼리 (언어에 따라 한국어 또는 영어)
  *
  * @example
+ * // 영어 검색
  * const query = await generateSearchQuery(
  *   "AI 시장 규모 통계 찾아줘",
- *   "인공지능 기술의 발전으로 산업 전반에 큰 변화가..."
+ *   "인공지능 기술의 발전으로...",
+ *   "en"
  * );
  * // Returns: "2024 AI market size statistics global"
+ *
+ * @example
+ * // 한국어 검색
+ * const query = await generateSearchQuery(
+ *   "AI 시장 규모 통계 찾아줘",
+ *   "인공지능 기술의 발전으로...",
+ *   "ko"
+ * );
+ * // Returns: "2024년 인공지능 시장 규모 통계"
  */
 export async function generateSearchQuery(
   userQuery: string,
-  context: string
+  context: string,
+  language: 'ko' | 'en' | 'all' = 'all'
 ): Promise<string> {
   // ---------------------------------------------------------------------------
-  // [P1-03-01] 프롬프트 구성
+  // [P1-03-01] 프롬프트 구성 - 언어별 분기 (2026-01-09 수정)
   // ---------------------------------------------------------------------------
-  const prompt = QUERY_GENERATION_PROMPT
+  // 언어별 프롬프트 선택
+  const basePrompt = language === 'ko' ? KOREAN_QUERY_PROMPT : ENGLISH_QUERY_PROMPT
+
+  const prompt = basePrompt
     .replace('{userQuery}', userQuery)
     .replace('{context}', context.substring(0, 500))  // 500자 제한
 
-  logger.info('[QueryGenerator]', '검색 쿼리 생성 시작', { userQuery })
+  logger.info('[QueryGenerator]', '검색 쿼리 생성 시작', { userQuery, language })
 
   // ---------------------------------------------------------------------------
   // [P1-03-02] LLM 호출

@@ -12,11 +12,14 @@ import { createClient } from '@/lib/supabase/server'
 import { logger } from '@/lib/utils/logger'
 
 // Research 모듈
-import { 
-  searchTavily, 
-  TRUSTED_ACADEMIC_DOMAINS, 
-  TRUSTED_GOVERNMENT_DOMAINS, 
-  TRUSTED_EDU_DOMAINS 
+// [다국어 검색 P1-02] 언어별 도메인 상수 import (2026-01-09 추가)
+import {
+  searchTavily,
+  TRUSTED_ACADEMIC_DOMAINS,
+  TRUSTED_GOVERNMENT_DOMAINS,
+  TRUSTED_EDU_DOMAINS,
+  INTERNATIONAL_ACADEMIC_DOMAINS,
+  KOREAN_ACADEMIC_DOMAINS,
 } from '@/lib/research/tavilyClient'
 import { generateSearchQuery } from '@/lib/research/queryGenerator'
 import { summarizeResults, type SummarizedResult } from '@/lib/research/resultSummarizer'
@@ -32,6 +35,8 @@ interface ResearchRequest {
   context?: string
   /** 검색 모드 */
   mode?: 'academic' | 'news' | 'all'
+  /** [다국어 검색 P1-02] 검색 언어 (2026-01-09 추가) */
+  language?: 'ko' | 'en' | 'all'
   /** 최대 결과 수 */
   maxResults?: number
 }
@@ -122,35 +127,38 @@ export async function POST(req: NextRequest): Promise<NextResponse<ResearchRespo
     )
   }
 
-  const { userQuery, context = '', mode = 'academic', maxResults = 5 } = body
+  // [다국어 검색 P1-02] language 파라미터 추가 (2026-01-09)
+  const { userQuery, context = '', mode = 'academic', language = 'all', maxResults = 5 } = body
 
   // 빈 쿼리 검증
   if (!userQuery || userQuery.trim().length === 0) {
     logger.warn('[Research API]', '빈 쿼리 요청')
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         results: [],
         rawQuery: '',
-        error: 'userQuery is required' 
+        error: 'userQuery is required'
       },
       { status: 400 }
     )
   }
 
-  logger.info('[Research API]', '요청 파싱 완료', { 
-    userQuery, 
+  logger.info('[Research API]', '요청 파싱 완료', {
+    userQuery,
     contextLength: context.length,
-    mode 
+    mode,
+    language,  // [다국어 검색] 로깅 추가
   })
 
   // ---------------------------------------------------------------------------
   // [P1-02-03] LLM으로 검색 쿼리 생성
+  // [다국어 검색] language 파라미터 전달 (2026-01-09)
   // ---------------------------------------------------------------------------
   let searchQuery: string
 
   try {
-    searchQuery = await generateSearchQuery(userQuery, context)
+    searchQuery = await generateSearchQuery(userQuery, context, language)
   } catch (error) {
     logger.warn('[Research API]', '쿼리 생성 실패, 원본 쿼리 사용', {
       error: error instanceof Error ? error.message : String(error)
@@ -160,12 +168,33 @@ export async function POST(req: NextRequest): Promise<NextResponse<ResearchRespo
 
   // ---------------------------------------------------------------------------
   // [P1-02-04] Tavily API 검색
+  // [다국어 검색] 언어별 도메인 선택 로직 (2026-01-09)
   // ---------------------------------------------------------------------------
   let tavilyResults
 
   try {
-    // 모드에 따른 도메인 설정
-    const includeDomains = mode === 'academic' ? ACADEMIC_DOMAINS : undefined
+    // [다국어 검색 P1-02-B] 언어에 따른 도메인 설정
+    let includeDomains: string[] | undefined
+
+    if (mode === 'academic') {
+      switch (language) {
+        case 'ko':
+          // 한국어: 한국 학술 도메인만
+          includeDomains = KOREAN_ACADEMIC_DOMAINS
+          logger.info('[Research API]', '한국어 검색 모드', { domains: includeDomains })
+          break
+        case 'en':
+          // English: 국제 학술 도메인만
+          includeDomains = INTERNATIONAL_ACADEMIC_DOMAINS
+          logger.info('[Research API]', '영어 검색 모드', { domains: includeDomains })
+          break
+        case 'all':
+        default:
+          // 모든 언어: 전체 도메인
+          includeDomains = [...KOREAN_ACADEMIC_DOMAINS, ...INTERNATIONAL_ACADEMIC_DOMAINS]
+          logger.info('[Research API]', '전체 언어 검색 모드', { domainCount: includeDomains.length })
+      }
+    }
 
     tavilyResults = await searchTavily({
       query: searchQuery,

@@ -70,6 +70,8 @@ export default function ResearchPanel({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [searchedQuery, setSearchedQuery] = useState<string | null>(null)
+  // [다국어 검색 P2-01-A] 언어 선택 상태 (2026-01-09 추가)
+  const [language, setLanguage] = useState<'ko' | 'en' | 'all'>('all')
 
   const toast = useToast()
 
@@ -87,12 +89,14 @@ export default function ResearchPanel({
     setError(null)
 
     try {
+      // [다국어 검색 P2-01-C] language 파라미터 전달 (2026-01-09)
       const response = await fetch('/api/research', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userQuery: query,
           context: selectedText || '',
+          language,  // 언어 선택 전달
         }),
       })
 
@@ -118,7 +122,7 @@ export default function ResearchPanel({
     } finally {
       setIsLoading(false)
     }
-  }, [query, selectedText, toast])
+  }, [query, selectedText, language, toast])  // [다국어 검색] language 의존성 추가
 
   // ---------------------------------------------------------------------------
   // [P2-01-03] Insert Handler
@@ -172,7 +176,7 @@ export default function ResearchPanel({
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="예: AI 시장 규모 통계, 기후 변화 최신 연구..."
-            className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 
+            className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600
                        rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200
                        placeholder-gray-400 dark:placeholder-gray-500
                        focus:outline-none focus:ring-2 focus:ring-prism-primary/50"
@@ -198,9 +202,64 @@ export default function ResearchPanel({
           </button>
         </div>
 
+        {/* =====================================================================
+            [다국어 검색 P2-01-B] 언어 선택 버튼 그룹 (2026-01-09 추가)
+            ===================================================================== */}
+        <div className="flex gap-2 mt-3">
+          <span className="text-xs text-gray-500 dark:text-gray-400 self-center mr-1">
+            검색 범위:
+          </span>
+          <button
+            onClick={() => setLanguage('ko')}
+            disabled={isLoading}
+            className={`px-3 py-1.5 text-xs rounded-full transition-colors
+              ${language === 'ko'
+                ? 'bg-prism-primary text-white'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+              }
+              ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}
+            `}
+          >
+            🇰🇷 한국어
+          </button>
+          <button
+            onClick={() => setLanguage('en')}
+            disabled={isLoading}
+            className={`px-3 py-1.5 text-xs rounded-full transition-colors
+              ${language === 'en'
+                ? 'bg-prism-primary text-white'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+              }
+              ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}
+            `}
+          >
+            🌐 English
+          </button>
+          <button
+            onClick={() => setLanguage('all')}
+            disabled={isLoading}
+            className={`px-3 py-1.5 text-xs rounded-full transition-colors
+              ${language === 'all'
+                ? 'bg-prism-primary text-white'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+              }
+              ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}
+            `}
+          >
+            🌍 모든 언어
+          </button>
+        </div>
+
+        {/* 언어별 도메인 힌트 */}
+        <div className="mt-2 text-xs text-gray-400 dark:text-gray-500">
+          {language === 'ko' && '📚 RISS, DBpia, KCI, 정부(.go.kr) 등에서 검색'}
+          {language === 'en' && '📚 arXiv, PubMed, Nature, .edu, .gov 등에서 검색'}
+          {language === 'all' && '📚 국내외 학술 DB 통합 검색'}
+        </div>
+
         {/* Selected Text Context */}
         {selectedText && (
-          <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-xs 
+          <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded text-xs
                           text-blue-700 dark:text-blue-300">
             📝 선택된 텍스트가 문맥으로 사용됩니다: "{selectedText.substring(0, 50)}..."
           </div>
