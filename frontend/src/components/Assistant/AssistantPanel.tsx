@@ -10,7 +10,7 @@
 
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import OutlineTab from './OutlineTab'
+// import OutlineTab from './OutlineTab' // [Deprecation] 비활성화
 import ReferenceTab from './ReferenceTab'
 import ChatTab from './ChatTab'
 import EvaluationTab from './EvaluationTab'
@@ -47,7 +47,7 @@ interface Tab {
 // -----------------------------------------------------------------------------
 const TABS: Tab[] = [
   { id: 'reference', label: '참고자료', icon: '📚' },
-  { id: 'outline', label: '목차 제안', icon: '🗂️' },
+  // { id: 'outline', label: '목차 제안', icon: '🗂️' }, // [Deprecation] 사용률 저조로 비활성화 (2026-01-10)
   { id: 'chat', label: 'AI 채팅', icon: '💬' },
   { id: 'evaluation', label: '평가', icon: '📊' },
   { id: 'search', label: '스마트 검색', icon: '🔍' },  // [P2-02] 추가
@@ -240,15 +240,15 @@ export default function AssistantPanel({ defaultTab = 'reference' }: AssistantPa
           Tab Panels (Always Rendered, Hidden via CSS for State Persistence)
           ----------------------------------------------------------------------- */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
-        {/* 목차 제안 탭 */}
-        <div
+        {/* 목차 제안 탭 (비활성화) */}
+        {/* <div
           id="panel-outline"
           role="tabpanel"
           aria-labelledby="tab-outline"
           className={`h-full ${activeTab !== 'outline' ? 'hidden' : ''}`}
         >
           <OutlineTab />
-        </div>
+        </div> */}
 
         {/* 참고자료 탭 - Always mounted to preserve selected document & chunks */}
         <div
