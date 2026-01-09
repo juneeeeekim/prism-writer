@@ -10,6 +10,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { type EvaluationResult } from '@/lib/judge/types'
 import { type TemplateSchema } from '@/lib/rag/templateTypes'
+import { type Citation } from '@/components/Assistant/ResearchPanel'
 
 // -----------------------------------------------------------------------------
 // Types
@@ -38,7 +39,10 @@ interface EditorState {
   // v3: 평가 및 템플릿 상태
   evaluationResult: EvaluationResult | null
   template: TemplateSchema[] | null
-  
+
+  // P2-03: 인용 삽입 기능 - 각주 목록
+  footnotes: string[]
+
   // 액션
   setContent: (content: string) => void
   setTitle: (title: string) => void
@@ -48,6 +52,8 @@ interface EditorState {
   setTemplate: (template: TemplateSchema[] | null) => void
   insertOutline: (outline: OutlineItem[]) => void
   insertText: (text: string) => void
+  // P2-03: 인용 삽입 액션
+  insertCitation: (citation: Citation) => void
   markAsSaved: () => void
   reset: () => void
   // Phase 11: 서버 문서 관련 액션
@@ -75,6 +81,8 @@ export const useEditorState = create<EditorState>()(
       documentId: null,
       evaluationResult: null,
       template: null,
+      // P2-03: 각주 목록 초기화
+      footnotes: [],
 
       // ---------------------------------------------------------------------------
       // Setters
@@ -112,11 +120,45 @@ export const useEditorState = create<EditorState>()(
       // ---------------------------------------------------------------------------
       insertText: (text) => {
         const currentContent = get().content
-        const newContent = currentContent 
-          ? `${currentContent}\n\n> ${text}` 
+        const newContent = currentContent
+          ? `${currentContent}\n\n> ${text}`
           : `> ${text}`
-        
+
         set({ content: newContent, isDirty: true })
+      },
+
+      // ---------------------------------------------------------------------------
+      // P2-03: Insert Citation (인용 삽입 - 각주 형식)
+      // ---------------------------------------------------------------------------
+      // [시니어 개발자 주석]
+      // 인용 삽입 기능: 에디터 끝에 각주 형식으로 인용 텍스트 삽입
+      // - 기존 content 보존 (append only 방식)
+      // - 중복 각주 번호 방지 (자동 증가)
+      // - footnotes 배열에 출처 정보 저장
+      // ---------------------------------------------------------------------------
+      insertCitation: (citation) => {
+        const currentContent = get().content
+        const currentFootnotes = get().footnotes
+
+        // 각주 번호는 기존 각주 개수 + 1 (1부터 시작)
+        const footnoteNumber = currentFootnotes.length + 1
+
+        // 인용 텍스트 형식: "[인용 내용] [각주번호]"
+        const citationText = `"${citation.text}" [${footnoteNumber}]`
+
+        // 각주 형식: "[각주번호] 출처명. URL"
+        const footnote = `[${footnoteNumber}] ${citation.source}. ${citation.url}`
+
+        // 새 content 생성 (기존 content 뒤에 인용 텍스트 추가)
+        const newContent = currentContent
+          ? `${currentContent}\n\n${citationText}`
+          : citationText
+
+        set({
+          content: newContent,
+          footnotes: [...currentFootnotes, footnote],
+          isDirty: true,
+        })
       },
 
       // ---------------------------------------------------------------------------
@@ -132,6 +174,8 @@ export const useEditorState = create<EditorState>()(
         isDirty: false,
         lastSavedAt: null,
         documentId: null,
+        // P2-03: footnotes 초기화
+        footnotes: [],
       }),
 
       // ---------------------------------------------------------------------------
@@ -153,12 +197,14 @@ export const useEditorState = create<EditorState>()(
     }),
     {
       name: 'prism-editor-storage', // localStorage key
-      partialize: (state) => ({ 
-        content: state.content, 
+      // P2-03: footnotes도 localStorage에 저장
+      partialize: (state) => ({
+        content: state.content,
         title: state.title,
         outline: state.outline,
-        documentId: state.documentId
-      }), // Persist content, title, outline, documentId, and category
+        documentId: state.documentId,
+        footnotes: state.footnotes,
+      }), // Persist content, title, outline, documentId, footnotes
     }
   )
 )

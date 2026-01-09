@@ -16,6 +16,7 @@ import ChatTab from './ChatTab'
 import EvaluationTab from './EvaluationTab'
 import SmartSearchTab from './SmartSearchTab'  // [P2-02] 스마트 검색 탭 추가
 import StructureTab from './StructureTab'  // [P4-01] AI Structurer 탭 추가
+import ResearchPanel from './ResearchPanel'  // [Deep Scholar P4-01] 외부 자료 검색 탭
 import ChatSessionList from './ChatSessionList'
 import ChatHistoryOnboarding from './ChatHistoryOnboarding'
 import { FEATURES } from '@/lib/features'
@@ -29,7 +30,8 @@ import { useProject } from '@/contexts/ProjectContext'
 // -----------------------------------------------------------------------------
 // [P2-02] TabId에 'search' 추가
 // [P4-02] TabId에 'structure' 추가 (AI Structurer)
-type TabId = 'outline' | 'reference' | 'chat' | 'evaluation' | 'search' | 'structure'
+// [Deep Scholar P4-01] TabId에 'research' 추가
+type TabId = 'outline' | 'reference' | 'chat' | 'evaluation' | 'search' | 'structure' | 'research'
 
 interface Tab {
   id: TabId
@@ -50,6 +52,7 @@ const TABS: Tab[] = [
   { id: 'evaluation', label: '평가', icon: '📊' },
   { id: 'search', label: '스마트 검색', icon: '🔍' },  // [P2-02] 추가
   { id: 'structure', label: '구조', icon: '🧩' },  // [P4-02] AI Structurer
+  { id: 'research', label: '근거 찾기', icon: '🎓' },  // [Deep Scholar P4-01] 외부 자료 검색
 ]
 
 // -----------------------------------------------------------------------------
@@ -87,8 +90,15 @@ export default function AssistantPanel({ defaultTab = 'reference' }: AssistantPa
 
   // 온보딩 미완료 시 참고자료 탭만 표시
   // [P4-02] AI Structurer 탭은 Feature Flag로 제어
+  // [Deep Scholar P4-01] Research 탭은 ENABLE_DEEP_SCHOLAR Feature Flag로 제어
   const visibleTabs = isSetupCompleted
-    ? TABS.filter((tab) => tab.id !== 'structure' || FEATURE_FLAGS.ENABLE_AI_STRUCTURER)
+    ? TABS.filter((tab) => {
+        // AI Structurer 탭: Feature Flag 체크
+        if (tab.id === 'structure') return FEATURE_FLAGS.ENABLE_AI_STRUCTURER
+        // Research 탭: Feature Flag 체크
+        if (tab.id === 'research') return FEATURE_FLAGS.ENABLE_DEEP_SCHOLAR
+        return true
+      })
     : TABS.filter((tab) => tab.id === 'reference')
 
   // 온보딩 미완료 시 activeTab이 참고자료가 아니면 강제 전환
@@ -303,6 +313,22 @@ export default function AssistantPanel({ defaultTab = 'reference' }: AssistantPa
             className={`h-full ${activeTab !== 'structure' ? 'hidden' : ''}`}
           >
             <StructureTab />
+          </div>
+        )}
+
+        {/* -----------------------------------------------------------------------
+            [Deep Scholar P4-01] Research 탭 - 외부 학술/정부 자료 검색
+            - Feature Flag: ENABLE_DEEP_SCHOLAR
+            - 인용 삽입 시 useEditorState.insertCitation 사용
+            ----------------------------------------------------------------------- */}
+        {FEATURE_FLAGS.ENABLE_DEEP_SCHOLAR && (
+          <div
+            id="panel-research"
+            role="tabpanel"
+            aria-labelledby="tab-research"
+            className={`h-full ${activeTab !== 'research' ? 'hidden' : ''}`}
+          >
+            <ResearchPanel />
           </div>
         )}
       </div>

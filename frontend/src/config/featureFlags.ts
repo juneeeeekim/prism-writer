@@ -444,6 +444,23 @@ export const FEATURE_FLAGS = {
    * 옵션: 'auto' | 'sentence-end' | 'manual'
    */
   SHADOW_WRITER_TRIGGER_MODE: (process.env.NEXT_PUBLIC_SHADOW_WRITER_TRIGGER_MODE || 'sentence-end') as 'auto' | 'sentence-end' | 'manual',
+
+  // ==========================================================================
+  // [DEEP-SCHOLAR] Deep Scholar Feature Flags (2026-01-09 추가)
+  // ==========================================================================
+
+  /**
+   * Deep Scholar 기능 활성화 (외부 학술/정부 자료 검색)
+   * 환경 변수: NEXT_PUBLIC_ENABLE_DEEP_SCHOLAR
+   * 기본값: false (명시적 활성화 필요)
+   *
+   * @description
+   * - 학술 논문, 정부 통계 등 검증된 외부 자료 검색
+   * - 인용 삽입 기능 (각주 형식)
+   * - Tavily API 사용 (비용 발생)
+   * - 롤백: OFF 시 Research 탭 숨김
+   */
+  ENABLE_DEEP_SCHOLAR: process.env.NEXT_PUBLIC_ENABLE_DEEP_SCHOLAR === 'true',
 } as const
 
 // =============================================================================
