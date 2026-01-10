@@ -188,7 +188,7 @@ export async function summarizeResults(
       // [P1-04-04] LLM 호출
       // -------------------------------------------------------------------------
       const response = await generateText(prompt, {
-        model: 'gemini-2.0-flash',
+        model: 'gemini-1.5-flash',
         maxOutputTokens: 200,
         temperature: 0.2,  // 낮은 temperature로 정확성 유지
       })

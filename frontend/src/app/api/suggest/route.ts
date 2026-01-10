@@ -225,7 +225,7 @@ export async function POST(
     let suggestion = ''
     try {
       const llmResponse = await generateText(prompt, {
-        model: 'gemini-2.0-flash',  // Gemini 3.0 Flash (빠르고 저렴)
+        model: 'gemini-1.5-flash',  // Gemini 1.5 Flash (안정적)
         maxOutputTokens: MAX_TOKENS,
         temperature: TEMPERATURE,
       })

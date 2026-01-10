@@ -114,7 +114,7 @@ export async function checkRetrievalNecessity(
     retrievalThreshold = FEATURE_FLAGS.SELF_RAG_RETRIEVAL_THRESHOLD,
   } = options
 
-  const modelId = model === 'gemini' ? 'gemini-2.0-flash' : 'gpt-4o-mini'
+  const modelId = model === 'gemini' ? 'gemini-1.5-flash' : 'gpt-4o-mini'
 
   logger.debug('[SelfRAG]', 'Checking retrieval necessity', { query: query.substring(0, 50) })
 
@@ -195,7 +195,7 @@ export async function critiqueRetrievalResults(
     return []
   }
 
-  const modelId = model === 'gemini' ? 'gemini-2.0-flash' : 'gpt-4o-mini'
+  const modelId = model === 'gemini' ? 'gemini-1.5-flash' : 'gpt-4o-mini'
 
   logger.debug('[SelfRAG]', 'Critiquing retrieval results', { 
     query: query.substring(0, 50),
@@ -320,7 +320,7 @@ export async function verifyGroundedness(
     }
   }
 
-  const modelId = model === 'gemini' ? 'gemini-2.0-flash' : 'gpt-4o-mini'
+  const modelId = model === 'gemini' ? 'gemini-1.5-flash' : 'gpt-4o-mini'
 
   logger.debug('[SelfRAG]', 'Verifying groundedness', {
     answerLength: answer.length,

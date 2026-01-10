@@ -216,10 +216,10 @@ async function callLLMForRerank(
   // ---------------------------------------------------------------------------
   // [Step 1] 모델 ID 결정
   // ---------------------------------------------------------------------------
-  // 시니어 개발자 주석: gemini-2.0-flash는 빠르고 비용 효율적
-  // openai 선택 시 gpt-4o-mini 사용 (비용/속도 균형)
+  // 시니어 개발자 주석: gemini-1.5-flash는 빠르고 비용 효율적
+  // gpt-4o-mini는 OpenAI의 경량 모델
   const modelId = model === 'gemini' 
-    ? 'gemini-2.0-flash' 
+    ? 'gemini-1.5-flash' 
     : 'gpt-4o-mini'
 
   logger.debug('[Rerank]', `Calling LLM`, { model: modelId, timeout: `${timeout}ms` })

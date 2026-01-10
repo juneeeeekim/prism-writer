@@ -177,7 +177,7 @@ async function callLLMForChunking(
   prompt: string,
   model: 'gemini' | 'openai'
 ): Promise<ChunkBoundary[]> {
-  const modelId = model === 'gemini' ? 'gemini-2.0-flash' : 'gpt-4o-mini'
+  const modelId = model === 'gemini' ? 'gemini-1.5-flash' : 'gpt-4o-mini'
 
   logger.debug('[AgenticChunk]', 'Calling LLM for chunk analysis', { model: modelId })
 

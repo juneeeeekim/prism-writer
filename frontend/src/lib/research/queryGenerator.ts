@@ -122,7 +122,7 @@ export async function generateSearchQuery(
   // ---------------------------------------------------------------------------
   try {
     const response = await generateText(prompt, {
-      model: 'gemini-2.0-flash',
+      model: 'gemini-1.5-flash',
       maxOutputTokens: 50,  // 쿼리는 짧으므로 50 토큰으로 충분
       temperature: 0.3,     // 낮은 temperature로 일관성 유지
     })
