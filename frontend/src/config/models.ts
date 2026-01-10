@@ -55,9 +55,9 @@ export const MODEL_REGISTRY = {
   // ---------------------------------------------------------------------------
   // Google Gemini 모델
   // ---------------------------------------------------------------------------
-  "gemini-1.5-flash": {
+  "gemini-1.5-flash-latest": {
     provider: "gemini",
-    displayName: "Gemini 1.5 Flash",
+    displayName: "gemini-1.5-flash-latest",
     capabilities: [
       "text-generation",
       "streaming",
