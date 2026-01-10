@@ -6,7 +6,7 @@
 // 근거: 2512281121_LLM_Centralization_Expert_Meeting.md "🏆 최종 아키텍처 제안"
 // =============================================================================
 
-import { getDefaultModelId } from './models';
+import { getDefaultModelId, isValidModelId } from './models';
 
 // =============================================================================
 // 타입 정의
@@ -294,24 +294,68 @@ export function getAllUsageContexts(): LLMUsageContext[] {
   return Object.keys(LLM_USAGE_MAP) as LLMUsageContext[];
 }
 
+// =============================================================================
+// [v2.0] 런타임 검증 함수
+// =============================================================================
+
 /**
- * 현재 LLM 사용 매핑 상태를 콘솔에 출력 (디버그용)
+ * [v2.0] LLM_USAGE_MAP의 모든 모델 ID 유효성 검증
  * 
  * @description
- * 개발 환경에서 현재 모델 매핑 상태를 확인할 때 사용합니다.
+ * 서버 시작 시 또는 설정 변경 시 호출하여 모델 ID가 유효한지 확인합니다.
+ * 
+ * @returns { valid: boolean, errors: string[] }
+ * @example
+ * const { valid, errors } = validateUsageMap();
+ * if (!valid) console.error('Invalid models:', errors);
+ */
+export function validateUsageMap(): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+  
+  for (const [context, config] of Object.entries(LLM_USAGE_MAP)) {
+    const cfg = config as UsageConfig;
+    // Primary modelId 검증
+    if (!isValidModelId(cfg.modelId)) {
+      errors.push(`[❌ ${context}] Invalid modelId: "${cfg.modelId}"`);
+    }
+    // Fallback modelId 검증 (있는 경우)
+    if (cfg.fallback && !isValidModelId(cfg.fallback)) {
+      errors.push(`[❌ ${context}] Invalid fallback: "${cfg.fallback}"`);
+    }
+  }
+  
+  return { valid: errors.length === 0, errors };
+}
+
+/**
+ * 현재 LLM 사용 매핑 상태를 콘솔에 출력 (v2.0 검증 포함)
+ * 
+ * @description
+ * 개발 환경에서 현재 모델 매핑 상태와 유효성을 확인할 때 사용합니다.
  * 
  * @example
  * // 브라우저 콘솔에서 호출
  * printUsageMap();
  */
 export function printUsageMap(): void {
-  console.log('\n📋 LLM Usage Map:');
+  const { valid, errors } = validateUsageMap();
+  
+  console.log('\n📋 LLM Usage Map (v2.0):');
   console.log('================');
+  
   for (const [ctx, cfg] of Object.entries(LLM_USAGE_MAP)) {
-    const fallbackInfo = (cfg as UsageConfig).fallback 
-      ? ` (fallback: ${(cfg as UsageConfig).fallback})` 
-      : '';
-    console.log(`  ${ctx}: ${(cfg as UsageConfig).modelId}${fallbackInfo}`);
+    const config = cfg as UsageConfig;
+    const fallbackInfo = config.fallback ? ` (fallback: ${config.fallback})` : '';
+    const status = isValidModelId(config.modelId) ? '✅' : '❌';
+    console.log(`  ${status} ${ctx}: ${config.modelId}${fallbackInfo}`);
   }
-  console.log('================\n');
+  
+  console.log('================');
+  
+  if (!valid) {
+    console.warn('\n⚠️ Validation Errors:');
+    errors.forEach(e => console.warn(`  - ${e}`));
+  } else {
+    console.log('✅ All model IDs are valid.\n');
+  }
 }

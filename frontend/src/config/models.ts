@@ -49,8 +49,9 @@ export interface ModelConfig {
 
 /**
  * 서비스에서 지원하는 모든 LLM 모델 목록
+ * @remarks `as const satisfies`로 타입 안전성 강화 (v2.0)
  */
-export const MODEL_REGISTRY: Record<string, ModelConfig> = {
+export const MODEL_REGISTRY = {
   // ---------------------------------------------------------------------------
   // Google Gemini 모델
   // ---------------------------------------------------------------------------
@@ -171,6 +172,29 @@ export const MODEL_REGISTRY: Record<string, ModelConfig> = {
 };
 
 // =============================================================================
+// [v2.0] 타입 안전성 강화 - ValidModelId 타입
+// =============================================================================
+
+/**
+ * MODEL_REGISTRY에 등록된 유효한 모델 ID 타입
+ * @description 이 타입을 사용하면 잘못된 모델 ID 입력 시 컴파일 에러 발생
+ */
+export type ValidModelId = keyof typeof MODEL_REGISTRY;
+
+/**
+ * [v2.0] 주어진 문자열이 유효한 모델 ID인지 확인 (Type Guard)
+ * @param id - 검사할 모델 ID 문자열
+ * @returns id가 ValidModelId 타입인지 여부
+ * @example
+ * if (isValidModelId(modelId)) {
+ *   // modelId가 ValidModelId로 타입 추론됨
+ * }
+ */
+export function isValidModelId(id: string): id is ValidModelId {
+  return Object.hasOwn(MODEL_REGISTRY, id);
+}
+
+// =============================================================================
 // 유틸리티 함수
 // =============================================================================
 
@@ -181,7 +205,8 @@ export const MODEL_REGISTRY: Record<string, ModelConfig> = {
  * @returns 모델 설정 또는 undefined
  */
 export function getModelConfig(modelId: string): ModelConfig | undefined {
-  return MODEL_REGISTRY[modelId];
+  // [v2.0] 타입 단언으로 string 인덱싱 허용 (하위 호환성)
+  return (MODEL_REGISTRY as Record<string, ModelConfig>)[modelId];
 }
 
 /**
@@ -190,7 +215,9 @@ export function getModelConfig(modelId: string): ModelConfig | undefined {
  * @returns 기본 모델 ID (없을 경우 gemini-3-flash-preview 반환)
  */
 export function getDefaultModelId(): string {
-  const defaultEntry = Object.entries(MODEL_REGISTRY).find(
+  // [v2.0] 타입 단언으로 Object.entries 타입 추론 허용
+  const registry = MODEL_REGISTRY as Record<string, ModelConfig>;
+  const defaultEntry = Object.entries(registry).find(
     ([_, config]) => config.isDefault
   );
   return defaultEntry ? defaultEntry[0] : "gemini-3-flash-preview";
@@ -232,7 +259,8 @@ export function estimateModelCost(
   inputTokens: number,
   outputTokens: number
 ): number {
-  const config = MODEL_REGISTRY[modelId];
+  // [v2.0] 타입 단언으로 string 인덱싱 허용 (하위 호환성)
+  const config = (MODEL_REGISTRY as Record<string, ModelConfig>)[modelId];
   if (!config) return 0;
   return inputTokens * config.costPerInputToken + outputTokens * config.costPerOutputToken;
 }

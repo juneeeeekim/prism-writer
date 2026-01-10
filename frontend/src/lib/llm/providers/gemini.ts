@@ -169,8 +169,10 @@ export class GeminiProvider implements LLMProvider {
    * 지원 모델 목록
    */
   getSupportedModels(): ModelConfig[] {
+    // [v2.0] 타입 단언으로 string 인덱싱 허용
+    const registry = MODEL_REGISTRY as Record<string, ModelConfig>;
     return getModelsByProvider("gemini")
-      .map((id) => MODEL_REGISTRY[id])
+      .map((id) => registry[id])
       .filter((config): config is ModelConfig => !!config);
   }
 }
