@@ -15,6 +15,8 @@ import { createClient } from '@/lib/supabase/server'
 import { vectorSearch } from '@/lib/rag/search'
 import { isFeatureEnabled } from '@/config/featureFlags'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+// P2-10-A: LLM 중앙 관리 마이그레이션 (2026-01-10)
+import { getModelForUsage } from '@/config/llm-usage-map'
 
 // =============================================================================
 // 타입 정의
@@ -54,7 +56,8 @@ interface OutlineResponse {
 
 const DEFAULT_TOP_K = 10
 const DEFAULT_MAX_DEPTH = 3
-const MODEL_NAME = 'gemini-3-flash-preview'
+// P2-10-A: LLM 중앙 관리 마이그레이션 - getModelForUsage 적용
+const MODEL_NAME = getModelForUsage('outline.generation')
 
 // =============================================================================
 // POST: 목차 생성

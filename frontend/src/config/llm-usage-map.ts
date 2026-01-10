@@ -20,6 +20,9 @@ import { getDefaultModelId } from './models';
  * 새로운 LLM 사용처가 추가되면 이 타입에 추가해야 합니다.
  */
 export type LLMUsageContext =
+  // ---------------------------------------------------------------------------
+  // 기존 컨텍스트 (변경 금지)
+  // ---------------------------------------------------------------------------
   | 'rag.answer'           // RAG 답변 생성
   | 'rag.reviewer'         // RAG 검토자
   | 'rag.reranker'         // 검색 결과 재순위
@@ -30,7 +33,21 @@ export type LLMUsageContext =
   | 'rule.mining'          // 규칙 마이닝
   | 'premium.answer'       // 프리미엄 답변
   | 'premium.reviewer'     // 프리미엄 검토
-  | 'raft.generation';     // RAFT 합성 데이터 생성
+  | 'raft.generation'      // RAFT 합성 데이터 생성
+  // ---------------------------------------------------------------------------
+  // 신규 컨텍스트 (P1-01-A, 2026-01-10 추가)
+  // ---------------------------------------------------------------------------
+  | 'suggest.completion'   // Shadow Writer 자동완성 제안
+  | 'rag.selfrag'          // Self-RAG 검증
+  | 'rag.chunking'         // Agentic Chunking
+  | 'rag.rerank'           // rerank.ts 전용 (기존 reranker와 구분)
+  | 'research.query'       // Deep Scholar 쿼리 생성
+  | 'research.summarize'   // Deep Scholar 요약
+  | 'pattern.extraction'   // 패턴 추출
+  | 'judge.align'          // 개별 평가
+  | 'judge.holistic'       // 종합 평가
+  | 'outline.generation'   // 목차 생성
+  | 'ocr.vision';          // OCR 비전
 
 /**
  * 사용 설정 인터페이스
@@ -136,6 +153,81 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
     modelId: 'gpt-4o-mini',
     fallback: 'gpt-3.5-turbo',
     description: 'RAFT 합성 데이터 생성',
+  },
+
+  // ===========================================================================
+  // 신규 컨텍스트 (P1-02-A, 2026-01-10 스펙 반영)
+  // ===========================================================================
+
+  // ---------------------------------------------------------------------------
+  // Shadow Writer (자동완성)
+  // ---------------------------------------------------------------------------
+  'suggest.completion': {
+    modelId: 'gemini-1.5-flash',
+    maxTokens: 100,
+    description: 'Shadow Writer 문장 완성 제안',
+  },
+
+  // ---------------------------------------------------------------------------
+  // RAG Extended Pipeline
+  // ---------------------------------------------------------------------------
+  'rag.selfrag': {
+    modelId: 'gemini-1.5-flash',
+    description: 'Self-RAG 검색 필요도/관련도/근거 검증',
+  },
+  'rag.chunking': {
+    modelId: 'gemini-1.5-flash',
+    description: 'Agentic Chunking 분할점 분석',
+  },
+  'rag.rerank': {
+    modelId: 'gemini-1.5-flash',
+    description: '검색 결과 재순위 (rerank.ts 전용)',
+  },
+
+  // ---------------------------------------------------------------------------
+  // Deep Scholar (Research)
+  // ---------------------------------------------------------------------------
+  'research.query': {
+    modelId: 'gemini-1.5-flash',
+    maxTokens: 50,
+    description: 'Deep Scholar 검색 쿼리 생성',
+  },
+  'research.summarize': {
+    modelId: 'gemini-1.5-flash',
+    maxTokens: 200,
+    description: 'Deep Scholar 검색 결과 요약',
+  },
+
+  // ---------------------------------------------------------------------------
+  // Pattern & Mining Extended
+  // ---------------------------------------------------------------------------
+  'pattern.extraction': {
+    modelId: 'gemini-3-flash-preview',
+    description: '문서 패턴 추출',
+  },
+
+  // ---------------------------------------------------------------------------
+  // Judge System (평가)
+  // ---------------------------------------------------------------------------
+  'judge.align': {
+    modelId: 'gemini-3-flash-preview',
+    description: '개별 항목 평가 (Align Judge)',
+  },
+  'judge.holistic': {
+    modelId: 'gemini-3-flash-preview',
+    description: '종합 평가 (Holistic Advisor)',
+  },
+
+  // ---------------------------------------------------------------------------
+  // Outline & OCR
+  // ---------------------------------------------------------------------------
+  'outline.generation': {
+    modelId: 'gemini-3-flash-preview',
+    description: '목차 생성',
+  },
+  'ocr.vision': {
+    modelId: 'gemini-1.5-flash',
+    description: 'OCR 이미지 텍스트 추출',
   },
 };
 

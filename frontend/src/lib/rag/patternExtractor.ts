@@ -8,6 +8,8 @@
 
 import { generateText } from '../llm/gateway'
 import { FEATURE_FLAGS } from '../../config/featureFlags'
+// P2-07-A: LLM 중앙 관리 마이그레이션 (2026-01-10)
+import { getModelForUsage } from '@/config/llm-usage-map'
 
 // =============================================================================
 // [PATTERN] 타입 정의
@@ -97,8 +99,9 @@ export async function extractPatterns(
 
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
+      // P2-07-A: LLM 중앙 관리 마이그레이션 - getModelForUsage 적용
       const result = await generateText(prompt, {
-        model: 'gemini-3-flash-preview',
+        model: getModelForUsage('pattern.extraction'),
       })
       response = result.text
       break

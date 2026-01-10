@@ -9,6 +9,8 @@
 import { generateText } from '@/lib/llm/gateway'
 import { logger } from '@/lib/utils/logger'
 import type { TavilySearchResult } from './tavilyClient'
+// P2-06-A: LLM 중앙 관리 마이그레이션 (2026-01-10)
+import { getModelForUsage } from '@/config/llm-usage-map'
 
 // =============================================================================
 // Types
@@ -187,8 +189,9 @@ export async function summarizeResults(
       // -------------------------------------------------------------------------
       // [P1-04-04] LLM 호출
       // -------------------------------------------------------------------------
+      // P2-06-A: LLM 중앙 관리 마이그레이션 - getModelForUsage 적용
       const response = await generateText(prompt, {
-        model: 'gemini-1.5-flash',
+        model: getModelForUsage('research.summarize'),
         maxOutputTokens: 200,
         temperature: 0.2,  // 낮은 temperature로 정확성 유지
       })

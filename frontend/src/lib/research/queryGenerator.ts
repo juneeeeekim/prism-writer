@@ -8,6 +8,8 @@
 
 import { generateText } from '@/lib/llm/gateway'
 import { logger } from '@/lib/utils/logger'
+// P2-05-A: LLM 중앙 관리 마이그레이션 (2026-01-10)
+import { getModelForUsage } from '@/config/llm-usage-map'
 
 // =============================================================================
 // Constants
@@ -121,8 +123,9 @@ export async function generateSearchQuery(
   // [P1-03-02] LLM 호출
   // ---------------------------------------------------------------------------
   try {
+    // P2-05-A: LLM 중앙 관리 마이그레이션 - getModelForUsage 적용
     const response = await generateText(prompt, {
-      model: 'gemini-1.5-flash',
+      model: getModelForUsage('research.query'),
       maxOutputTokens: 50,  // 쿼리는 짧으므로 50 토큰으로 충분
       temperature: 0.3,     // 낮은 temperature로 일관성 유지
     })

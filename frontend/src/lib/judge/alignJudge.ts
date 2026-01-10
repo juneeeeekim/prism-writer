@@ -4,6 +4,8 @@ import { type TemplateSchema } from '../rag/templateTypes'
 import { type JudgeResult } from './types'
 // [P3-06] Feature Flags import
 import { FEATURE_FLAGS } from '@/config/featureFlags'
+// P2-08-A: LLM 중앙 관리 마이그레이션 (2026-01-10)
+import { getModelForUsage } from '@/config/llm-usage-map'
 
 // =============================================================================
 // Helper: JSON Sanitization
@@ -54,7 +56,8 @@ export async function runAlignJudge(
   }
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' })
+  // P2-08-A: LLM 중앙 관리 마이그레이션 - getModelForUsage 적용
+  const model = genAI.getGenerativeModel({ model: getModelForUsage('judge.align') })
 
   // ---------------------------------------------------------------------------
   // P0 Fix: 참고자료 섹션 추가 (있는 경우에만)

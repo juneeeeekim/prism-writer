@@ -12,6 +12,8 @@ import { createClient } from '@/lib/supabase/server'
 import { hybridSearch } from '@/lib/rag/search'
 import { generateText } from '@/lib/llm/gateway'
 import { logger } from '@/lib/utils/logger'
+// P2-01-A: LLM 중앙 관리 마이그레이션 (2026-01-10)
+import { getModelForUsage } from '@/config/llm-usage-map'
 
 // =============================================================================
 // 타입 정의
@@ -224,8 +226,9 @@ export async function POST(
 
     let suggestion = ''
     try {
+      // P2-01-A: LLM 중앙 관리 마이그레이션 - getModelForUsage 적용
       const llmResponse = await generateText(prompt, {
-        model: 'gemini-1.5-flash',  // Gemini 1.5 Flash (안정적)
+        model: getModelForUsage('suggest.completion'),
         maxOutputTokens: MAX_TOKENS,
         temperature: TEMPERATURE,
       })

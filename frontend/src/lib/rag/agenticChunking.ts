@@ -10,6 +10,8 @@ import { generateText } from '@/lib/llm/gateway'
 import { classifyChunkType, type DocumentChunk, type ChunkType } from './chunking'
 import { getTokenCount } from './tokenizer'
 import { logger } from '@/lib/utils/logger'
+// P2-04-A: LLM 중앙 관리 마이그레이션 (2026-01-10)
+import { getModelForUsage } from '@/config/llm-usage-map'
 
 // =============================================================================
 // [P3-01] 타입 정의
@@ -177,7 +179,8 @@ async function callLLMForChunking(
   prompt: string,
   model: 'gemini' | 'openai'
 ): Promise<ChunkBoundary[]> {
-  const modelId = model === 'gemini' ? 'gemini-1.5-flash' : 'gpt-4o-mini'
+  // P2-04-A: LLM 중앙 관리 마이그레이션 - getModelForUsage 적용
+  const modelId = getModelForUsage('rag.chunking')
 
   logger.debug('[AgenticChunk]', 'Calling LLM for chunk analysis', { model: modelId })
 

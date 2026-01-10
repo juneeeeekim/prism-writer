@@ -12,6 +12,8 @@ import { logger } from '@/lib/utils/logger'
 import type { SearchResult } from './search'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getProjectThreshold } from './projectPreferences'
+// P2-02: LLM 중앙 관리 마이그레이션 (2026-01-10)
+import { getModelForUsage } from '@/config/llm-usage-map'
 
 // =============================================================================
 // [P3-02] 타입 정의
@@ -110,11 +112,11 @@ export async function checkRetrievalNecessity(
   options: SelfRAGOptions = {}
 ): Promise<RetrievalNecessityResult> {
   const {
-    model = FEATURE_FLAGS.SELF_RAG_MODEL,
     retrievalThreshold = FEATURE_FLAGS.SELF_RAG_RETRIEVAL_THRESHOLD,
   } = options
 
-  const modelId = model === 'gemini' ? 'gemini-1.5-flash' : 'gpt-4o-mini'
+  // P2-02-A: LLM 중앙 관리 마이그레이션 - getModelForUsage 적용
+  const modelId = getModelForUsage('rag.selfrag')
 
   logger.debug('[SelfRAG]', 'Checking retrieval necessity', { query: query.substring(0, 50) })
 
@@ -184,7 +186,6 @@ export async function critiqueRetrievalResults(
   options: SelfRAGOptions = {}
 ): Promise<CritiquedResult[]> {
   const {
-    model = FEATURE_FLAGS.SELF_RAG_MODEL,
     critiqueThreshold = FEATURE_FLAGS.SELF_RAG_CRITIQUE_THRESHOLD,
   } = options
 
@@ -195,7 +196,8 @@ export async function critiqueRetrievalResults(
     return []
   }
 
-  const modelId = model === 'gemini' ? 'gemini-1.5-flash' : 'gpt-4o-mini'
+  // P2-02-B: LLM 중앙 관리 마이그레이션 - getModelForUsage 적용
+  const modelId = getModelForUsage('rag.selfrag')
 
   logger.debug('[SelfRAG]', 'Critiquing retrieval results', { 
     query: query.substring(0, 50),
@@ -283,7 +285,7 @@ export async function verifyGroundedness(
   usedDocuments: SearchResult[],
   options: SelfRAGOptions = {}
 ): Promise<GroundednessResult> {
-  const { model = FEATURE_FLAGS.SELF_RAG_MODEL } = options
+  // P2-02-C: LLM 중앙 관리 마이그레이션 - model 옵션 제거됨
 
   // -------------------------------------------------------------------------
   // [P4-03-03] 개인화 임계값 조회
@@ -320,7 +322,8 @@ export async function verifyGroundedness(
     }
   }
 
-  const modelId = model === 'gemini' ? 'gemini-1.5-flash' : 'gpt-4o-mini'
+  // P2-02-C: LLM 중앙 관리 마이그레이션 - getModelForUsage 적용
+  const modelId = getModelForUsage('rag.selfrag')
 
   logger.debug('[SelfRAG]', 'Verifying groundedness', {
     answerLength: answer.length,

@@ -23,6 +23,8 @@
 // =============================================================================
 
 import { GoogleGenerativeAI } from '@google/generative-ai'
+// P2-11-A: LLM 중앙 관리 마이그레이션 (2026-01-10)
+import { getModelForUsage } from '@/config/llm-usage-map'
 
 // =============================================================================
 // 타입 정의
@@ -49,8 +51,8 @@ export interface VisionExtractionOptions {
 // 상수
 // =============================================================================
 
-/** Gemini 1.5 Flash 모델 ID */
-const GEMINI_VISION_MODEL = 'gemini-1.5-flash'
+// P2-11-A: LLM 중앙 관리 마이그레이션 - getModelForUsage 적용
+const GEMINI_VISION_MODEL = getModelForUsage('ocr.vision')
 
 /** 기본 최대 토큰 */
 const DEFAULT_MAX_TOKENS = 4096

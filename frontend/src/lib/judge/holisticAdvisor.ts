@@ -12,14 +12,16 @@
 // =============================================================================
 
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { 
-  type HolisticEvaluationResult, 
-  type HolisticSummary, 
-  type AreaAdvice, 
-  type DetailedScore 
+import {
+  type HolisticEvaluationResult,
+  type HolisticSummary,
+  type AreaAdvice,
+  type DetailedScore
 } from './types'
 // [H-01] Core 루브릭 통합
 import { DEFAULT_RUBRICS, TIER_CONFIG, type RubricTier } from '@/lib/rag/rubrics'
+// P2-09-A: LLM 중앙 관리 마이그레이션 (2026-01-10)
+import { getModelForUsage } from '@/config/llm-usage-map'
 
 // =============================================================================
 // Helper: JSON Sanitization (alignJudge.ts 패턴 참조)
@@ -228,7 +230,8 @@ export async function runHolisticEvaluation(
   // 2. Gemini 모델 초기화
   // ---------------------------------------------------------------------------
   const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' })
+  // P2-09-A: LLM 중앙 관리 마이그레이션 - getModelForUsage 적용
+  const model = genAI.getGenerativeModel({ model: getModelForUsage('judge.holistic') })
 
   // ---------------------------------------------------------------------------
   // 3. 프롬프트 생성 및 LLM 호출

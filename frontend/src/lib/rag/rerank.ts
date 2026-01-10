@@ -15,6 +15,8 @@ import { FEATURE_FLAGS } from '@/config/featureFlags'
 import { logger } from '@/lib/utils/logger'
 import { generateText } from '@/lib/llm/gateway'
 import type { SearchResult } from './search'
+// P2-03-A: LLM 중앙 관리 마이그레이션 (2026-01-10)
+import { getModelForUsage } from '@/config/llm-usage-map'
 
 // =============================================================================
 // 타입 정의
@@ -216,11 +218,8 @@ async function callLLMForRerank(
   // ---------------------------------------------------------------------------
   // [Step 1] 모델 ID 결정
   // ---------------------------------------------------------------------------
-  // 시니어 개발자 주석: gemini-1.5-flash는 빠르고 비용 효율적
-  // gpt-4o-mini는 OpenAI의 경량 모델
-  const modelId = model === 'gemini' 
-    ? 'gemini-1.5-flash' 
-    : 'gpt-4o-mini'
+  // P2-03-A: LLM 중앙 관리 마이그레이션 - getModelForUsage 적용
+  const modelId = getModelForUsage('rag.rerank')
 
   logger.debug('[Rerank]', `Calling LLM`, { model: modelId, timeout: `${timeout}ms` })
 
