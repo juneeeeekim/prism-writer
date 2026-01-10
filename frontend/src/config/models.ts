@@ -88,6 +88,7 @@ export const MODEL_REGISTRY = {
     tier: "developer",
     enabled: true,
   },
+
   "gemini-3-pro-preview": {
     provider: "gemini",
     displayName: "Gemini 3 Pro Preview",
@@ -96,6 +97,64 @@ export const MODEL_REGISTRY = {
     costPerOutputToken: 0.005,
     maxTokens: 32768,
     tier: "premium",
+    enabled: true,
+  },
+  // ---------------------------------------------------------------------------
+  // Google Gemma 3 모델 (Open Weights)
+  // ---------------------------------------------------------------------------
+  "gemma-3-27b-it": {
+    provider: "gemini",
+    displayName: "Gemma 3 27B IT",
+    capabilities: ["text-generation", "streaming", "reasoning", "vision"],
+    costPerInputToken: 0.00000004, // ~$0.04 / 1M (추정)
+    costPerOutputToken: 0.00000015, // ~$0.15 / 1M (추정)
+    maxTokens: 8192,
+    inputContextWindow: 128000,
+    tier: "premium",
+    enabled: true,
+  },
+  "gemma-3-12b-it": {
+    provider: "gemini",
+    displayName: "Gemma 3 12B IT",
+    capabilities: ["text-generation", "streaming", "vision"],
+    costPerInputToken: 0.00000003,
+    costPerOutputToken: 0.00000012,
+    maxTokens: 8192,
+    inputContextWindow: 128000,
+    tier: "free",
+    enabled: true,
+  },
+  "gemma-3-4b-it": {
+    provider: "gemini",
+    displayName: "Gemma 3 4B IT",
+    capabilities: ["text-generation", "streaming", "vision"],
+    costPerInputToken: 0.00000002,
+    costPerOutputToken: 0.00000008,
+    maxTokens: 8192,
+    inputContextWindow: 128000,
+    tier: "free",
+    enabled: true,
+  },
+  "gemma-3-2b-it": {
+    provider: "gemini",
+    displayName: "Gemma 3 2B IT (3n)",
+    capabilities: ["text-generation", "streaming"],
+    costPerInputToken: 0.000000015,
+    costPerOutputToken: 0.00000006,
+    maxTokens: 8192,
+    inputContextWindow: 32000,
+    tier: "free",
+    enabled: true,
+  },
+  "gemma-3-1b-it": {
+    provider: "gemini",
+    displayName: "Gemma 3 1B IT",
+    capabilities: ["text-generation", "streaming"],
+    costPerInputToken: 0.00000001,
+    costPerOutputToken: 0.00000005,
+    maxTokens: 8192,
+    inputContextWindow: 32000,
+    tier: "free",
     enabled: true,
   },
 
