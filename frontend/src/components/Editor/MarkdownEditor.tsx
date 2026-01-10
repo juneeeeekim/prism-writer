@@ -102,7 +102,7 @@ export default function MarkdownEditor() {
         />
         
         {/* [Font Size Control] 폰트 크기 조절 UI */}
-        <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 border border-gray-200 dark:border-gray-700">
+        <div className="shrink-0 z-10 flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 border border-gray-200 dark:border-gray-700">
           <button
             onClick={handleZoomOut}
             disabled={fontSize <= 12}
