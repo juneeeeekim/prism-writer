@@ -95,12 +95,12 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
     description: 'RAG 기반 답변 생성',
   },
   'rag.reviewer': {
-    modelId: 'gemini-3-flash-preview',
+    modelId: 'gemini-1.5-flash',
     maxTokens: 500,
     description: 'RAG 답변 품질 검토',
   },
   'rag.reranker': {
-    modelId: 'gemini-3-flash-preview',
+    modelId: 'gemini-1.5-flash',
     description: '검색 결과 재순위 지정',
   },
 
@@ -108,15 +108,15 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
   // Template System (Gates)
   // ---------------------------------------------------------------------------
   'template.consistency': {
-    modelId: 'gemini-3-flash-preview',
+    modelId: 'gemini-1.5-flash',
     description: '템플릿 일관성 검증 (Consistency Gate)',
   },
   'template.hallucination': {
-    modelId: 'gemini-3-flash-preview',
+    modelId: 'gemini-1.5-flash',
     description: '환각 검증 (Hallucination Gate)',
   },
   'template.regression': {
-    modelId: 'gemini-3-flash-preview',
+    modelId: 'gemini-1.5-flash',
     description: '템플릿 회귀 검사 (Regression Gate)',
   },
 
@@ -128,7 +128,7 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
     description: '예시 문장 마이닝 및 생성',
   },
   'rule.mining': {
-    modelId: 'gemini-3-flash-preview',
+    modelId: 'gemini-1.5-flash',
     description: '문법/스타일 규칙 마이닝',
   },
 
@@ -150,8 +150,8 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
   // RAFT Synthetic Data
   // ---------------------------------------------------------------------------
   'raft.generation': {
-    modelId: 'gpt-4o-mini',
-    fallback: 'gpt-3.5-turbo',
+    modelId: 'gemini-1.5-flash',
+    fallback: 'gemini-3-flash-preview',
     description: 'RAFT 합성 데이터 생성',
   },
 
@@ -172,15 +172,15 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
   // RAG Extended Pipeline
   // ---------------------------------------------------------------------------
   'rag.selfrag': {
-    modelId: 'gemini-1.5-flash',
+    modelId: 'gemini-3-flash-preview',
     description: 'Self-RAG 검색 필요도/관련도/근거 검증',
   },
   'rag.chunking': {
-    modelId: 'gemini-1.5-flash',
+    modelId: 'gemini-3-flash-preview',
     description: 'Agentic Chunking 분할점 분석',
   },
   'rag.rerank': {
-    modelId: 'gemini-1.5-flash',
+    modelId: 'gemini-3-flash-preview',
     description: '검색 결과 재순위 (rerank.ts 전용)',
   },
 
@@ -222,7 +222,7 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
   // Outline & OCR
   // ---------------------------------------------------------------------------
   'outline.generation': {
-    modelId: 'gemini-3-flash-preview',
+    modelId: 'gemini-1.5-flash',
     description: '목차 생성',
   },
   'ocr.vision': {
