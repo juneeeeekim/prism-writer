@@ -95,7 +95,7 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
     description: 'RAG 기반 답변 생성',
   },
   'rag.reviewer': {
-    modelId: 'gemma-3-2b-it',
+    modelId: 'gemma-3-12b-it',
     maxTokens: 500,
     description: 'RAG 답변 품질 검토',
   },
@@ -112,7 +112,7 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
     description: '템플릿 일관성 검증 (Consistency Gate)',
   },
   'template.hallucination': {
-    modelId: 'gemma-3-2b-it',
+    modelId: 'gemma-3-12b-it',
     description: '환각 검증 (Hallucination Gate)',
   },
   'template.regression': {
@@ -128,7 +128,7 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
     description: '예시 문장 마이닝 및 생성',
   },
   'rule.mining': {
-    modelId: 'gemma-3-2b-it',
+    modelId: 'gemma-3-27b-it',
     description: '문법/스타일 규칙 마이닝',
   },
 
@@ -150,7 +150,7 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
   // RAFT Synthetic Data
   // ---------------------------------------------------------------------------
   'raft.generation': {
-    modelId: 'gemma-3-2b-it',
+    modelId: 'gemma-3-12b-it',
     fallback: 'gemini-3-flash-preview',
     description: 'RAFT 합성 데이터 생성',
   },
@@ -188,7 +188,7 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
   // Deep Scholar (Research)
   // ---------------------------------------------------------------------------
   'research.query': {
-    modelId: 'gemma-3-2b-it',
+    modelId: 'gemma-3-4b-it',
     maxTokens: 50,
     description: 'Deep Scholar 검색 쿼리 생성',
   },
@@ -210,7 +210,7 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
   // Judge System (평가)
   // ---------------------------------------------------------------------------
   'judge.align': {
-    modelId: 'gemma-3-2b-it',
+    modelId: 'gemma-3-27b-it',
     description: '개별 항목 평가 (Align Judge)',
   },
   'judge.holistic': {
