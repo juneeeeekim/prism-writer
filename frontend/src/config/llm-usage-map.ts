@@ -95,12 +95,12 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
     description: 'RAG 기반 답변 생성',
   },
   'rag.reviewer': {
-    modelId: 'gemini-1.5-flash',
+    modelId: 'gemini-3-flash-preview',
     maxTokens: 500,
     description: 'RAG 답변 품질 검토',
   },
   'rag.reranker': {
-    modelId: 'gemini-1.5-flash',
+    modelId: 'gemini-3-flash-preview',
     description: '검색 결과 재순위 지정',
   },
 
@@ -108,15 +108,15 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
   // Template System (Gates)
   // ---------------------------------------------------------------------------
   'template.consistency': {
-    modelId: 'gemini-1.5-flash',
+    modelId: 'gemini-3-flash-preview',
     description: '템플릿 일관성 검증 (Consistency Gate)',
   },
   'template.hallucination': {
-    modelId: 'gemini-1.5-flash',
+    modelId: 'gemini-3-flash-preview',
     description: '환각 검증 (Hallucination Gate)',
   },
   'template.regression': {
-    modelId: 'gemini-1.5-flash',
+    modelId: 'gemini-3-flash-preview',
     description: '템플릿 회귀 검사 (Regression Gate)',
   },
 
@@ -128,7 +128,7 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
     description: '예시 문장 마이닝 및 생성',
   },
   'rule.mining': {
-    modelId: 'gemini-1.5-flash',
+    modelId: 'gemini-3-flash-preview',
     description: '문법/스타일 규칙 마이닝',
   },
 
@@ -150,7 +150,7 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
   // RAFT Synthetic Data
   // ---------------------------------------------------------------------------
   'raft.generation': {
-    modelId: 'gemini-1.5-flash',
+    modelId: 'gemini-3-flash-preview',
     fallback: 'gemini-3-flash-preview',
     description: 'RAFT 합성 데이터 생성',
   },
@@ -163,7 +163,7 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
   // Shadow Writer (자동완성)
   // ---------------------------------------------------------------------------
   'suggest.completion': {
-    modelId: 'gemini-1.5-flash',
+    modelId: 'gemini-3-flash-preview',
     maxTokens: 100,
     description: 'Shadow Writer 문장 완성 제안',
   },
@@ -188,12 +188,12 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
   // Deep Scholar (Research)
   // ---------------------------------------------------------------------------
   'research.query': {
-    modelId: 'gemini-1.5-flash',
+    modelId: 'gemini-3-flash-preview',
     maxTokens: 50,
     description: 'Deep Scholar 검색 쿼리 생성',
   },
   'research.summarize': {
-    modelId: 'gemini-1.5-flash',
+    modelId: 'gemini-3-flash-preview',
     maxTokens: 200,
     description: 'Deep Scholar 검색 결과 요약',
   },
@@ -222,11 +222,11 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
   // Outline & OCR
   // ---------------------------------------------------------------------------
   'outline.generation': {
-    modelId: 'gemini-1.5-flash',
+    modelId: 'gemini-3-flash-preview',
     description: '목차 생성',
   },
   'ocr.vision': {
-    modelId: 'gemini-1.5-flash',
+    modelId: 'gemini-3-flash-preview',
     description: 'OCR 이미지 텍스트 추출',
   },
 };
