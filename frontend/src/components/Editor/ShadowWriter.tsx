@@ -30,6 +30,8 @@ interface ShadowWriterProps {
   maxLength?: number
   /** Trigger Mode: 'auto' | 'sentence-end' | 'manual' */
   triggerMode?: 'auto' | 'sentence-end' | 'manual'
+  /** [Font Size Control] 폰트 크기 (px) */
+  fontSize?: number
 }
 
 /** API 응답 타입 */
@@ -150,6 +152,7 @@ export default function ShadowWriter({
   placeholder = '글을 작성하세요...',
   maxLength = 10000,
   triggerMode = 'auto',
+  fontSize = 16,
 }: ShadowWriterProps) {
   // ---------------------------------------------------------------------------
   // State
@@ -285,11 +288,12 @@ export default function ShadowWriter({
           onSelect={handleSelect}
           onClick={handleSelect}
           placeholder={placeholder}
+          style={{ fontSize: `${fontSize}px` }}
           className="w-full h-full p-4 resize-none border-none outline-none
                      bg-white dark:bg-gray-900 
                      text-gray-900 dark:text-white
                      placeholder-gray-400 dark:placeholder-gray-500
-                     text-base leading-relaxed
+                     leading-relaxed
                      break-words whitespace-pre-wrap"
           aria-label="글 입력 영역"
           aria-describedby="char-counter suggestion-hint"
