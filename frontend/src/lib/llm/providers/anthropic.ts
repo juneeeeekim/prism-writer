@@ -56,10 +56,15 @@ export class AnthropicProvider implements LLMProvider {
     const modelId = options.model || getDefaultModelId();
     const client = this.getClient();
 
+    // =========================================================================
+    // [v3.0] Jemiel Ensemble Strategy - P3-02 (2026-01-14)
+    // Anthropic은 top_k 파라미터를 지원함 - 조건부 전달
+    // =========================================================================
     const {
       maxOutputTokens = 4096,
       temperature = 0.3,
       topP = 1.0,
+      topK, // [v3.0] Anthropic top_k 지원
     } = options;
 
     try {
@@ -69,6 +74,7 @@ export class AnthropicProvider implements LLMProvider {
         max_tokens: maxOutputTokens,
         temperature,
         top_p: topP,
+        ...(topK !== undefined && { top_k: topK }), // [v3.0] 조건부 추가
       });
 
       // Anthropic response content is an array of blocks
@@ -114,10 +120,15 @@ export class AnthropicProvider implements LLMProvider {
     const modelId = options.model || getDefaultModelId();
     const client = this.getClient();
 
+    // =========================================================================
+    // [v3.0] Jemiel Ensemble Strategy - P3-02 (2026-01-14)
+    // Anthropic은 top_k 파라미터를 지원함 - 조건부 전달
+    // =========================================================================
     const {
       maxOutputTokens = 4096,
       temperature = 0.3,
       topP = 1.0,
+      topK, // [v3.0] Anthropic top_k 지원
     } = options;
 
     try {
@@ -127,6 +138,7 @@ export class AnthropicProvider implements LLMProvider {
         max_tokens: maxOutputTokens,
         temperature,
         top_p: topP,
+        ...(topK !== undefined && { top_k: topK }), // [v3.0] 조건부 추가
         stream: true,
       });
 

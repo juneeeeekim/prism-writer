@@ -71,6 +71,7 @@ export class GeminiProvider implements LLMProvider {
       maxOutputTokens = 4096,
       temperature = 0.3,
       topP = 0.95,
+      topK, // [v3.0] Jemiel Strategy
     } = options;
 
     try {
@@ -80,6 +81,7 @@ export class GeminiProvider implements LLMProvider {
           maxOutputTokens,
           temperature,
           topP,
+          topK,
         },
       });
 
@@ -127,6 +129,7 @@ export class GeminiProvider implements LLMProvider {
       maxOutputTokens = 4096,
       temperature = 0.3,
       topP = 0.95,
+      topK, // [v3.0] Jemiel Strategy
     } = options;
 
     try {
@@ -136,6 +139,7 @@ export class GeminiProvider implements LLMProvider {
           maxOutputTokens,
           temperature,
           topP,
+          topK,
         },
       });
 

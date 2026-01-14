@@ -15,6 +15,8 @@ export interface LLMGenerateOptions {
   temperature?: number;
   /** Top-P (확률 기반 샘플링) */
   topP?: number;
+  /** Top-K (상위 K개 샘플링) [v3.0] Jemiel Strategy */
+  topK?: number;
   /** 스트리밍 여부 */
   stream?: boolean;
 }

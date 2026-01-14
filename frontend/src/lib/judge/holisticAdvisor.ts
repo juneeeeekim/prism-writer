@@ -21,7 +21,8 @@ import {
 // [H-01] Core 루브릭 통합
 import { DEFAULT_RUBRICS, TIER_CONFIG, type RubricTier } from '@/lib/rag/rubrics'
 // P2-09-A: LLM 중앙 관리 마이그레이션 (2026-01-10)
-import { getModelForUsage } from '@/config/llm-usage-map'
+// [v3.0] P2-01: getUsageConfig 추가 - Jemiel Ensemble Strategy (2026-01-14)
+import { getModelForUsage, getUsageConfig } from '@/config/llm-usage-map'
 
 // =============================================================================
 // Helper: JSON Sanitization (alignJudge.ts 패턴 참조)
@@ -253,11 +254,20 @@ export async function runHolisticEvaluation(
     console.log('[HolisticAdvisor] Starting holistic evaluation...')
     console.log(`[HolisticAdvisor] Category: ${category}, Text length: ${userText.length}`)
 
+    // =========================================================================
+    // [v3.0] Jemiel Ensemble Strategy - P2-01 (2026-01-14)
+    // 하드코딩된 temperature 제거 → 중앙 설정(llm-usage-map.ts)에서 가져옴
+    // =========================================================================
+    const holisticConfig = getUsageConfig('judge.holistic')
+
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { 
+      generationConfig: {
         responseMimeType: 'application/json',
-        temperature: 0.3  // 일관된 평가를 위해 낮은 온도
+        // [v3.0] 중앙 설정에서 가져오기 (fallback: 0.1)
+        temperature: holisticConfig?.generationConfig?.temperature ?? 0.1,
+        topP: holisticConfig?.generationConfig?.topP,
+        topK: holisticConfig?.generationConfig?.topK,
       },
     })
 

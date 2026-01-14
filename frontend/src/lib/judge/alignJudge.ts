@@ -5,7 +5,7 @@ import { type JudgeResult } from './types'
 // [P3-06] Feature Flags import
 import { FEATURE_FLAGS } from '@/config/featureFlags'
 // P2-08-A: LLM 중앙 관리 마이그레이션 (2026-01-10)
-import { getModelForUsage } from '@/config/llm-usage-map'
+import { getModelForUsage, getUsageConfig } from '@/config/llm-usage-map'
 
 // =============================================================================
 // Helper: JSON Sanitization
@@ -57,7 +57,10 @@ export async function runAlignJudge(
 
   const genAI = new GoogleGenerativeAI(apiKey)
   // P2-08-A: LLM 중앙 관리 마이그레이션 - getModelForUsage 적용
-  const model = genAI.getGenerativeModel({ model: getModelForUsage('judge.align') })
+  // [v3.0] Jemiel Strategy: Centralized Config
+  const config = getUsageConfig('judge.align')
+  const modelId = config?.modelId || getModelForUsage('judge.align')
+  const model = genAI.getGenerativeModel({ model: modelId })
 
   // ---------------------------------------------------------------------------
   // P0 Fix: 참고자료 섹션 추가 (있는 경우에만)
@@ -115,7 +118,9 @@ ${
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: { 
         responseMimeType: 'application/json',
-        temperature: 0.1  // 엄격한 JSON 생성을 위해 낮은 온도
+        temperature: config?.generationConfig?.temperature ?? 0.1,  // Centralized or default strict
+        topP: config?.generationConfig?.topP,
+        topK: config?.generationConfig?.topK,
       },
     })
 

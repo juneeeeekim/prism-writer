@@ -13,7 +13,7 @@ import type { SearchResult } from './search'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getProjectThreshold } from './projectPreferences'
 // P2-02: LLM 중앙 관리 마이그레이션 (2026-01-10)
-import { getModelForUsage } from '@/config/llm-usage-map'
+import { getModelForUsage, getUsageConfig, type UsageConfig } from '@/config/llm-usage-map'
 
 // =============================================================================
 // [P3-02] 타입 정의
@@ -115,8 +115,9 @@ export async function checkRetrievalNecessity(
     retrievalThreshold = FEATURE_FLAGS.SELF_RAG_RETRIEVAL_THRESHOLD,
   } = options
 
-  // P2-02-A: LLM 중앙 관리 마이그레이션 - getModelForUsage 적용
-  const modelId = getModelForUsage('rag.selfrag')
+  // [v3.0] Jemiel Strategy: Centralized Config
+  const config = getUsageConfig('rag.selfrag')
+  if (!config) throw new Error('Missing config for rag.selfrag')
 
   logger.debug('[SelfRAG]', 'Checking retrieval necessity', { query: query.substring(0, 50) })
 
@@ -139,7 +140,7 @@ Examples where retrieval IS needed:
 Return ONLY the JSON object, no other text.`
 
   try {
-    const response = await callLLMForSelfRAG(prompt, modelId)
+    const response = await callLLMForSelfRAG(prompt, config)
     const result = parseSelfRAGResponse(response)
 
     logger.info('[SelfRAG]', 'Retrieval necessity check completed', {
@@ -196,8 +197,9 @@ export async function critiqueRetrievalResults(
     return []
   }
 
-  // P2-02-B: LLM 중앙 관리 마이그레이션 - getModelForUsage 적용
-  const modelId = getModelForUsage('rag.selfrag')
+  // [v3.0] Jemiel Strategy: Centralized Config
+  const config = getUsageConfig('rag.selfrag')
+  if (!config) throw new Error('Missing config for rag.selfrag')
 
   logger.debug('[SelfRAG]', 'Critiquing retrieval results', { 
     query: query.substring(0, 50),
@@ -223,7 +225,7 @@ Return JSON array:
 Return ONLY the JSON array, no other text.`
 
   try {
-    const response = await callLLMForSelfRAG(prompt, modelId)
+    const response = await callLLMForSelfRAG(prompt, config)
     const evaluations = parseCritiqueResponse(response)
 
     const critiqued: CritiquedResult[] = toEvaluate.map((result, i) => {
@@ -322,8 +324,9 @@ export async function verifyGroundedness(
     }
   }
 
-  // P2-02-C: LLM 중앙 관리 마이그레이션 - getModelForUsage 적용
-  const modelId = getModelForUsage('rag.selfrag')
+  // [v3.0] Jemiel Strategy: Centralized Config
+  const config = getUsageConfig('rag.selfrag')
+  if (!config) throw new Error('Missing config for rag.selfrag')
 
   logger.debug('[SelfRAG]', 'Verifying groundedness', {
     answerLength: answer.length,
@@ -354,7 +357,7 @@ OUTPUT FORMAT (JSON):
 Return ONLY the JSON object, no other text.`
 
   try {
-    const response = await callLLMForSelfRAG(prompt, modelId)
+    const response = await callLLMForSelfRAG(prompt, config)
     const result = parseGroundednessResponse(response)
 
     logger.info('[SelfRAG]', 'Groundedness check completed', {
@@ -389,12 +392,16 @@ Return ONLY the JSON object, no other text.`
 // =============================================================================
 
 /**
- * Self-RAG용 LLM 호출
+ * Self-RAG용 LLM 호출 (Jemiel Strategy Applied)
  */
-async function callLLMForSelfRAG(prompt: string, modelId: string): Promise<string> {
+async function callLLMForSelfRAG(prompt: string, config: UsageConfig): Promise<string> {
+  const { modelId, generationConfig } = config
+  
   const response = await generateText(prompt, {
     model: modelId,
-    temperature: 0.1,  // 결정적 응답
+    temperature: generationConfig?.temperature ?? 0.0, // Default to deterministic
+    topP: generationConfig?.topP ?? 1.0,
+    topK: generationConfig?.topK,
     maxOutputTokens: 1000,
   })
 

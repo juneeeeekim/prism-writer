@@ -56,10 +56,15 @@ export class OpenAIProvider implements LLMProvider {
     const modelId = options.model || getDefaultModelId();
     const client = this.getClient();
 
+    // =========================================================================
+    // [v3.0] Jemiel Ensemble Strategy - P3-01 (2026-01-14)
+    // OpenAI는 top_k 파라미터를 지원하지 않으므로 의도적으로 무시
+    // =========================================================================
     const {
       maxOutputTokens = 4096,
       temperature = 0.3,
       topP = 1.0,
+      topK, // [v3.0] OpenAI 미지원 - 의도적 무시 (API 호출에 전달 안 함)
     } = options;
 
     try {
@@ -110,10 +115,15 @@ export class OpenAIProvider implements LLMProvider {
     const modelId = options.model || getDefaultModelId();
     const client = this.getClient();
 
+    // =========================================================================
+    // [v3.0] Jemiel Ensemble Strategy - P3-01 (2026-01-14)
+    // OpenAI는 top_k 파라미터를 지원하지 않으므로 의도적으로 무시
+    // =========================================================================
     const {
       maxOutputTokens = 4096,
       temperature = 0.3,
       topP = 1.0,
+      topK, // [v3.0] OpenAI 미지원 - 의도적 무시 (API 호출에 전달 안 함)
     } = options;
 
     try {

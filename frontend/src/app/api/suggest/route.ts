@@ -13,7 +13,7 @@ import { hybridSearch } from '@/lib/rag/search'
 import { generateText } from '@/lib/llm/gateway'
 import { logger } from '@/lib/utils/logger'
 // P2-01-A: LLM 중앙 관리 마이그레이션 (2026-01-10)
-import { getModelForUsage } from '@/config/llm-usage-map'
+import { getModelForUsage, getUsageConfig } from '@/config/llm-usage-map'
 
 // =============================================================================
 // 타입 정의
@@ -46,8 +46,8 @@ const RAG_TOP_K = 3
 /** LLM 최대 토큰 수 (짧은 문장용) */
 const MAX_TOKENS = 100
 
-/** LLM 온도 (약간의 창의성) */
-const TEMPERATURE = 0.7
+/** LLM 온도 (약간의 창의성) - [v3.0] Config로 이동됨 */
+// const TEMPERATURE = 0.7
 
 // =============================================================================
 // 헬퍼 함수: 첫 번째 문장만 추출
@@ -222,15 +222,19 @@ export async function POST(
     // -------------------------------------------------------------------------
     // 6. LLM 호출 (Gemini 3.0 Flash 사용)
     // -------------------------------------------------------------------------
-    const prompt = buildSuggestionPrompt(contextBefore, ragContext)
-
     let suggestion = ''
     try {
       // P2-01-A: LLM 중앙 관리 마이그레이션 - getModelForUsage 적용
+      // [v3.0] Jemiel Strategy
+      const config = getUsageConfig('suggest.completion')
+      const prompt = buildSuggestionPrompt(contextBefore, ragContext)
+
       const llmResponse = await generateText(prompt, {
-        model: getModelForUsage('suggest.completion'),
+        model: config?.modelId,
         maxOutputTokens: MAX_TOKENS,
-        temperature: TEMPERATURE,
+        temperature: config?.generationConfig?.temperature,
+        topP: config?.generationConfig?.topP,
+        topK: config?.generationConfig?.topK,
       })
 
       suggestion = extractFirstSentence(llmResponse.text || '')
