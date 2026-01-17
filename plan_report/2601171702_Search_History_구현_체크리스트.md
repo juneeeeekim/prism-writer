@@ -453,4 +453,168 @@
 |    P3    | 훅 재작성                      |    30분    |
 |    P4    | UI 업데이트                    |    30분    |
 |    P5    | 최종 검증                      |    30분    |
-| **합계** |                                | **~3시간** |
+|  **P6**  | **히스토리 UI 개선 (신규)**    |  **45분**  |
+| **합계** |                                | **~4시간** |
+
+---
+
+## Phase 6: 검색 히스토리 UI 개선 (신규)
+
+> **작성일**: 2026-01-17 19:56
+> **이슈**: 새로고침 후에도 검색 결과가 유지되어 히스토리가 보이지 않음
+
+### 🔍 문제 분석
+
+**근본 원인:**
+
+1. `useResearchPersistence` 훅이 `sessionStorage`에 검색 결과를 저장
+2. 새로고침 시 저장된 결과가 복원되어 `results.length > 0` 상태 유지
+3. 현재 UI는 `results.length === 0`일 때만 히스토리 표시 (298-360 라인)
+
+```
+결과 있음 → 히스토리 숨김 (현재 동작)
+결과 없음 + 히스토리 있음 → 히스토리 표시
+결과 없음 + 히스토리 없음 → 빈 상태 표시
+```
+
+---
+
+### 💡 전문가 아이디어 회의 (Expert Brainstorming)
+
+#### 🧑‍💻 옵션 A: 히스토리 토글 버튼 추가
+
+- **설명**: 검색창 옆에 "🕒 히스토리" 토글 버튼 추가
+- **장점**: 기존 UI 구조 최소 변경, 사용자가 명시적으로 전환 가능
+- **단점**: 버튼 클릭 한 번 더 필요
+- **복잡도**: ⭐⭐ (낮음)
+- **예상 소요**: 30분
+
+#### 🧑‍💻 옵션 B: 항상 히스토리 사이드바 표시
+
+- **설명**: 결과 영역 옆에 히스토리 사이드바 항상 표시
+- **장점**: 히스토리 상시 접근 가능
+- **단점**: 화면 공간 많이 차지, 레이아웃 대폭 변경 필요
+- **복잡도**: ⭐⭐⭐⭐ (높음)
+- **예상 소요**: 2시간
+
+#### 🧑‍💻 옵션 C: 검색창 상단에 히스토리 칩(Chip) 표시
+
+- **설명**: 최근 검색어를 검색창 위에 클릭 가능한 칩(태그) 형태로 표시
+- **장점**: 시각적으로 깔끔, 빠른 접근
+- **단점**: 많은 히스토리 표시 시 공간 부족, 삭제 기능 구현 복잡
+- **복잡도**: ⭐⭐⭐ (중간)
+- **예상 소요**: 1시간
+
+#### 🧑‍💻 옵션 D: Persistence 결과 제거 (히스토리만 유지)
+
+- **설명**: `sessionStorage`에서 결과 저장을 제거하고, 히스토리 DB에서만 로드
+- **장점**: 히스토리가 항상 보임, 중복 저장 제거
+- **단점**: 새로고침 시 현재 결과 초기화됨 (사용자 혼란 가능성)
+- **복잡도**: ⭐⭐ (낮음)
+- **예상 소요**: 20분
+
+---
+
+### ✅ 최선의 방안 선정: **옵션 A (히스토리 토글 버튼)**
+
+**선정 이유:**
+
+1. 기존 UI 구조를 최소한으로 변경 (안정성)
+2. 구현 복잡도가 낮음 (빠른 적용 가능)
+3. 사용자가 명시적으로 모드 전환 가능 (UX 명확성)
+4. 추후 옵션 C(칩) 등으로 확장 용이
+
+---
+
+### Implementation Items:
+
+- [x] **P6-01**: 뷰 모드 상태 추가 ✅ (2026-01-17 완료)
+  - `Target`: `frontend/src/components/Assistant/ResearchPanel.tsx`
+  - `Logic (Pseudo)`:
+    ```typescript
+    // [P6-01] 뷰 모드 상태 ('results' | 'history')
+    const [viewMode, setViewMode] = useState<"results" | "history">("results");
+    ```
+  - `Key Variables`: `viewMode`, `setViewMode`
+
+- [x] **P6-02**: 히스토리 토글 버튼 UI 추가 ✅ (2026-01-17 완료)
+  - `Target`: `frontend/src/components/Assistant/ResearchPanel.tsx` > Header 영역
+  - `Logic (Pseudo)`:
+    ```tsx
+    {
+      /* [P6-02] 히스토리 토글 버튼 */
+    }
+    <button
+      onClick={() =>
+        setViewMode(viewMode === "results" ? "history" : "results")
+      }
+      className={`px-3 py-1.5 text-xs rounded-full transition-colors
+        ${
+          viewMode === "history"
+            ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"
+            : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+        }`}
+    >
+      🕒 이전 검색 {history.length > 0 ? `(${history.length})` : ""}
+    </button>;
+    ```
+  - `Key Variables`: `viewMode`, `history.length`
+
+- [x] **P6-03**: 조건부 렌더링 로직 수정 ✅ (2026-01-17 완료)
+  - `Target`: `frontend/src/components/Assistant/ResearchPanel.tsx` > Results Area
+  - `Logic (Pseudo)`:
+
+    ```tsx
+    {/* 기존: results.length === 0 && history.length > 0 일 때만 히스토리 표시 */}
+    {/* 변경: viewMode === 'history' 일 때 히스토리 표시 */}
+
+    {viewMode === 'results' && results.length > 0 ? (
+      // 검색 결과 표시
+      results.map(...)
+    ) : viewMode === 'history' || (results.length === 0 && history.length > 0) ? (
+      // 히스토리 표시
+      <div className="recent-history">...</div>
+    ) : (
+      // 빈 상태
+      <div>검색 결과가 없습니다</div>
+    )}
+    ```
+
+  - `Safety`: 기존 조건 유지하면서 `viewMode === 'history'` 조건 추가
+
+- [x] **P6-04**: 히스토리 클릭 시 자동 모드 전환 ✅ (2026-01-17 완료)
+  - `Target`: `frontend/src/components/Assistant/ResearchPanel.tsx` > 히스토리 클릭 핸들러
+  - `Logic (Pseudo)`:
+    ```typescript
+    // 히스토리 아이템 클릭 시 결과 모드로 자동 전환
+    onClick={() => {
+      setQuery(item.query)
+      setSearchedQuery(item.query)
+      if (item.resultsSummary && item.resultsSummary.length > 0) {
+        setResults(cachedResults)
+        setViewMode('results')  // [P6-04] 모드 전환
+      } else {
+        handleSearch(item.query)
+        setViewMode('results')  // [P6-04] 모드 전환
+      }
+    }}
+    ```
+
+- [x] **P6-05**: 검색 실행 시 자동 모드 전환 ✅ (2026-01-17 완료)
+  - `Target`: `frontend/src/components/Assistant/ResearchPanel.tsx` > `handleSearch()`
+  - `Logic (Pseudo)`:
+    ```typescript
+    // 검색 시작 시 결과 모드로 전환
+    const handleSearch = useCallback(async (searchQuery: string = query) => {
+      setViewMode('results')  // [P6-05] 검색 시 결과 모드로
+      // ... 기존 로직
+    }, [...])
+    ```
+
+**Definition of Done (Phase 6):**
+
+- [x] DoD-20: "🕒 이전 검색" 버튼이 검색창 영역에 표시됨 ✅
+- [x] DoD-21: 버튼 클릭 시 결과 ↔ 히스토리 뷰 전환됨 ✅
+- [x] DoD-22: 히스토리 아이템 클릭 시 자동으로 결과 뷰로 전환됨 ✅
+- [x] DoD-23: 새 검색 실행 시 자동으로 결과 뷰로 전환됨 ✅
+- [x] DoD-24: 히스토리 개수가 버튼에 뱃지 형태로 표시됨 (예: "🕒 이전 검색 (5)") ✅

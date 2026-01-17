@@ -87,6 +87,11 @@ export default function ResearchPanel({
   const [language, setLanguage] = useState<'ko' | 'en' | 'all'>('all')
 
   // ---------------------------------------------------------------------------
+  // [P6-01] View Mode State - 결과/히스토리 뷰 전환
+  // ---------------------------------------------------------------------------
+  const [viewMode, setViewMode] = useState<'results' | 'history'>('results')
+
+  // ---------------------------------------------------------------------------
   // [P3-03-02] Load Persistence State
   // ---------------------------------------------------------------------------
   useEffect(() => {
@@ -118,6 +123,8 @@ export default function ResearchPanel({
       return
     }
 
+    // [P6-05] 검색 시 결과 모드로 전환
+    setViewMode('results')
     setIsLoading(true)
     setError(null)
     // 쿼리 상태 업데이트 (히스토리 클릭 시 필요)
@@ -226,8 +233,8 @@ export default function ResearchPanel({
           </button>
         </div>
 
-        {/* Language Selection */}
-        <div className="flex gap-2 mt-3">
+        {/* Language Selection + History Toggle */}
+        <div className="flex gap-2 mt-3 flex-wrap items-center">
           <span className="text-xs text-gray-500 dark:text-gray-400 self-center mr-1">
             검색 범위:
           </span>
@@ -247,6 +254,19 @@ export default function ResearchPanel({
               {lang === 'ko' ? '🇰🇷 한국어' : lang === 'en' ? '🌐 English' : '🌍 모든 언어'}
             </button>
           ))}
+
+          {/* [P6-02] 히스토리 토글 버튼 - 이전 검색 보기/숨기기 */}
+          <div className="flex-1" /> {/* Spacer */}
+          <button
+            onClick={() => setViewMode(viewMode === 'results' ? 'history' : 'results')}
+            className={`px-3 py-1.5 text-xs rounded-full transition-colors
+              ${viewMode === 'history'
+                ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 ring-1 ring-amber-300 dark:ring-amber-700'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-amber-50 dark:hover:bg-amber-900/20'
+              }`}
+          >
+            🕒 이전 검색{history.length > 0 ? ` (${history.length})` : ''}
+          </button>
         </div>
 
         {/* Domain Hint */}
@@ -283,7 +303,9 @@ export default function ResearchPanel({
         )}
 
         {/* Results */}
-        {results.length > 0 ? (
+        {/* [P6-03] 조건부 렌더링: viewMode에 따라 결과 또는 히스토리 표시 */}
+        {viewMode === 'results' && results.length > 0 ? (
+          // 결과 모드: 검색 결과 표시
           results.map((result, idx) => (
             <ResearchCard
               key={`${result.url}-${idx}`}
@@ -295,8 +317,8 @@ export default function ResearchPanel({
               })}
             />
           ))
-        ) : !isLoading && !error && history.length > 0 ? (
-          /* [P3-04-A] Recent History (검색 결과 없을 때 표시) */
+        ) : (viewMode === 'history' || (viewMode === 'results' && results.length === 0)) && !isLoading && !error && history.length > 0 ? (
+          /* [P6-03] 히스토리 모드: 토글 버튼 클릭 또는 결과 없을 때 표시 */
           <div className="recent-history">
             <div className="flex justify-between items-center mb-2">
               <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400">🕒 최근 검색</h3>
@@ -315,7 +337,7 @@ export default function ResearchPanel({
             <ul className="space-y-1">
               {history.map((item) => (
                 <li key={item.id} className="flex items-center gap-2">
-                  {/* [Search History Sync] P4-02: 히스토리 클릭 시 캐시 로드 */}
+                  {/* [P6-04] 히스토리 클릭 시 캐시 로드 + 결과 모드 전환 */}
                   <button
                     onClick={() => {
                       setQuery(item.query)
@@ -331,8 +353,10 @@ export default function ResearchPanel({
                           publishedDate: '',
                         }))
                         setResults(cachedResults as SummarizedResult[])
+                        setViewMode('results')  // [P6-04] 결과 모드로 전환
                         toast.success(`캐시에서 ${item.resultCount}개 결과 로드`)
                       } else {
+                        setViewMode('results')  // [P6-04] 결과 모드로 전환
                         handleSearch(item.query)
                       }
                     }}
@@ -358,13 +382,22 @@ export default function ResearchPanel({
               ))}
             </ul>
           </div>
-        ) : !isLoading && !error ? (
+        ) : !isLoading && !error && viewMode === 'results' ? (
           /* Empty State */
           <div className="flex flex-col items-center justify-center py-12 text-gray-500 dark:text-gray-400">
             <span className="text-4xl mb-4">📚</span>
             <p className="text-lg font-medium">검색 결과가 없습니다</p>
             <p className="text-sm mt-1">
               학술 논문, 통계, 정부 자료를 검색해보세요.
+            </p>
+          </div>
+        ) : !isLoading && !error && viewMode === 'history' && history.length === 0 ? (
+          /* [P6-03] 히스토리 빈 상태 */
+          <div className="flex flex-col items-center justify-center py-12 text-gray-500 dark:text-gray-400">
+            <span className="text-4xl mb-4">🕒</span>
+            <p className="text-lg font-medium">검색 기록이 없습니다</p>
+            <p className="text-sm mt-1">
+              검색하면 여기에 기록이 저장됩니다.
             </p>
           </div>
         ) : null}
