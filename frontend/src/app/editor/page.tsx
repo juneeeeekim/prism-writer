@@ -14,6 +14,8 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useToast } from '@/hooks/useToast'
+import { downloadFile, sanitizeFilename } from '@/utils/exportUtils'
 import DualPaneContainer from '@/components/DualPane/DualPaneContainer'
 import MarkdownEditor from '@/components/Editor/MarkdownEditor'
 import AssistantPanel from '@/components/Assistant/AssistantPanel'
@@ -58,6 +60,7 @@ function EditorContent() {
   // ---------------------------------------------------------------------------
   const { currentProject } = useProject()
   const projectId = currentProject?.id ?? null
+  const toast = useToast()
 
   // ---------------------------------------------------------------------------
   // [P6-03-A] URL에서 새 프로젝트 파라미터 읽기
@@ -146,12 +149,12 @@ function EditorContent() {
   // Phase 11: 실제 저장 기능 구현
   const handleSave = async () => {
     if (!user) {
-      alert('로그인이 필요합니다.')
+      toast.error('로그인이 필요합니다.')
       return
     }
     
     if (!content && !title) {
-      alert('저장할 내용이 없습니다.')
+      toast.warning('저장할 내용이 없습니다.')
       return
     }
     
@@ -169,17 +172,31 @@ function EditorContent() {
       }
       
       markAsSaved()
-      alert('저장되었습니다!')
+      toast.success('저장되었습니다!')
     } catch (error) {
+      // [P1-02] 에러 메시지 개선: 실제 에러 내용 포함
       console.error('[EditorPage] Save error:', error)
-      alert('저장에 실패했습니다. 다시 시도해주세요.')
+      const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류'
+      toast.error(`저장 실패: ${errorMessage}`)
     } finally {
       setIsSaving(false)
     }
   }
 
   const handleExport = () => {
-    console.log('내보내기 기능 (추후 구현)')
+    if (!content) {
+      toast.warning('내보낼 내용이 없습니다.')
+      return
+    }
+
+    const filename = `${sanitizeFilename(title)}.md`
+    const success = downloadFile(filename, content, 'text/markdown')
+    
+    if (success) {
+      toast.success('Markdown 파일로 내보냈습니다.')
+    } else {
+      toast.error('내보내기에 실패했습니다.')
+    }
   }
 
   const handleEvaluate = async () => {
@@ -228,7 +245,8 @@ function EditorContent() {
         showToolbar 
         showProjectSelector
         onSave={handleSave} 
-        onExport={handleExport} 
+        onExport={handleExport}
+        isSaving={isSaving}
       />
 
       {/* -----------------------------------------------------------------------

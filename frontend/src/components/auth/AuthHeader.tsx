@@ -37,15 +37,12 @@ interface AuthHeaderProps {
   onSave?: () => void
   /** 내보내기 버튼 클릭 핸들러 */
   onExport?: () => void
+  /** [P1-01] 저장 중 로딩 상태 */
+  isSaving?: boolean
 }
 
 /**
  * 인증 상태 표시 헤더 컴포넌트
- * 
- * @example
- * ```tsx
- * <AuthHeader showLogo showToolbar onSave={handleSave} />
- * ```
  */
 export default function AuthHeader({
   className = '',
@@ -54,6 +51,7 @@ export default function AuthHeader({
   showProjectSelector = false,
   onSave,
   onExport,
+  isSaving = false,
 }: AuthHeaderProps) {
   // v2.0: 추가 필드 (role, dailyRequestLimit, monthlyTokenLimit)
   // v2.3: lastSyncedAt, refreshProfile 추가 (P4-02, P4-03)
@@ -138,10 +136,26 @@ export default function AuthHeader({
           <div className="flex items-center gap-2 mr-4">
             <button
               onClick={onSave}
-              className="px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+              disabled={isSaving}
+              className={`px-3 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors flex items-center gap-1 ${
+                isSaving ? 'opacity-70 cursor-not-allowed' : ''
+              }`}
               aria-label="저장"
             >
-              💾 저장
+              {isSaving ? (
+                <>
+                  <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>저장 중...</span>
+                </>
+              ) : (
+                <>
+                  <span>💾</span>
+                  <span>저장</span>
+                </>
+              )}
             </button>
             <button
               onClick={onExport}
