@@ -12,7 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { hybridSearch, type SearchResult } from '@/lib/rag/search'
 import { generateTextStream } from '@/lib/llm/gateway'
-import { getDefaultModel } from '@/config/llm.config'
+import { getModelForUsage } from '@/config/llm-usage-map'
 import { createClient } from '@/lib/supabase/server'
 import { verifyCitation, hasCitationMarkers } from '@/lib/rag/citationGate'  // [Phase B] 마커 검증 추가
 import { MemoryService } from '@/lib/rag/memory'
@@ -452,9 +452,9 @@ ${context ? context : '관련된 참고 자료가 없습니다.'}
     ).join('\n')
 
     const fullPrompt = `${systemPrompt}\n\n[대화 기록]\n${conversationHistory}\n\nAI:`
-    
-    const modelId = requestedModel || getDefaultModel()
-    console.log(`[Chat API] Using model: ${modelId}`)
+    // [중앙관리] llm-usage-map.ts의 rag.answer 컨텍스트 사용
+    const modelId = requestedModel || getModelForUsage('rag.answer')
+    console.log(`[Chat API] Using model (from llm-usage-map): ${modelId}`)
 
     // =========================================================================
     // [P7-03] TTFT 측정을 위한 스트리밍 응답
