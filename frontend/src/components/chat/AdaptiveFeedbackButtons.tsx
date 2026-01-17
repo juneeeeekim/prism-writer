@@ -44,6 +44,10 @@ interface AdaptiveFeedbackButtonsProps {
   projectId: string
   /** 피드백 제출 후 콜백 */
   onFeedbackSubmit?: (type: SignalType) => void
+  // =========================================================================
+  // [Feedback Sync] P3-01: 서버에서 받은 기존 피드백 상태
+  // =========================================================================
+  initialFeedback?: SignalType | null
 }
 
 // =============================================================================
@@ -61,11 +65,13 @@ export default function AdaptiveFeedbackButtons({
   messageId,
   projectId,
   onFeedbackSubmit,
+  initialFeedback,  // [Feedback Sync] P3-01: 서버 동기화된 피드백
 }: AdaptiveFeedbackButtonsProps) {
   // ---------------------------------------------------------------------------
   // State
   // ---------------------------------------------------------------------------
-  const [submitted, setSubmitted] = useState<SignalType | null>(null)
+  // [Feedback Sync] P3-01: 초기값을 prop에서 받음 (크로스 디바이스 동기화)
+  const [submitted, setSubmitted] = useState<SignalType | null>(initialFeedback ?? null)
   const [loading, setLoading] = useState(false)
   const toast = useToast()  // [P4] useToast 훅 사용
 

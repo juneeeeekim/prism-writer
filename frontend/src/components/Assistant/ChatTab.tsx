@@ -43,6 +43,10 @@ interface Message {
       score: number
     }>
   }
+  // =========================================================================
+  // [Feedback Sync] P2-01: 피드백 상태 (서버에서 동기화)
+  // =========================================================================
+  feedback?: 'chat_helpful' | 'chat_not_helpful' | 'chat_hallucination' | null
 }
 
 interface ChatTabProps {
@@ -236,7 +240,9 @@ export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
           role: m.role,
           content: m.content,
           timestamp: new Date(m.created_at),
-          metadata: m.metadata // 메타데이터 매핑
+          metadata: m.metadata, // 메타데이터 매핑
+          // [Feedback Sync] P2-02: 피드백 상태 매핑
+          feedback: m.feedback ?? null
         }))
         setMessages(loadedMessages)
       } catch (error) {
@@ -265,7 +271,9 @@ export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
         role: m.role,
         content: m.content,
         timestamp: new Date(m.created_at),
-        metadata: m.metadata
+        metadata: m.metadata,
+        // [Feedback Sync] P2-02: 피드백 상태 매핑
+        feedback: m.feedback ?? null
       })))
     } catch (e) { console.error(e) }
   }
@@ -618,11 +626,13 @@ export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
               
               {/* =========================================================== */}
               {/* [P4-04-02] Adaptive Feedback Buttons - 프로젝트 격리 */}
+              {/* [Feedback Sync] P2-03: initialFeedback prop 전달 */}
               {/* =========================================================== */}
               {message.role === 'assistant' && projectId && (
                 <AdaptiveFeedbackButtons 
                   messageId={message.id} 
-                  projectId={projectId} 
+                  projectId={projectId}
+                  initialFeedback={message.feedback}
                 />
               )}
             </div>
