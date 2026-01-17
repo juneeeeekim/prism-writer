@@ -1528,7 +1528,7 @@ body {
   color: #9ca3af; /* Gray-400 */
   font-style: italic;
   font-size: 0.9em;
-  text-decoration: line-through;
+  /* text-decoration: line-through; -> 제거 (UX 개선) */
   opacity: 0.7;
   transition: all 0.2s ease;
 }
@@ -1536,5 +1536,4 @@ body {
 .muted-text:hover {
   color: #4b5563; /* Gray-600 */
   opacity: 1;
-  text-decoration: none;
 }
