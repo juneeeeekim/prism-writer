@@ -1,0 +1,22 @@
+﻿[
+    {
+        "Name":  "package-lock.json",
+        "Path":  "C:\\Users\\chyon\\Desktop\\01.Project\\00.Program\\prismLM\\frontend\\package-lock.json",
+        "Lines":  10983
+    },
+    {
+        "Name":  "globals.css",
+        "Path":  "C:\\Users\\chyon\\Desktop\\01.Project\\00.Program\\prismLM\\frontend\\src\\app\\globals.css",
+        "Lines":  1297
+    },
+    {
+        "Name":  "search.ts",
+        "Path":  "C:\\Users\\chyon\\Desktop\\01.Project\\00.Program\\prismLM\\frontend\\src\\lib\\rag\\search.ts",
+        "Lines":  1258
+    },
+    {
+        "Name":  "prism_lm_claude_upgrade.md",
+        "Path":  "C:\\Users\\chyon\\Desktop\\01.Project\\00.Program\\prismLM\\plan_report\\임시 저장\\prism_lm_claude_upgrade.md",
+        "Lines":  1797
+    }
+]
