@@ -103,7 +103,7 @@ export const FEATURE_FLAGS = {
    * - 사용자 쿼리를 동의어로 확장하여 검색 커버리지 향상
    * - 도메인 특화 용어 매핑 적용
    */
-  ENABLE_QUERY_EXPANSION: process.env.ENABLE_QUERY_EXPANSION === 'true',
+  ENABLE_QUERY_EXPANSION: process.env.ENABLE_QUERY_EXPANSION !== 'false',
 
   /**
    * 환각 탐지 기능 활성화
@@ -115,7 +115,7 @@ export const FEATURE_FLAGS = {
    * - 자동 탐지 결과는 로그만 기록 (DB 저장 안 함)
    * - 롤백: OFF 시 탐지 로직 완전 비활성화
    */
-  ENABLE_HALLUCINATION_DETECTION: process.env.ENABLE_HALLUCINATION_DETECTION === 'true',
+  ENABLE_HALLUCINATION_DETECTION: process.env.ENABLE_HALLUCINATION_DETECTION !== 'false',
 
   /**
    * RAFT 파인튜닝 기능 활성화
@@ -226,7 +226,7 @@ export const FEATURE_FLAGS = {
    * - 업로드 문서에서 형식 패턴(훅/CTA/비유 등)을 LLM으로 추출
    * - 롤백: OFF 시 패턴 추출 기능 비활성화
    */
-  ENABLE_PATTERN_EXTRACTION: process.env.NEXT_PUBLIC_ENABLE_PATTERN_EXTRACTION === 'true',
+  ENABLE_PATTERN_EXTRACTION: process.env.NEXT_PUBLIC_ENABLE_PATTERN_EXTRACTION !== 'false',
 
   /**
    * 패턴 기반 검색 활성화
@@ -238,7 +238,7 @@ export const FEATURE_FLAGS = {
    * - hybridSearch에서 patternType 필터 지원
    * - 롤백: OFF 시 기존 의미 기반 검색만 사용
    */
-  ENABLE_PATTERN_BASED_SEARCH: process.env.NEXT_PUBLIC_ENABLE_PATTERN_BASED_SEARCH === 'true',
+  ENABLE_PATTERN_BASED_SEARCH: process.env.NEXT_PUBLIC_ENABLE_PATTERN_BASED_SEARCH !== 'false',
 
   /**
    * 루브릭 후보 UI 활성화
@@ -250,7 +250,7 @@ export const FEATURE_FLAGS = {
    * - 관리자 기능으로 제한
    * - 롤백: OFF 시 루브릭 관리 UI 숨김
    */
-  ENABLE_RUBRIC_CANDIDATE_UI: process.env.NEXT_PUBLIC_ENABLE_RUBRIC_CANDIDATE_UI === 'true',
+  ENABLE_RUBRIC_CANDIDATE_UI: process.env.NEXT_PUBLIC_ENABLE_RUBRIC_CANDIDATE_UI !== 'false',
 
   // ==========================================================================
   // [R-11] 리트리벌 파이프라인 v2 Feature Flags (2026-01-03 추가)
@@ -317,7 +317,7 @@ export const FEATURE_FLAGS = {
    * - vectorWeight: 0.7, keywordWeight: 0.3 기본값
    * - 롤백: OFF 시 기존 RRF 로직 유지
    */
-  ENABLE_WEIGHTED_HYBRID_SEARCH: process.env.NEXT_PUBLIC_ENABLE_WEIGHTED_HYBRID_SEARCH === 'true',
+  ENABLE_WEIGHTED_HYBRID_SEARCH: process.env.NEXT_PUBLIC_ENABLE_WEIGHTED_HYBRID_SEARCH !== 'false',
 
   /**
    * Re-ranking 활성화 (P2-02)
@@ -329,7 +329,7 @@ export const FEATURE_FLAGS = {
    * - 쿼리-문서 관련도 정밀 재정렬
    * - 롤백: OFF 시 rerank 건너뜀
    */
-  ENABLE_RERANKING: process.env.NEXT_PUBLIC_ENABLE_RERANKING === 'true',
+  ENABLE_RERANKING: process.env.NEXT_PUBLIC_ENABLE_RERANKING !== 'false',
 
   /**
    * Re-ranking 사용 LLM 모델 (P2-02)
@@ -359,7 +359,7 @@ export const FEATURE_FLAGS = {
    * - 실패 시 기존 semanticChunk() fallback
    * - 롤백: OFF 시 기존 chunkDocument 로직 유지
    */
-  ENABLE_AGENTIC_CHUNKING: process.env.NEXT_PUBLIC_ENABLE_AGENTIC_CHUNKING === 'true',
+  ENABLE_AGENTIC_CHUNKING: process.env.NEXT_PUBLIC_ENABLE_AGENTIC_CHUNKING !== 'false',
 
   /**
    * Agentic Chunking 사용 LLM 모델 (P3-01)
@@ -382,7 +382,7 @@ export const FEATURE_FLAGS = {
    * - 할루시네이션 탐지 및 경고 표시
    * - 롤백: OFF 시 기존 검색 로직 유지
    */
-  ENABLE_SELF_RAG: process.env.NEXT_PUBLIC_ENABLE_SELF_RAG === 'true',
+  ENABLE_SELF_RAG: process.env.NEXT_PUBLIC_ENABLE_SELF_RAG !== 'false',
 
   /**
    * Self-RAG 사용 LLM 모델 (P3-02)
@@ -435,7 +435,7 @@ export const FEATURE_FLAGS = {
    * - Tab 키로 제안 수락, Escape로 취소
    * - 롤백: OFF 시 기존 TextEditor 사용
    */
-  ENABLE_SHADOW_WRITER: process.env.NEXT_PUBLIC_ENABLE_SHADOW_WRITER === 'true',
+  ENABLE_SHADOW_WRITER: process.env.NEXT_PUBLIC_ENABLE_SHADOW_WRITER !== 'false',
 
   /**
    * Shadow Writer Trigger Mode (비용 제어)
@@ -473,7 +473,7 @@ export const FEATURE_FLAGS = {
    * - Tavily API 사용 (비용 발생)
    * - 롤백: OFF 시 Research 탭 숨김
    */
-  ENABLE_DEEP_SCHOLAR: process.env.NEXT_PUBLIC_ENABLE_DEEP_SCHOLAR === 'true',
+  ENABLE_DEEP_SCHOLAR: process.env.NEXT_PUBLIC_ENABLE_DEEP_SCHOLAR !== 'false',
 } as const
 
 // =============================================================================

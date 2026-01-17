@@ -99,7 +99,7 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
   // ---------------------------------------------------------------------------
   'rag.answer': {
     modelId: 'gemini-3-flash-preview',
-    fallback: 'gpt-5-mini-2025-08-07',
+    fallback: 'gemma-3-27b-it',
     maxTokens: 2000,
     description: 'RAG 기반 답변 생성',
     // [Creative] 창의적 생성 구간
