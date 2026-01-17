@@ -12,7 +12,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { hybridSearch, type SearchResult } from '@/lib/rag/search'
 import { generateTextStream } from '@/lib/llm/gateway'
-import { getDefaultModel } from '@/config/llm.config'
+// [2026-01-17] LLM Usage Map 연동 및 Fallback 지원
+import { getModelForUsage, getFallbackModel, getUsageConfig } from '@/config/llm-usage-map'
 import { createClient } from '@/lib/supabase/server'
 import { verifyCitation, hasCitationMarkers } from '@/lib/rag/citationGate'  // [Phase B] 마커 검증 추가
 import { MemoryService } from '@/lib/rag/memory'
@@ -453,23 +454,63 @@ ${context ? context : '관련된 참고 자료가 없습니다.'}
 
     const fullPrompt = `${systemPrompt}\n\n[대화 기록]\n${conversationHistory}\n\nAI:`
     
-    const modelId = requestedModel || getDefaultModel()
-    console.log(`[Chat API] Using model: ${modelId}`)
+    // =========================================================================
+    // [2026-01-17] LLM Usage Map 연동 - rag.answer 컨텍스트 사용
+    // Primary 모델: llm-usage-map.ts의 rag.answer.modelId
+    // Fallback 모델: llm-usage-map.ts의 rag.answer.fallback
+    // =========================================================================
+    const primaryModelId = requestedModel || getModelForUsage('rag.answer')
+    const fallbackModelId = getFallbackModel('rag.answer')
+    const usageConfig = getUsageConfig('rag.answer')
+    console.log(`[Chat API] Primary model: ${primaryModelId}, Fallback: ${fallbackModelId || 'none'}`)
 
     // =========================================================================
-    // [P7-03] TTFT 측정을 위한 스트리밍 응답
+    // [P7-03] TTFT 측정을 위한 스트리밍 응답 + [2026-01-17] Fallback 로직
     // =========================================================================
     const stream = new ReadableStream({
       async start(controller) {
         let fullResponse = ''
         let firstTokenLogged = false  // [P7-03] 첫 토큰 로깅 플래그
+        let usedModelId = primaryModelId  // [2026-01-17] 실제 사용된 모델 추적
+        
+        // [2026-01-17] LLM 호출 헬퍼 함수 (Fallback 지원)
+        async function* tryGenerateWithFallback() {
+          try {
+            // Primary 모델 시도
+            for await (const chunk of generateTextStream(fullPrompt, { 
+              model: primaryModelId,
+              ...usageConfig?.generationConfig
+            })) {
+              yield chunk
+            }
+          } catch (primaryError) {
+            // Primary 실패 시 Fallback 시도
+            if (fallbackModelId) {
+              console.warn(`[Chat API] Primary model (${primaryModelId}) failed:`, primaryError)
+              console.log(`[Chat API] Retrying with fallback model: ${fallbackModelId}`)
+              usedModelId = fallbackModelId
+              
+              // Fallback 모델로 재시도
+              for await (const chunk of generateTextStream(fullPrompt, { 
+                model: fallbackModelId,
+                ...usageConfig?.generationConfig
+              })) {
+                yield chunk
+              }
+            } else {
+              // Fallback 없으면 에러 그대로 throw
+              throw primaryError
+            }
+          }
+        }
+        
         try {
-          for await (const chunk of generateTextStream(fullPrompt, { model: modelId })) {
+          for await (const chunk of tryGenerateWithFallback()) {
             if (chunk.text) {
               // [P7-03] 첫 토큰 수신 시 TTFT 로깅
               if (!firstTokenLogged) {
                 const ttft = performance.now() - startTime
-                console.log(`[Chat API] TTFT: ${ttft.toFixed(0)}ms (target: <2000ms)`)
+                console.log(`[Chat API] TTFT: ${ttft.toFixed(0)}ms (target: <2000ms), Model: ${usedModelId}`)
                 firstTokenLogged = true
               }
               fullResponse += chunk.text
@@ -554,7 +595,7 @@ ${context ? context : '관련된 참고 자료가 없습니다.'}
               session_id: sessionId,
               role: 'assistant',
               content: fullResponse,
-              model_id: modelId,
+              model_id: usedModelId,  // [2026-01-17] 실제 사용된 모델 ID 저장
               metadata: citationMetadata
             })
 

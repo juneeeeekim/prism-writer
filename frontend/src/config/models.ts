@@ -191,6 +191,18 @@ export const MODEL_REGISTRY = {
     tier: "free",
     enabled: true,
   },
+  // [2026-01-17] gpt-5-mini 단축 ID 지원 (OpenAI 공식 모델 이름)
+  "gpt-5-mini": {
+    provider: "openai",
+    displayName: "GPT-5 mini (Latest)",
+    capabilities: ["text-generation", "vision", "streaming"],
+    costPerInputToken: 0.00000025,
+    costPerOutputToken: 0.000002,
+    maxTokens: 128000,
+    inputContextWindow: 400000,
+    tier: "free",
+    enabled: true,
+  },
 
   // ---------------------------------------------------------------------------
   // Anthropic 모델
