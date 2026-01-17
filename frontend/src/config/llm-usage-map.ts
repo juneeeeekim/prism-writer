@@ -99,7 +99,7 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
   // ---------------------------------------------------------------------------
   'rag.answer': {
     modelId: 'gemini-3-flash-preview',
-    fallback: 'gemma-3-27b-it',
+    fallback: 'gemini-2.5-flash',
     maxTokens: 2000,
     description: 'RAG 기반 답변 생성',
     // [Creative] 창의적 생성 구간
@@ -110,7 +110,7 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
     },
   },
   'rag.reviewer': {
-    modelId: 'gemma-3-12b-it',
+    modelId: 'gemma-3-27b-it',
     maxTokens: 500,
     description: 'RAG 답변 품질 검토',
     // [Lossless] 무손실 검증 구간
@@ -145,7 +145,7 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
     },
   },
   'template.hallucination': {
-    modelId: 'gemma-3-12b-it',
+    modelId: 'gemma-3-27b-it',
     description: '환각 검증 (Hallucination Gate)',
     // [Lossless] 할루시네이션 탐지는 팩트 기반이므로 결정적
     generationConfig: {
@@ -308,7 +308,7 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
     },
   },
   'research.summarize': {
-    modelId: 'gemini-3-flash-preview',
+    modelId: 'gemma-3-12b-it',
     maxTokens: 200,
     description: 'Deep Scholar 검색 결과 요약',
     // [Lossless] 요약은 사실 왜곡 없이
