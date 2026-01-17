@@ -70,9 +70,10 @@ export default function ResearchPanel({
 
   // ---------------------------------------------------------------------------
   // [P3-03-01] Hooks Integration
+  // [Search History Sync] deleteHistoryItem 추가
   // ---------------------------------------------------------------------------
   const { saveState, loadState } = useResearchPersistence(projectId)
-  const { history, addToHistory, clearHistory } = useResearchHistory(projectId)
+  const { history, addToHistory, deleteHistoryItem, clearHistory } = useResearchHistory(projectId)
   const toast = useToast()
 
   // ---------------------------------------------------------------------------
@@ -146,8 +147,8 @@ export default function ResearchPanel({
         toast.info('검색 결과가 없습니다. 다른 키워드로 시도해보세요.')
       } else {
         toast.success(`${data.results.length}개의 결과를 찾았습니다.`)
-        // [P3-03-04] Add to History
-        addToHistory(searchQuery, data.results.length)
+        // [Search History Sync] P4-03: DB에 히스토리 저장 (results 포함)
+        addToHistory(searchQuery, data.results, data.results.length)
       }
 
     } catch (err) {
@@ -299,8 +300,13 @@ export default function ResearchPanel({
           <div className="recent-history">
             <div className="flex justify-between items-center mb-2">
               <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400">🕒 최근 검색</h3>
+              {/* [Search History Sync] P4-04: 전체 삭제 시 Confirmation */}
               <button 
-                onClick={clearHistory}
+                onClick={() => {
+                  if (confirm('모든 검색 기록을 삭제하시겠습니까?')) {
+                    clearHistory()
+                  }
+                }}
                 className="text-xs text-gray-400 hover:text-red-500 transition-colors"
               >
                 기록 삭제
@@ -308,10 +314,29 @@ export default function ResearchPanel({
             </div>
             <ul className="space-y-1">
               {history.map((item) => (
-                <li key={item.id}>
+                <li key={item.id} className="flex items-center gap-2">
+                  {/* [Search History Sync] P4-02: 히스토리 클릭 시 캐시 로드 */}
                   <button
-                    onClick={() => handleSearch(item.query)}
-                    className="w-full text-left px-3 py-2 rounded-lg text-sm
+                    onClick={() => {
+                      setQuery(item.query)
+                      setSearchedQuery(item.query)
+                      // 캐시된 결과가 있으면 API 호출 없이 즉시 표시
+                      if (item.resultsSummary && item.resultsSummary.length > 0) {
+                        const cachedResults = item.resultsSummary.map(r => ({
+                          title: r.title || '',
+                          url: r.url || '',
+                          keyFact: r.keyFact || '',
+                          source: new URL(r.url || 'https://unknown').hostname,
+                          summary: r.keyFact || '',
+                          publishedDate: '',
+                        }))
+                        setResults(cachedResults as SummarizedResult[])
+                        toast.success(`캐시에서 ${item.resultCount}개 결과 로드`)
+                      } else {
+                        handleSearch(item.query)
+                      }
+                    }}
+                    className="flex-1 text-left px-3 py-2 rounded-lg text-sm
                                text-gray-700 dark:text-gray-300 
                                hover:bg-gray-100 dark:hover:bg-gray-800 
                                transition-colors flex justify-between items-center"
@@ -320,6 +345,14 @@ export default function ResearchPanel({
                     <span className="text-xs text-gray-400 dark:text-gray-500">
                       {item.resultCount}건
                     </span>
+                  </button>
+                  {/* [Search History Sync] P4-01: 개별 삭제 버튼 */}
+                  <button
+                    onClick={() => deleteHistoryItem(item.id)}
+                    className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                    title="삭제"
+                  >
+                    🗑️
                   </button>
                 </li>
               ))}
