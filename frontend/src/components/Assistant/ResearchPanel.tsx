@@ -12,6 +12,8 @@ import { useState, useCallback, useEffect } from 'react'
 import { useToast } from '@/hooks/useToast'
 import ResearchCard from './ResearchCard'
 import type { SummarizedResult } from '@/lib/research/resultSummarizer'
+import { detectTrustBadge } from '@/lib/research/resultSummarizer'
+
 import { useProject } from '@/contexts/ProjectContext'
 import { useResearchPersistence } from '@/hooks/useResearchPersistence'
 import { useResearchHistory } from '@/hooks/useResearchHistory'
@@ -346,18 +348,20 @@ export default function ResearchPanel({
                       if (item.resultsSummary && item.resultsSummary.length > 0) {
                         const cachedResults = item.resultsSummary.map(r => {
                           let hostname = 'unknown'
+                          const url = r.url || ''
                           try {
-                            if (r.url) hostname = new URL(r.url).hostname
+                            if (url) hostname = new URL(url).hostname
                           } catch (e) {
-                            // URL 파싱 실패 시 'unknown' 사용
+                            // ignore invalid url
                           }
                           return {
                             title: r.title || '',
-                            url: r.url || '',
+                            url: url,
                             keyFact: r.keyFact || '',
                             source: hostname,
-                            summary: r.keyFact || '',
+                            summary: r.keyFact || '요약 내용이 없습니다.',
                             publishedDate: '',
+                            trustBadge: detectTrustBadge(url),
                           }
                         })
                         setResults(cachedResults as SummarizedResult[])
