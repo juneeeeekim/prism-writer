@@ -19,6 +19,13 @@ export interface LLMGenerateOptions {
   topK?: number;
   /** 스트리밍 여부 */
   stream?: boolean;
+  // ===========================================================================
+  // [2026-01-17] Gateway Fallback 지원을 위한 컨텍스트 필드
+  // llm-usage-map.ts의 컨텍스트 키를 전달하면 해당 설정의 fallback 모델 사용
+  // 예: 'rag.answer', 'suggest.completion', 'research.summarize' 등
+  // ===========================================================================
+  /** [Gateway Fallback] llm-usage-map 컨텍스트 키 */
+  context?: string;
 }
 
 /** LLM 응답 */

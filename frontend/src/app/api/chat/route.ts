@@ -464,7 +464,11 @@ ${context ? context : '관련된 참고 자료가 없습니다.'}
         let fullResponse = ''
         let firstTokenLogged = false  // [P7-03] 첫 토큰 로깅 플래그
         try {
-          for await (const chunk of generateTextStream(fullPrompt, { model: modelId })) {
+          // ===========================================================================
+          // [2026-01-17] Gateway Fallback: context 전달로 자동 Fallback 활성화
+          // Primary 모델(gemini-3-flash) 실패 시 llm-usage-map의 fallback 모델 사용
+          // ===========================================================================
+          for await (const chunk of generateTextStream(fullPrompt, { model: modelId, context: 'rag.answer' })) {
             if (chunk.text) {
               // [P7-03] 첫 토큰 수신 시 TTFT 로깅
               if (!firstTokenLogged) {

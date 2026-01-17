@@ -3,11 +3,17 @@
 // =============================================================================
 // 파일: frontend/src/lib/llm/gateway.ts
 // 역할: 모든 LLM 요청의 단일 진입점 (Routing & Abstraction)
+// 수정: 2026-01-17 - Gateway Level Fallback 지원 추가
 // =============================================================================
 
 import { getProviderByModel } from "./providers";
 import { getDefaultModel } from "@/config/llm.config";
 import { getModelConfig } from "@/config/models";
+// =============================================================================
+// [2026-01-17] Gateway Fallback 지원을 위한 import
+// llm-usage-map.ts에서 context별 fallback 모델 조회
+// =============================================================================
+import { getFallbackModel, type LLMUsageContext } from "@/config/llm-usage-map";
 import type {
   LLMGenerateOptions,
   LLMResponse,
@@ -19,10 +25,10 @@ import type {
  *
  * @description
  * 모델 ID를 기반으로 적절한 Provider를 선택하고 텍스트를 생성합니다.
- * 모델 ID가 지정되지 않으면 시스템 기본 모델을 사용합니다.
+ * [2026-01-17] Primary 모델 실패 시 context에 해당하는 fallback 모델로 자동 재시도
  * 
  * @param prompt - 생성 프롬프트
- * @param options - 생성 옵션 (모델, 토큰 제한 등)
+ * @param options - 생성 옵션 (모델, 토큰 제한, context 등)
  * @returns LLM 응답
  */
 export async function generateText(
@@ -30,9 +36,31 @@ export async function generateText(
   options: LLMGenerateOptions = {}
 ): Promise<LLMResponse> {
   const modelId = options.model || getDefaultModel();
-  const provider = getProviderByModel(modelId);
-
-  return provider.generateText(prompt, { ...options, model: modelId });
+  
+  // ===========================================================================
+  // [2026-01-17] Fallback 모델 조회 (context가 있을 때만)
+  // ===========================================================================
+  const fallbackModelId = options.context 
+    ? getFallbackModel(options.context as LLMUsageContext) 
+    : undefined;
+  
+  try {
+    const provider = getProviderByModel(modelId);
+    return await provider.generateText(prompt, { ...options, model: modelId });
+  } catch (primaryError) {
+    // =========================================================================
+    // [2026-01-17] Primary 실패 시 Fallback으로 재시도
+    // =========================================================================
+    if (fallbackModelId) {
+      console.warn(`[Gateway] Primary model (${modelId}) failed:`, primaryError);
+      console.log(`[Gateway] Using fallback model: ${fallbackModelId}`);
+      
+      const fallbackProvider = getProviderByModel(fallbackModelId);
+      return await fallbackProvider.generateText(prompt, { ...options, model: fallbackModelId });
+    }
+    // Fallback 없으면 원래 에러 그대로 throw
+    throw primaryError;
+  }
 }
 
 /**
@@ -40,15 +68,39 @@ export async function generateText(
  * 
  * @description
  * 모델 ID를 기반으로 적절한 Provider를 선택하고 텍스트 스트림을 생성합니다.
+ * [2026-01-17] Primary 모델 실패 시 context에 해당하는 fallback 모델로 자동 재시도
  */
 export async function* generateTextStream(
   prompt: string,
   options: LLMGenerateOptions = {}
 ): AsyncGenerator<LLMStreamChunk> {
   const modelId = options.model || getDefaultModel();
-  const provider = getProviderByModel(modelId);
-
-  yield* provider.generateStream(prompt, { ...options, model: modelId });
+  
+  // ===========================================================================
+  // [2026-01-17] Fallback 모델 조회 (context가 있을 때만)
+  // ===========================================================================
+  const fallbackModelId = options.context 
+    ? getFallbackModel(options.context as LLMUsageContext) 
+    : undefined;
+  
+  try {
+    const provider = getProviderByModel(modelId);
+    yield* provider.generateStream(prompt, { ...options, model: modelId });
+  } catch (primaryError) {
+    // =========================================================================
+    // [2026-01-17] Primary 실패 시 Fallback으로 재시도
+    // =========================================================================
+    if (fallbackModelId) {
+      console.warn(`[Gateway] Primary model (${modelId}) failed:`, primaryError);
+      console.log(`[Gateway] Retrying with fallback model: ${fallbackModelId}`);
+      
+      const fallbackProvider = getProviderByModel(fallbackModelId);
+      yield* fallbackProvider.generateStream(prompt, { ...options, model: fallbackModelId });
+    } else {
+      // Fallback 없으면 원래 에러 그대로 throw
+      throw primaryError;
+    }
+  }
 }
 
 /**
