@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect } from 'react'
 import ShadowWriter from './ShadowWriter'
+import RichShadowWriter from './RichShadowWriter'
 import { ShadowWriterSettings, type TriggerMode } from './ShadowWriterSettings'
 import { useEditorState } from '@/hooks/useEditorState'
 import { useAutosave, type SaveStatus } from '@/hooks/useAutosave'
@@ -156,18 +157,32 @@ export default function ShadowWriterEditor() {
       </div>
 
       {/* -----------------------------------------------------------------------
-          Shadow Writer (메인 에디터)
+          [P3-02] 조건부 에디터 렌더링: RichShadowWriter vs ShadowWriter
+          - ENABLE_RICH_SHADOW_WRITER: TipTap 기반 Rich Editor (Muted Text 지원)
+          - 기본: ShadowWriter (기존 textarea 기반)
           ----------------------------------------------------------------------- */}
       <div className="flex-1 overflow-hidden">
-        <ShadowWriter
-          text={content}
-          onChange={handleContentChange}
-          projectId={projectId ?? undefined}
-          enabled={FEATURE_FLAGS.ENABLE_SHADOW_WRITER}
-          triggerMode={triggerMode}
-          fontSize={fontSize}
-          placeholder="글을 작성하세요... (Tab으로 제안 수락)"
-        />
+        {FEATURE_FLAGS.ENABLE_RICH_SHADOW_WRITER ? (
+          <RichShadowWriter
+            text={content}
+            onChange={handleContentChange}
+            projectId={projectId ?? undefined}
+            enabled={FEATURE_FLAGS.ENABLE_SHADOW_WRITER}
+            triggerMode={triggerMode}
+            fontSize={fontSize}
+            placeholder="글을 작성하세요... (Tab으로 제안 수락)"
+          />
+        ) : (
+          <ShadowWriter
+            text={content}
+            onChange={handleContentChange}
+            projectId={projectId ?? undefined}
+            enabled={FEATURE_FLAGS.ENABLE_SHADOW_WRITER}
+            triggerMode={triggerMode}
+            fontSize={fontSize}
+            placeholder="글을 작성하세요... (Tab으로 제안 수락)"
+          />
+        )}
       </div>
 
       {/* -----------------------------------------------------------------------

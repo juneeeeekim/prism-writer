@@ -445,6 +445,19 @@ export const FEATURE_FLAGS = {
    */
   SHADOW_WRITER_TRIGGER_MODE: (process.env.NEXT_PUBLIC_SHADOW_WRITER_TRIGGER_MODE || 'sentence-end') as 'auto' | 'sentence-end' | 'manual',
 
+  /**
+   * Rich Shadow Writer 활성화 (TipTap 기반 에디터)
+   * 환경 변수: NEXT_PUBLIC_ENABLE_RICH_SHADOW_WRITER
+   * 기본값: false (점진적 롤아웃)
+   *
+   * @description
+   * - TipTap 기반 Rich Text Editor 사용
+   * - Muted Text (비강조 텍스트) 마킹 기능 지원
+   * - 기존 ShadowWriter의 Ghost Text 기능 유지
+   * - 롤백: OFF 시 기존 ShadowWriter (textarea) 사용
+   */
+  ENABLE_RICH_SHADOW_WRITER: process.env.NEXT_PUBLIC_ENABLE_RICH_SHADOW_WRITER === 'true',
+
   // ==========================================================================
   // [DEEP-SCHOLAR] Deep Scholar Feature Flags (2026-01-09 추가)
   // ==========================================================================

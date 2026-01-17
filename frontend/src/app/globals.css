@@ -1520,3 +1520,21 @@ body {
 .dark .project-dropdown-link:hover {
   background: rgba(139, 92, 246, 0.1);
 }
+
+/* =============================================================================
+   [P1-02] Muted Text Styles (Phase 1)
+   ============================================================================= */
+.muted-text {
+  color: #9ca3af; /* Gray-400 */
+  font-style: italic;
+  font-size: 0.9em;
+  text-decoration: line-through;
+  opacity: 0.7;
+  transition: all 0.2s ease;
+}
+
+.muted-text:hover {
+  color: #4b5563; /* Gray-600 */
+  opacity: 1;
+  text-decoration: none;
+}
