@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { hybridSearch, type SearchResult } from '@/lib/rag/search'
 import { generateTextStream } from '@/lib/llm/gateway'
 // [2026-01-17] LLM Usage Map 연동 및 Fallback 지원
-import { getModelForUsage, getFallbackModel, getUsageConfig } from '@/config/llm-usage-map'
+import { getModelForUsage, getFallbackModel } from '@/config/llm-usage-map'
 import { createClient } from '@/lib/supabase/server'
 import { verifyCitation, hasCitationMarkers } from '@/lib/rag/citationGate'  // [Phase B] 마커 검증 추가
 import { MemoryService } from '@/lib/rag/memory'
@@ -461,7 +461,6 @@ ${context ? context : '관련된 참고 자료가 없습니다.'}
     // =========================================================================
     const primaryModelId = requestedModel || getModelForUsage('rag.answer')
     const fallbackModelId = getFallbackModel('rag.answer')
-    const usageConfig = getUsageConfig('rag.answer')
     console.log(`[Chat API] Primary model: ${primaryModelId}, Fallback: ${fallbackModelId || 'none'}`)
 
     // =========================================================================
@@ -478,8 +477,7 @@ ${context ? context : '관련된 참고 자료가 없습니다.'}
           try {
             // Primary 모델 시도
             for await (const chunk of generateTextStream(fullPrompt, { 
-              model: primaryModelId,
-              ...usageConfig?.generationConfig
+              model: primaryModelId
             })) {
               yield chunk
             }
@@ -492,8 +490,7 @@ ${context ? context : '관련된 참고 자료가 없습니다.'}
               
               // Fallback 모델로 재시도
               for await (const chunk of generateTextStream(fullPrompt, { 
-                model: fallbackModelId,
-                ...usageConfig?.generationConfig
+                model: fallbackModelId
               })) {
                 yield chunk
               }
