@@ -264,16 +264,21 @@ export default function SessionList({
                     </div>
                     
                     {/* Delete Button (Visible on Hover) */}
-                    <div 
-                      onClick={(e) => handleDelete(e, session.id)}
+                    {/* [2026-01-17 Fix] div→button 변경, 이벤트 전파 차단 강화 */}
+                    <button 
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        handleDelete(e, session.id)
+                      }}
                       className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                      role="button"
                       aria-label="세션 삭제"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
-                    </div>
+                    </button>
                   </button>
                 </li>
               ))}

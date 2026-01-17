@@ -126,12 +126,12 @@
 
 **Implementation Items:**
 
-- [ ] **P4-01**: Git 커밋 및 Push
+- [x] **P4-01**: Git 커밋 및 Push ✅ (Commit `8c26a9e`)
   - `Commit Message`: `feat(gateway): implement fallback retry logic at LLM gateway level`
 
-- [ ] **P4-02**: 정상 동작 테스트
+- [x] **P4-02**: 정상 동작 테스트 ✅
   - 채팅 시도 → 응답 정상 수신 확인
-  - 콘솔에서 `[Chat API] Using model (from llm-usage-map):` 로그 확인
+  - 서버 로그는 Vercel에서만 확인 가능 (브라우저 콘솔에서는 미표시)
 
 - [ ] **P4-03**: Fallback 동작 테스트 (선택)
   - `llm-usage-map.ts`의 `rag.answer.modelId`를 `invalid-model`로 임시 변경
@@ -141,9 +141,9 @@
 
 **Definition of Done (Phase 4):**
 
-- [ ] Vercel 배포 성공
-- [ ] 채팅 기능 정상 작동 확인
-- [ ] 불필요한 콘솔 로그 없음 (warn/error만 유지)
+- [x] Vercel 배포 성공 ✅
+- [x] 채팅 기능 정상 작동 확인 ✅
+- [x] 불필요한 콘솔 로그 없음 (warn/error만 유지) ✅
 
 ---
 
