@@ -344,14 +344,22 @@ export default function ResearchPanel({
                       setSearchedQuery(item.query)
                       // 캐시된 결과가 있으면 API 호출 없이 즉시 표시
                       if (item.resultsSummary && item.resultsSummary.length > 0) {
-                        const cachedResults = item.resultsSummary.map(r => ({
-                          title: r.title || '',
-                          url: r.url || '',
-                          keyFact: r.keyFact || '',
-                          source: new URL(r.url || 'https://unknown').hostname,
-                          summary: r.keyFact || '',
-                          publishedDate: '',
-                        }))
+                        const cachedResults = item.resultsSummary.map(r => {
+                          let hostname = 'unknown'
+                          try {
+                            if (r.url) hostname = new URL(r.url).hostname
+                          } catch (e) {
+                            // URL 파싱 실패 시 'unknown' 사용
+                          }
+                          return {
+                            title: r.title || '',
+                            url: r.url || '',
+                            keyFact: r.keyFact || '',
+                            source: hostname,
+                            summary: r.keyFact || '',
+                            publishedDate: '',
+                          }
+                        })
                         setResults(cachedResults as SummarizedResult[])
                         setViewMode('results')  // [P6-04] 결과 모드로 전환
                         toast.success(`캐시에서 ${item.resultCount}개 결과 로드`)
