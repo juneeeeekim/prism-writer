@@ -146,35 +146,31 @@ function EditorContent() {
   // Handler Functions
   // =============================================================================
   
-  // Phase 11: 실제 저장 기능 구현
-  const handleSave = async () => {
-    if (!user) {
-      toast.error('로그인이 필요합니다.')
-      return
-    }
-    
+  // ==========================================================================
+  // [P1-LOCAL] 로컬 파일 저장 기능 (오프라인 저장)
+  // - 클라우드(Supabase) 저장 대신 로컬 .md 파일로 다운로드
+  // - 로그인 불필요
+  // ==========================================================================
+  const handleSave = () => {
+    // 저장할 내용 체크
     if (!content && !title) {
       toast.warning('저장할 내용이 없습니다.')
       return
     }
-    
+
     setIsSaving(true)
     try {
-      const result = await saveDocument({
-        id: documentId || undefined,
-        title: title || '제목 없음',
-        content: content || ''
-      })
-      
-      // 새 문서면 ID 세팅
-      if (!documentId && result.id) {
-        setDocumentId(result.id)
+      // 파일명 생성: 제목이 없으면 '제목없음' 사용
+      const filename = `${sanitizeFilename(title || '제목없음')}.md`
+      const success = downloadFile(filename, content || '', 'text/markdown')
+
+      if (success) {
+        markAsSaved()
+        toast.success(`저장되었습니다! (${filename})`)
+      } else {
+        toast.error('저장에 실패했습니다.')
       }
-      
-      markAsSaved()
-      toast.success('저장되었습니다!')
     } catch (error) {
-      // [P1-02] 에러 메시지 개선: 실제 에러 내용 포함
       console.error('[EditorPage] Save error:', error)
       const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류'
       toast.error(`저장 실패: ${errorMessage}`)
@@ -183,21 +179,8 @@ function EditorContent() {
     }
   }
 
-  const handleExport = () => {
-    if (!content) {
-      toast.warning('내보낼 내용이 없습니다.')
-      return
-    }
-
-    const filename = `${sanitizeFilename(title)}.md`
-    const success = downloadFile(filename, content, 'text/markdown')
-    
-    if (success) {
-      toast.success('Markdown 파일로 내보냈습니다.')
-    } else {
-      toast.error('내보내기에 실패했습니다.')
-    }
-  }
+  // [P1-LOCAL] 내보내기 함수는 저장과 동일하므로 handleSave 재사용
+  const handleExport = handleSave
 
   const handleEvaluate = async () => {
     if (!content || content.length < 10) {
