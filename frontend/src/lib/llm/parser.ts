@@ -76,7 +76,17 @@ const REQUIRED_RUBRIC_FIELDS = ['rubric_item', 'status', 'evidence_quotes', 'rec
  * @param text - LLM 응답 텍스트
  * @returns 추출된 JSON 문자열 또는 null
  */
-function extractJSON(text: string): string | null {
+/**
+ * JSON 블록 추출
+ * 
+ * @description
+ * LLM 응답에서 JSON 블록을 추출합니다.
+ * 마크다운 코드 블록(```json ... ```) 또는 순수 JSON을 처리합니다.
+ * 
+ * @param text - LLM 응답 텍스트
+ * @returns 추출된 JSON 문자열 또는 null
+ */
+export function extractJSON(text: string): string | null {
   if (!text) return null
 
   // 1. 마크다운 JSON 코드 블록 찾기
@@ -100,6 +110,13 @@ function extractJSON(text: string): string | null {
   const endIndex = text.lastIndexOf('}')
   if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
     return text.slice(startIndex, endIndex + 1)
+  }
+
+  // 4. 배열 JSON 찾기 (첫 번째 [ 부터 마지막 ] 까지)
+  const startArrayIndex = text.indexOf('[')
+  const endArrayIndex = text.lastIndexOf(']')
+  if (startArrayIndex !== -1 && endArrayIndex !== -1 && endArrayIndex > startArrayIndex) {
+    return text.slice(startArrayIndex, endArrayIndex + 1)
   }
 
   return null

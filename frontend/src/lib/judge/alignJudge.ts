@@ -4,6 +4,7 @@ import { type TemplateSchema } from '../rag/templateTypes'
 import { type JudgeResult } from './types'
 // [P3-06] Feature Flags import
 import { FEATURE_FLAGS } from '@/config/featureFlags'
+import { extractJSON } from '@/lib/llm/parser'
 // P2-08-A: LLM 중앙 관리 마이그레이션 (2026-01-10)
 import { getModelForUsage, getUsageConfig } from '@/config/llm-usage-map'
 
@@ -111,13 +112,18 @@ ${
   "reasoning": "판정 이유 (한글로 간결하게)"
 }`
       }
+  "reasoning": "판정 이유 (한글로 간결하게)"
+}
+
+[CRITICAL INSTRUCTION]
+DO NOT use markdown code blocks (like \`\`\`json).
+Output raw JSON object only.
 `
 
   try {
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: { 
-        responseMimeType: 'application/json',
         temperature: config?.generationConfig?.temperature ?? 0.1,  // Centralized or default strict
         topP: config?.generationConfig?.topP,
         topK: config?.generationConfig?.topK,
@@ -129,9 +135,10 @@ ${
     
     if (!rawText) throw new Error('No content generated')
 
-    // JSON 정제 및 파싱
-    const sanitizedText = sanitizeJSON(rawText)
-    const parsed = JSON.parse(sanitizedText)
+    // JSON 정제 및 파싱 (Robust Parsing for Gemma 3)
+    const jsonString = extractJSON(rawText)
+    if (!jsonString) throw new Error('Failed to parse JSON response')
+    const parsed = JSON.parse(jsonString)
 
     return {
       criteria_id: criteria.criteria_id || 'unknown',

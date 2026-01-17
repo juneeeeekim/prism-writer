@@ -3,6 +3,7 @@ import { type TemplateSchema } from './templateTypes'
 import { type Chunk } from './search'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { getModelForUsage } from '@/config/llm-usage-map'
+import { extractJSON } from '@/lib/llm/parser'
 
 // =============================================================================
 // 타입 정의
@@ -146,7 +147,6 @@ export async function validateHallucinationGate(
     model: getModelForUsage('template.hallucination'),
     generationConfig: {
       temperature: 1.0,  // Gemini 3 권장 (Gemini_3_Flash_Reference.md)
-      responseMimeType: 'application/json',
     },
   })
   const context = sourceChunks.map(c => c.content).join('\n\n')
@@ -167,6 +167,8 @@ JSON 형식으로 응답해주세요:
   "reason": "string",
   "score": number (0.0-1.0)
 }
+
+[CRITICAL] Output raw JSON only. Do not use markdown.
 `
 
   try {
@@ -177,11 +179,12 @@ JSON 형식으로 응답해주세요:
     const content = response.response.text()
     if (!content) throw new Error('No content')
 
-    // JSON 파싱 (Gemini는 JSON 응답을 텍스트로 반환할 수 있음)
-    const jsonMatch = content.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) throw new Error('No JSON in response')
-
-    return JSON.parse(jsonMatch[0]) as GateResult
+    // JSON 파싱 (Gemini/Gemma 호환)
+    const jsonString = extractJSON(content)
+    if (!jsonString) throw new Error('No JSON in response')
+    
+    // 타입 단언 (GateResult)
+    return JSON.parse(jsonString) as GateResult
   } catch (error) {
     console.error('[HallucinationGate] Validation failed:', error)
     return { passed: true, reason: 'Validation skipped due to error', score: 0.5 }

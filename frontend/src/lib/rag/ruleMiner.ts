@@ -4,6 +4,7 @@ import { fullTextSearch } from './search'
 import { generateRuleExtractionPrompt, RULE_EXTRACTION_SYSTEM_PROMPT } from './prompts/ruleExtraction'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { getModelForUsage } from '@/config/llm-usage-map'
+import { extractJSON } from '@/lib/llm/parser'
 
 // =============================================================================
 // 타입 정의
@@ -106,7 +107,6 @@ async function extractRulesFromChunks(chunks: string[], category: string): Promi
     model: getModelForUsage('rule.mining'),
     generationConfig: {
       temperature: 1.0,  // Gemini 3 권장 (Gemini_3_Flash_Reference.md)
-      responseMimeType: 'application/json',
     },
     systemInstruction: RULE_EXTRACTION_SYSTEM_PROMPT,
   })
@@ -121,11 +121,12 @@ async function extractRulesFromChunks(chunks: string[], category: string): Promi
     const content = response.response.text()
     if (!content) return []
 
-    // JSON 파싱 (Gemini는 JSON 응답을 텍스트로 반환할 수 있음)
-    const jsonMatch = content.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) return []
+    // JSON 파싱 (Gemma 3 호환)
+    const jsonString = extractJSON(content)
+    if (!jsonString) return []
 
-    const result = JSON.parse(jsonMatch[0])
+    const result = JSON.parse(jsonString)
+
     return result.rules?.map((r: any) => r.content) || [] // JSON 구조에 따라 조정 필요
   } catch (error) {
     console.error('[RuleMiner] Extraction failed:', error)

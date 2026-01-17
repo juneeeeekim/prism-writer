@@ -110,7 +110,7 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
     },
   },
   'rag.reviewer': {
-    modelId: 'gemini-3-flash-preview',  // [2026-01-18 Hotfix] gemma-3-27b-it -> JSON mode 지원 모델로 변경
+    modelId: 'gemma-3-27b-it',
     maxTokens: 500,
     description: 'RAG 답변 품질 검토',
     // [Lossless] 무손실 검증 구간
@@ -145,7 +145,7 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
     },
   },
   'template.hallucination': {
-    modelId: 'gemini-3-flash-preview',  // [2026-01-18 Hotfix] gemma-3-27b-it -> JSON mode 지원 모델로 변경
+    modelId: 'gemma-3-27b-it',
     description: '환각 검증 (Hallucination Gate)',
     // [Lossless] 할루시네이션 탐지는 팩트 기반이므로 결정적
     generationConfig: {
@@ -180,7 +180,7 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
     },
   },
   'rule.mining': {
-    modelId: 'gemini-3-flash-preview',  // [2026-01-18 Hotfix] gemma-3-27b-it -> JSON mode 지원 모델로 변경
+    modelId: 'gemma-3-27b-it',
     description: '문법/스타일 규칙 마이닝',
     // [Lossless] 규칙은 정확해야 함
     generationConfig: {
@@ -338,7 +338,7 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
   // Judge System (평가)
   // ---------------------------------------------------------------------------
   'judge.align': {
-    modelId: 'gemini-3-flash-preview',  // [2026-01-18 Hotfix] gemma-3-27b-it -> JSON mode 지원 모델로 변경
+    modelId: 'gemma-3-27b-it',
     description: '개별 항목 평가 (Align Judge)',
     // [Lossless] 평가는 엄격하게 결정적 (재현성 중요)
     generationConfig: {
