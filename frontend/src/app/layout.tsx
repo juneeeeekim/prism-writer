@@ -6,14 +6,19 @@
 // =============================================================================
 
 import type { Metadata } from 'next'
+import dynamic from 'next/dynamic'
 import './globals.css'
 import ToastContainer from '@/components/ui/ToastContainer'
 // =============================================================================
-// [P-A03-02] Vercel Analytics 컴포넌트 import
+// [P-A03-02] Vercel Analytics 컴포넌트 - 동적 import
 // 페이지뷰, 사용자 행동 분석을 위한 Vercel Analytics
 // - 개발 환경에서는 자동 비활성화됨 (Vercel 환경 아니면 noop)
+// - [Performance] hydration 후 로드로 초기 번들 크기 절약
 // =============================================================================
-import { Analytics } from '@vercel/analytics/react'
+const AnalyticsProvider = dynamic(
+  () => import('@/components/analytics/AnalyticsProvider'),
+  { ssr: false }
+)
 
 // -----------------------------------------------------------------------------
 // Metadata (SEO)
@@ -48,8 +53,9 @@ export default function RootLayout({
             - Vercel 배포 환경에서 자동으로 페이지뷰 및 사용자 행동 추적
             - 개발 환경(localhost)에서는 noop (데이터 수집 안함)
             - Vercel 대시보드에서 실시간 분석 확인 가능
+            - [Performance] 동적 import로 초기 번들 크기 절약
             ===================================================================== */}
-        <Analytics />
+        <AnalyticsProvider />
       </body>
     </html>
   )

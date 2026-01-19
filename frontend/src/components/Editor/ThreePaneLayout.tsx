@@ -20,12 +20,28 @@ export default function ThreePaneLayout({
   const [activeTab, setActiveTab] = useState<Tab>('editor')
   const [isMobile, setIsMobile] = useState(false)
 
-  // 화면 크기 감지
+  // ==========================================================================
+  // [Performance] 화면 크기 감지 - matchMedia 사용
+  // 기존: resize 이벤트로 매 픽셀마다 리렌더링 발생
+  // 개선: matchMedia로 breakpoint 변경 시에만 리렌더링
+  // ==========================================================================
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 1024)
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
+    // matchMedia를 사용하여 1024px breakpoint 감지
+    const mediaQuery = window.matchMedia('(max-width: 1023px)')
+
+    // 초기값 설정
+    setIsMobile(mediaQuery.matches)
+
+    // breakpoint 변경 시에만 콜백 실행 (픽셀 단위 X)
+    const handleChange = (e: MediaQueryListEvent) => {
+      setIsMobile(e.matches)
+    }
+
+    // 이벤트 리스너 등록
+    mediaQuery.addEventListener('change', handleChange)
+
+    // 클린업
+    return () => mediaQuery.removeEventListener('change', handleChange)
   }, [])
 
   // 모바일 뷰 (탭 전환)

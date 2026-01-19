@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, memo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useEditorState } from '@/hooks/useEditorState'
@@ -54,6 +54,158 @@ interface ChatTabProps {
   onSessionChange: (sessionId: string) => void
 }
 
+// =============================================================================
+// [Performance] 메모이제이션된 메시지 아이템 컴포넌트
+// - React.memo로 불필요한 리렌더링 방지
+// - content-visibility: auto로 화면 밖 메시지 렌더링 최적화
+// =============================================================================
+interface MessageItemProps {
+  message: Message
+  projectId: string | null
+}
+
+const MessageItem = memo(function MessageItem({ message, projectId }: MessageItemProps) {
+  return (
+    <div
+      className="flex message-item"
+      style={{
+        justifyContent: message.role === 'user' ? 'flex-end' : 'flex-start',
+        // [Performance] 화면 밖 메시지 렌더링 스킵
+        contentVisibility: 'auto',
+        containIntrinsicSize: '0 80px',
+      }}
+    >
+      <div
+        className={`max-w-[85%] rounded-lg p-3 ${
+          message.role === 'user'
+            ? 'bg-prism-primary text-white'
+            : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+        }`}
+      >
+        {message.role === 'user' ? (
+          <p className="whitespace-pre-wrap break-words">{message.content}</p>
+        ) : (
+          <div className="prose dark:prose-invert max-w-none text-sm break-words">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                code({ node, inline, className, children, ...props }: any) {
+                  const match = /language-(\w+)/.exec(className || '')
+                  return !inline && match ? (
+                    <div className="bg-gray-800 text-white p-2 rounded overflow-x-auto my-2">
+                      <code className={className} {...props}>
+                        {children}
+                      </code>
+                    </div>
+                  ) : (
+                    <code className={className} {...props}>
+                      {children}
+                    </code>
+                  )
+                },
+              }}
+            >
+              {message.content}
+            </ReactMarkdown>
+          </div>
+        )}
+        <span className="text-xs opacity-70 mt-1 block">
+          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </span>
+      </div>
+
+      {/* Citation Verification Badge - [Phase C] 구간별 메시지 개선 */}
+      {message.role === 'assistant' && message.metadata?.citation_verification && (() => {
+        const score = message.metadata.citation_verification.matchScore
+        const scorePercent = Math.round(score * 100)
+
+        let badgeStyle: string
+        let badgeIcon: string
+        let badgeText: string
+
+        if (score >= 0.7) {
+          badgeStyle = 'bg-green-100 text-green-700'
+          badgeIcon = '✅'
+          badgeText = '원문 직접 인용'
+        } else if (score >= 0.4) {
+          badgeStyle = 'bg-blue-100 text-blue-700'
+          badgeIcon = '📝'
+          badgeText = '참고 기반 작성'
+        } else {
+          badgeStyle = 'bg-gray-100 text-gray-600'
+          badgeIcon = 'ℹ️'
+          badgeText = 'AI 요약 답변'
+        }
+
+        return (
+          <div className="mt-1 flex items-center gap-2 flex-wrap">
+            <div className={`text-xs px-2 py-1 rounded w-fit ${badgeStyle}`}>
+              {badgeIcon} {badgeText}
+              {scorePercent > 0 && ` (${scorePercent}%)`}
+            </div>
+            {message.metadata.rubric_tier && (
+              <div className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                {TIER_CONFIG[message.metadata.rubric_tier].label}
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
+      {/* [FE-A/UX-A] 접이식 참고자료 카드 */}
+      {message.role === 'assistant' && message.metadata?.sources && message.metadata.sources.length > 0 && (
+        <details className="mt-2 group">
+          <summary className="cursor-pointer text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center gap-1">
+            <span>📚 사용된 참고자료 ({message.metadata.sources.length}개)</span>
+            <svg className="w-3 h-3 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </summary>
+          <div className="mt-2 space-y-1.5 pl-1">
+            {message.metadata.sources.map((source) => {
+              const scorePercent = Math.round(source.score * 100)
+              let barColor = 'bg-gray-300'
+              let dotColor = '🟠'
+              if (scorePercent >= 80) {
+                barColor = 'bg-green-500'
+                dotColor = '🟢'
+              } else if (scorePercent >= 60) {
+                barColor = 'bg-yellow-400'
+                dotColor = '🟡'
+              }
+
+              return (
+                <div key={source.chunkId} className="flex items-center gap-2 text-xs">
+                  <span>{dotColor}</span>
+                  <span className="truncate max-w-[150px] text-gray-700 dark:text-gray-300" title={source.title}>
+                    {source.title}
+                  </span>
+                  <div className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden min-w-[50px] max-w-[80px]">
+                    <div
+                      className={`h-full ${barColor} transition-all`}
+                      style={{ width: `${scorePercent}%` }}
+                    />
+                  </div>
+                  <span className="text-gray-400 w-8 text-right">{scorePercent}%</span>
+                </div>
+              )
+            })}
+          </div>
+        </details>
+      )}
+
+      {/* [P4-04-02] Adaptive Feedback Buttons */}
+      {message.role === 'assistant' && projectId && (
+        <AdaptiveFeedbackButtons
+          messageId={message.id}
+          projectId={projectId}
+          initialFeedback={message.feedback}
+        />
+      )}
+    </div>
+  )
+})
+
 /** 로컬 백업 데이터 구조 */
 interface BackupData {
   messages: Array<{
@@ -68,7 +220,57 @@ interface BackupData {
 
 // =============================================================================
 // Local Backup Utilities (Pipeline v5: 메시지 저장 실패 시 로컬 백업)
+// [Performance] localStorage 캐싱으로 반복적인 I/O 비용 절감
 // =============================================================================
+
+/**
+ * [Performance] localStorage 캐시
+ * - 매번 localStorage.getItem() 호출 대신 메모리 캐시 사용
+ * - 쓰기 시 캐시와 localStorage 동시 업데이트
+ */
+let backupCache: BackupData | null = null
+
+/**
+ * [Performance] 캐시된 백업 데이터 가져오기
+ * - 캐시가 없으면 localStorage에서 읽어서 캐시에 저장
+ * - 캐시가 있으면 캐시 반환 (I/O 스킵)
+ */
+function getCachedBackup(): BackupData {
+  if (typeof window === 'undefined') {
+    return { messages: [], lastUpdated: '' }
+  }
+
+  if (backupCache !== null) {
+    return backupCache
+  }
+
+  try {
+    const existing = localStorage.getItem(LOCAL_BACKUP_KEY)
+    const parsed: BackupData = existing
+      ? JSON.parse(existing)
+      : { messages: [], lastUpdated: '' }
+    backupCache = parsed
+    return parsed
+  } catch {
+    const empty: BackupData = { messages: [], lastUpdated: '' }
+    backupCache = empty
+    return empty
+  }
+}
+
+/**
+ * [Performance] 백업 데이터 저장 (캐시 + localStorage 동시 업데이트)
+ */
+function saveBackup(backup: BackupData): void {
+  if (typeof window === 'undefined') return
+
+  try {
+    backupCache = backup
+    localStorage.setItem(LOCAL_BACKUP_KEY, JSON.stringify(backup))
+  } catch (error) {
+    console.warn('[LocalBackup] Failed to save backup:', error)
+  }
+}
 
 /**
  * 로컬 백업에 메시지 추가
@@ -77,6 +279,7 @@ interface BackupData {
  * 주석(시니어 개발자): 메시지 저장 실패 시 localStorage에 백업
  * - 최대 50개까지 보관
  * - 동기화 상태 추적 (pending/failed/synced)
+ * - [Performance] 캐시 활용으로 I/O 최소화
  */
 function addToLocalBackup(
   sessionId: string | null,
@@ -87,10 +290,7 @@ function addToLocalBackup(
   if (typeof window === 'undefined') return
 
   try {
-    const existing = localStorage.getItem(LOCAL_BACKUP_KEY)
-    const backup: BackupData = existing
-      ? JSON.parse(existing)
-      : { messages: [], lastUpdated: '' }
+    const backup = getCachedBackup()
 
     backup.messages.push({
       sessionId,
@@ -106,7 +306,7 @@ function addToLocalBackup(
     }
 
     backup.lastUpdated = new Date().toISOString()
-    localStorage.setItem(LOCAL_BACKUP_KEY, JSON.stringify(backup))
+    saveBackup(backup)
   } catch (error) {
     console.warn('[LocalBackup] Failed to save backup:', error)
   }
@@ -114,15 +314,13 @@ function addToLocalBackup(
 
 /**
  * 로컬 백업에서 실패한 메시지 가져오기
+ * [Performance] 캐시에서 직접 필터링
  */
 function getFailedBackups(): BackupData['messages'] {
   if (typeof window === 'undefined') return []
 
   try {
-    const existing = localStorage.getItem(LOCAL_BACKUP_KEY)
-    if (!existing) return []
-
-    const backup: BackupData = JSON.parse(existing)
+    const backup = getCachedBackup()
     return backup.messages.filter(m => m.syncStatus === 'failed')
   } catch {
     return []
@@ -131,6 +329,7 @@ function getFailedBackups(): BackupData['messages'] {
 
 /**
  * 로컬 백업 메시지 상태 업데이트
+ * [Performance] 캐시에서 직접 수정 후 저장
  */
 function updateBackupStatus(
   timestamp: string,
@@ -139,15 +338,11 @@ function updateBackupStatus(
   if (typeof window === 'undefined') return
 
   try {
-    const existing = localStorage.getItem(LOCAL_BACKUP_KEY)
-    if (!existing) return
-
-    const backup: BackupData = JSON.parse(existing)
+    const backup = getCachedBackup()
     const msg = backup.messages.find(m => m.timestamp === timestamp)
     if (msg) {
       msg.syncStatus = newStatus
-      // synced 메시지는 일정 시간 후 삭제 가능
-      localStorage.setItem(LOCAL_BACKUP_KEY, JSON.stringify(backup))
+      saveBackup(backup)
     }
   } catch {
     // ignore
@@ -490,152 +685,13 @@ export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
           </div>
         )}
         
+        {/* [Performance] 메모이제이션된 MessageItem 컴포넌트 사용 */}
         {messages.map((message) => (
-          <div
+          <MessageItem
             key={message.id}
-            className={`flex ${
-              message.role === 'user' ? 'justify-end' : 'justify-start'
-            }`}
-          >
-            <div
-              className={`max-w-[85%] rounded-lg p-3 ${
-                message.role === 'user'
-                  ? 'bg-prism-primary text-white'
-                  : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
-              }`}
-            >
-              {message.role === 'user' ? (
-                <p className="whitespace-pre-wrap break-words">{message.content}</p>
-              ) : (
-                <div className="prose dark:prose-invert max-w-none text-sm break-words">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      code({ node, inline, className, children, ...props }: any) {
-                        const match = /language-(\w+)/.exec(className || '')
-                        return !inline && match ? (
-                          <div className="bg-gray-800 text-white p-2 rounded overflow-x-auto my-2">
-                            <code className={className} {...props}>
-                              {children}
-                            </code>
-                          </div>
-                        ) : (
-                          <code className={className} {...props}>
-                            {children}
-                          </code>
-                        )
-                      },
-                    }}
-                  >
-                    {message.content}
-                  </ReactMarkdown>
-                </div>
-              )}
-              <span className="text-xs opacity-70 mt-1 block">
-                {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </span>
-              </div>
-              
-              {/* Citation Verification Badge - [Phase C] 구간별 메시지 개선 */}
-              {message.role === 'assistant' && message.metadata?.citation_verification && (() => {
-                const score = message.metadata.citation_verification.matchScore
-                const scorePercent = Math.round(score * 100)
-                
-                // [Phase C] 구간별 스타일 및 메시지 정의
-                let badgeStyle: string
-                let badgeIcon: string
-                let badgeText: string
-                
-                if (score >= 0.7) {
-                  // 70% 이상: 원문 직접 인용
-                  badgeStyle = 'bg-green-100 text-green-700'
-                  badgeIcon = '✅'
-                  badgeText = '원문 직접 인용'
-                } else if (score >= 0.4) {
-                  // 40~70%: 참고 기반 작성
-                  badgeStyle = 'bg-blue-100 text-blue-700'
-                  badgeIcon = '📝'
-                  badgeText = '참고 기반 작성'
-                } else {
-                  // 40% 미만: AI 요약 답변
-                  badgeStyle = 'bg-gray-100 text-gray-600'
-                  badgeIcon = 'ℹ️'
-                  badgeText = 'AI 요약 답변'
-                }
-                
-                return (
-                  <div className="mt-1 flex items-center gap-2 flex-wrap">
-                    {/* 검증 상태 뼉지 */}
-                    <div className={`text-xs px-2 py-1 rounded w-fit ${badgeStyle}`}>
-                      {badgeIcon} {badgeText}
-                      {scorePercent > 0 && ` (${scorePercent}%)`}
-                    </div>
-                    {/* [P1-02] 티어 정보 뼉지 */}
-                    {message.metadata.rubric_tier && (
-                      <div className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                        {TIER_CONFIG[message.metadata.rubric_tier].label}
-                      </div>
-                    )}
-                  </div>
-                )
-              })()}
-              
-              {/* [FE-A/UX-A] 접이식 참고자료 카드 */}
-              {message.role === 'assistant' && message.metadata?.sources && message.metadata.sources.length > 0 && (
-                <details className="mt-2 group">
-                  <summary className="cursor-pointer text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center gap-1">
-                    <span>📚 사용된 참고자료 ({message.metadata.sources.length}개)</span>
-                    <svg className="w-3 h-3 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </summary>
-                  <div className="mt-2 space-y-1.5 pl-1">
-                    {message.metadata.sources.map((source, idx) => {
-                      // [UX-A] 신뢰도 색상 결정
-                      const scorePercent = Math.round(source.score * 100)
-                      let barColor = 'bg-gray-300'
-                      let dotColor = '🟠'  // 주황
-                      if (scorePercent >= 80) {
-                        barColor = 'bg-green-500'
-                        dotColor = '🟢'  // 녹색
-                      } else if (scorePercent >= 60) {
-                        barColor = 'bg-yellow-400'
-                        dotColor = '🟡'  // 노랑
-                      }
-                      
-                      return (
-                        <div key={source.chunkId} className="flex items-center gap-2 text-xs">
-                          <span>{dotColor}</span>
-                          <span className="truncate max-w-[150px] text-gray-700 dark:text-gray-300" title={source.title}>
-                            {source.title}
-                          </span>
-                          {/* [UX-A] 신뢰도 프로그레스 바 */}
-                          <div className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden min-w-[50px] max-w-[80px]">
-                            <div 
-                              className={`h-full ${barColor} transition-all`}
-                              style={{ width: `${scorePercent}%` }}
-                            />
-                          </div>
-                          <span className="text-gray-400 w-8 text-right">{scorePercent}%</span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </details>
-              )}
-              
-              {/* =========================================================== */}
-              {/* [P4-04-02] Adaptive Feedback Buttons - 프로젝트 격리 */}
-              {/* [Feedback Sync] P2-03: initialFeedback prop 전달 */}
-              {/* =========================================================== */}
-              {message.role === 'assistant' && projectId && (
-                <AdaptiveFeedbackButtons 
-                  messageId={message.id} 
-                  projectId={projectId}
-                  initialFeedback={message.feedback}
-                />
-              )}
-            </div>
+            message={message}
+            projectId={projectId}
+          />
         ))}
         <div ref={messagesEndRef} />
       </div>

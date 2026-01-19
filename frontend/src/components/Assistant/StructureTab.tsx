@@ -15,6 +15,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import dynamic from 'next/dynamic'
 import { useProject } from '@/contexts/ProjectContext'
 import { useToast } from '@/hooks/useToast'
 import type {
@@ -24,8 +25,27 @@ import type {
   GapSuggestion,
 } from '@/lib/rag/structureHelpers'
 import DocumentCard from '@/components/structure/DocumentCard'
+
+// =============================================================================
 // [P4-03] Dynamic Outline Map 시각화 컴포넌트
-import OutlineMap from '@/components/structure/OutlineMap'
+// [Performance] ReactFlow (~100KB+) 동적 로딩으로 초기 번들 크기 절약
+// - ssr: false → 클라이언트 전용 렌더링
+// - loading → 로딩 중 스켈레톤 표시
+// =============================================================================
+const OutlineMap = dynamic(
+  () => import('@/components/structure/OutlineMap'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-[400px] bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="text-center">
+          <div className="animate-spin text-3xl mb-2">⏳</div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">맵 로딩 중...</p>
+        </div>
+      </div>
+    ),
+  }
+)
 
 // =============================================================================
 // [P4-01] 타입 정의
