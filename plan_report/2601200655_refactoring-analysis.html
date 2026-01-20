@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PRISM Writer - 코드 리팩토링 분석 보고서</title>
+  <style>
+    :root {
+      --color-critical: #dc2626;
+      --color-warning: #ea580c;
+      --color-caution: #ca8a04;
+      --color-good: #16a34a;
+      --color-primary: #6366f1;
+      --color-bg: #f8fafc;
+      --color-card: #ffffff;
+      --color-border: #e2e8f0;
+      --color-text: #1e293b;
+      --color-text-muted: #64748b;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--color-bg);
+      color: var(--color-text);
+      line-height: 1.6;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 3rem;
+      padding-bottom: 2rem;
+      border-bottom: 2px solid var(--color-border);
+    }
+
+    header h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    header .subtitle {
+      color: var(--color-text-muted);
+      font-size: 1.1rem;
+    }
+
+    .meta-info {
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      margin-top: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+      color: var(--color-text-muted);
+      background: white;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      border: 1px solid var(--color-border);
+    }
+
+    .team-section {
+      background: var(--color-card);
+      border-radius: 16px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .team-section h2 {
+      font-size: 1.3rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+    }
+
+    .team-card {
+      background: #f8fafc;
+      border-radius: 12px;
+      padding: 1.25rem;
+      border: 1px solid var(--color-border);
+    }
+
+    .team-card .role {
+      font-weight: 600;
+      color: var(--color-primary);
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .team-card .desc {
+      font-size: 0.85rem;
+      color: var(--color-text-muted);
+    }
+
+    .summary-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .summary-card {
+      background: var(--color-card);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      border-top: 4px solid;
+    }
+
+    .summary-card.critical { border-top-color: var(--color-critical); }
+    .summary-card.warning { border-top-color: var(--color-warning); }
+    .summary-card.caution { border-top-color: var(--color-caution); }
+    .summary-card.total { border-top-color: var(--color-primary); }
+
+    .summary-card .count {
+      font-size: 2.5rem;
+      font-weight: 700;
+    }
+
+    .summary-card.critical .count { color: var(--color-critical); }
+    .summary-card.warning .count { color: var(--color-warning); }
+    .summary-card.caution .count { color: var(--color-caution); }
+    .summary-card.total .count { color: var(--color-primary); }
+
+    .summary-card .label {
+      color: var(--color-text-muted);
+      font-size: 0.9rem;
+      margin-top: 0.25rem;
+    }
+
+    .summary-card .criteria {
+      font-size: 0.75rem;
+      color: var(--color-text-muted);
+      margin-top: 0.5rem;
+      opacity: 0.8;
+    }
+
+    section {
+      margin-bottom: 2.5rem;
+    }
+
+    section > h2 {
+      font-size: 1.4rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .severity-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .severity-badge.critical { background: #fef2f2; color: var(--color-critical); }
+    .severity-badge.warning { background: #fff7ed; color: var(--color-warning); }
+    .severity-badge.caution { background: #fefce8; color: var(--color-caution); }
+
+    .file-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--color-card);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 1.5rem;
+    }
+
+    .file-table th,
+    .file-table td {
+      padding: 1rem;
+      text-align: left;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .file-table th {
+      background: #f8fafc;
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+    }
+
+    .file-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .file-table .file-path {
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+      font-size: 0.85rem;
+      color: var(--color-primary);
+    }
+
+    .file-table .lines {
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .file-table .lines.critical { color: var(--color-critical); }
+    .file-table .lines.warning { color: var(--color-warning); }
+
+    .file-table .issue {
+      font-size: 0.9rem;
+      color: var(--color-text-muted);
+    }
+
+    .file-table .action {
+      font-size: 0.85rem;
+    }
+
+    .refactor-card {
+      background: var(--color-card);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      border: 1px solid var(--color-border);
+    }
+
+    .refactor-card h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .refactor-card .file-info {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+    }
+
+    .refactor-card .file-path {
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+      color: var(--color-primary);
+      background: #f1f5f9;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+    }
+
+    .refactor-card .line-count {
+      font-weight: 700;
+      color: var(--color-critical);
+    }
+
+    .structure-preview {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 1rem;
+      border-radius: 8px;
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      overflow-x: auto;
+    }
+
+    .structure-preview .folder { color: #fbbf24; }
+    .structure-preview .file { color: #86efac; }
+    .structure-preview .new { color: #f472b6; }
+    .structure-preview .comment { color: #94a3b8; }
+
+    .priority-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--color-card);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .priority-table th,
+    .priority-table td {
+      padding: 1rem;
+      text-align: left;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .priority-table th {
+      background: #f8fafc;
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+    }
+
+    .priority-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .priority-num {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+    }
+
+    .principles-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+    }
+
+    .principle-card {
+      background: var(--color-card);
+      border-radius: 12px;
+      padding: 1.25rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      border-left: 4px solid var(--color-primary);
+    }
+
+    .principle-card h4 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .principle-card p {
+      font-size: 0.9rem;
+      color: var(--color-text-muted);
+    }
+
+    .expert-quote {
+      background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-top: 2rem;
+      border-left: 4px solid #0ea5e9;
+    }
+
+    .expert-quote .title {
+      font-weight: 600;
+      color: #0369a1;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .expert-quote p {
+      color: #0c4a6e;
+      font-size: 0.95rem;
+      line-height: 1.7;
+    }
+
+    footer {
+      text-align: center;
+      padding-top: 2rem;
+      border-top: 1px solid var(--color-border);
+      color: var(--color-text-muted);
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding: 1rem;
+      }
+
+      header h1 {
+        font-size: 1.75rem;
+      }
+
+      .meta-info {
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .summary-cards {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .file-table {
+        font-size: 0.85rem;
+      }
+
+      .file-table th,
+      .file-table td {
+        padding: 0.75rem 0.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>코드 리팩토링 분석 보고서</h1>
+      <p class="subtitle">PRISM Writer 프로젝트 - 코드 품질 및 구조 개선 분석</p>
+      <div class="meta-info">
+        <div class="meta-item">
+          <span>📅</span>
+          <span>분석일: 2026년 1월 20일</span>
+        </div>
+        <div class="meta-item">
+          <span>📁</span>
+          <span>분석 대상: 프론트엔드 (Next.js 14)</span>
+        </div>
+        <div class="meta-item">
+          <span>📊</span>
+          <span>총 파일 수: 400줄 이상 34개</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Team Section -->
+    <div class="team-section">
+      <h2>👥 분석 참여 팀</h2>
+      <div class="team-grid">
+        <div class="team-card">
+          <div class="role">🎯 기술 리더 (Tech Lead)</div>
+          <div class="desc">전체 아키텍처 설계 및 코드 품질 관리 담당</div>
+        </div>
+        <div class="team-card">
+          <div class="role">⚡ Vercel Best Practices 전문가</div>
+          <div class="desc">React/Next.js 성능 최적화 및 코드 구조 분석</div>
+        </div>
+        <div class="team-card">
+          <div class="role">🔧 시니어 프론트엔드 개발자</div>
+          <div class="desc">컴포넌트 설계 및 상태 관리 담당</div>
+        </div>
+        <div class="team-card">
+          <div class="role">🛠️ 백엔드/API 개발자</div>
+          <div class="desc">API 라우트 및 서버 로직 담당</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="summary-cards">
+      <div class="summary-card critical">
+        <div class="count">6</div>
+        <div class="label">긴급 (Critical)</div>
+        <div class="criteria">700줄 이상</div>
+      </div>
+      <div class="summary-card warning">
+        <div class="count">6</div>
+        <div class="label">주의 (Warning)</div>
+        <div class="criteria">500-700줄</div>
+      </div>
+      <div class="summary-card caution">
+        <div class="count">22</div>
+        <div class="label">관찰 (Caution)</div>
+        <div class="criteria">400-500줄</div>
+      </div>
+      <div class="summary-card total">
+        <div class="count">34</div>
+        <div class="label">총 대상 파일</div>
+        <div class="criteria">400줄 이상</div>
+      </div>
+    </div>
+
+    <!-- Critical Files -->
+    <section>
+      <h2><span class="severity-badge critical">CRITICAL</span> 긴급 리팩토링 필요 (700줄 이상)</h2>
+      <table class="file-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>파일</th>
+            <th>줄 수</th>
+            <th>문제점</th>
+            <th>권장 조치</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td class="file-path">components/Assistant/EvaluationTab.tsx</td>
+            <td class="lines critical">937</td>
+            <td class="issue">평가 로직, UI, 히스토리 관리 혼재</td>
+            <td class="action">3개 파일로 분리</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td class="file-path">types/rag.ts</td>
+            <td class="lines critical">786</td>
+            <td class="issue">너무 많은 타입이 한 파일에 집중</td>
+            <td class="action">도메인별 분리</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td class="file-path">app/dashboard/page.tsx</td>
+            <td class="lines critical">764</td>
+            <td class="issue">페이지에 비즈니스 로직 과다</td>
+            <td class="action">컴포넌트/훅 분리</td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td class="file-path">components/Assistant/ChatTab.tsx</td>
+            <td class="lines critical">737</td>
+            <td class="issue">메시지 처리, UI, 백업 로직 혼재</td>
+            <td class="action">관심사 분리</td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td class="file-path">components/Assistant/StructureTab.tsx</td>
+            <td class="lines critical">725</td>
+            <td class="issue">분석, DnD, UI 로직 혼재</td>
+            <td class="action">3개 파일로 분리</td>
+          </tr>
+          <tr>
+            <td>6</td>
+            <td class="file-path">app/api/chat/route.ts</td>
+            <td class="lines warning">601</td>
+            <td class="issue">RAG, 인증, 스트리밍 로직 혼재</td>
+            <td class="action">서비스 레이어 분리</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Warning Files -->
+    <section>
+      <h2><span class="severity-badge warning">WARNING</span> 주의 필요 (500-700줄)</h2>
+      <table class="file-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>파일</th>
+            <th>줄 수</th>
+            <th>권장 조치</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td class="file-path">lib/rag/chunking.ts</td>
+            <td class="lines warning">658</td>
+            <td class="action">청킹 전략별 분리</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td class="file-path">components/Editor/RichShadowWriter.tsx</td>
+            <td class="lines warning">601</td>
+            <td class="action">에디터/툴바/이벤트 분리</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td class="file-path">lib/monitoring/deploymentMonitor.ts</td>
+            <td class="lines warning">581</td>
+            <td class="action">모니터링 종류별 분리</td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td class="file-path">config/featureFlags.ts</td>
+            <td class="lines warning">580</td>
+            <td class="action">설정 파일 - 유지 가능</td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td class="file-path">components/Assistant/PatternAnalysisSection.tsx</td>
+            <td class="lines warning">569</td>
+            <td class="action">분석 카드 컴포넌트 분리</td>
+          </tr>
+          <tr>
+            <td>6</td>
+            <td class="file-path">components/Assistant/SmartSearchTab.tsx</td>
+            <td class="lines warning">534</td>
+            <td class="action">검색 결과 컴포넌트 분리</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Detailed Refactoring Plans -->
+    <section>
+      <h2>📋 상세 리팩토링 권장안</h2>
+
+      <div class="refactor-card">
+        <h3><span>1️⃣</span> EvaluationTab.tsx</h3>
+        <div class="file-info">
+          <span class="file-path">components/Assistant/EvaluationTab.tsx</span>
+          <span class="line-count">937줄 → 약 200줄</span>
+        </div>
+        <div class="structure-preview">
+<span class="folder">components/Assistant/</span>
+├── <span class="file">EvaluationTab.tsx</span>        <span class="comment"># 메인 컨테이너 (~200줄)</span>
+├── <span class="new">EvaluationResult.tsx</span>     <span class="comment"># 결과 표시 UI (~300줄) [NEW]</span>
+├── <span class="new">EvaluationHistory.tsx</span>    <span class="comment"># 히스토리 목록 (~200줄) [NEW]</span>
+└── <span class="folder">hooks/</span>
+    └── <span class="new">useEvaluation.ts</span>     <span class="comment"># 평가 로직/API (~200줄) [NEW]</span>
+        </div>
+      </div>
+
+      <div class="refactor-card">
+        <h3><span>2️⃣</span> dashboard/page.tsx</h3>
+        <div class="file-info">
+          <span class="file-path">app/dashboard/page.tsx</span>
+          <span class="line-count">764줄 → 약 100줄</span>
+        </div>
+        <div class="structure-preview">
+<span class="folder">app/dashboard/</span>
+├── <span class="file">page.tsx</span>                 <span class="comment"># 레이아웃만 (~100줄)</span>
+└── <span class="folder">components/</span>
+    ├── <span class="new">ProjectList.tsx</span>      <span class="comment"># 프로젝트 목록 (~200줄) [NEW]</span>
+    ├── <span class="new">ProjectCard.tsx</span>      <span class="comment"># 개별 카드 (~150줄) [NEW]</span>
+    ├── <span class="new">CreateProjectModal.tsx</span> <span class="comment"># 생성 모달 (~150줄) [NEW]</span>
+    └── <span class="new">BatchActions.tsx</span>     <span class="comment"># 배치 삭제 (~100줄) [NEW]</span>
+        </div>
+      </div>
+
+      <div class="refactor-card">
+        <h3><span>3️⃣</span> ChatTab.tsx</h3>
+        <div class="file-info">
+          <span class="file-path">components/Assistant/ChatTab.tsx</span>
+          <span class="line-count">737줄 → 약 150줄</span>
+        </div>
+        <div class="structure-preview">
+<span class="folder">components/Assistant/</span>
+├── <span class="file">ChatTab.tsx</span>              <span class="comment"># 메인 컨테이너 (~150줄)</span>
+├── <span class="new">MessageList.tsx</span>          <span class="comment"># 메시지 목록 (~100줄) [NEW]</span>
+├── <span class="file">MessageItem.tsx</span>          <span class="comment"># 이미 분리됨 ✅</span>
+├── <span class="new">ChatInput.tsx</span>            <span class="comment"># 입력 영역 (~100줄) [NEW]</span>
+└── <span class="folder">utils/</span>
+    └── <span class="new">chatBackup.ts</span>        <span class="comment"># localStorage 로직 (~100줄) [NEW]</span>
+        </div>
+      </div>
+
+      <div class="refactor-card">
+        <h3><span>4️⃣</span> api/chat/route.ts</h3>
+        <div class="file-info">
+          <span class="file-path">app/api/chat/route.ts</span>
+          <span class="line-count">601줄 → 약 150줄</span>
+        </div>
+        <div class="structure-preview">
+<span class="folder">lib/services/</span>
+├── <span class="new">chatService.ts</span>           <span class="comment"># 채팅 비즈니스 로직 (~200줄) [NEW]</span>
+├── <span class="new">ragService.ts</span>            <span class="comment"># RAG 검색 로직 (~150줄) [NEW]</span>
+└── <span class="new">promptBuilder.ts</span>         <span class="comment"># 프롬프트 생성 (~100줄) [NEW]</span>
+
+<span class="folder">app/api/chat/</span>
+└── <span class="file">route.ts</span>                 <span class="comment"># 라우트 핸들러만 (~150줄)</span>
+        </div>
+      </div>
+
+      <div class="refactor-card">
+        <h3><span>5️⃣</span> types/rag.ts</h3>
+        <div class="file-info">
+          <span class="file-path">types/rag.ts</span>
+          <span class="line-count">786줄 → 도메인별 분리</span>
+        </div>
+        <div class="structure-preview">
+<span class="folder">types/</span>
+└── <span class="folder">rag/</span>
+    ├── <span class="new">index.ts</span>             <span class="comment"># re-export [NEW]</span>
+    ├── <span class="new">search.ts</span>            <span class="comment"># 검색 관련 타입 [NEW]</span>
+    ├── <span class="new">chunk.ts</span>             <span class="comment"># 청킹 관련 타입 [NEW]</span>
+    ├── <span class="new">evaluation.ts</span>        <span class="comment"># 평가 관련 타입 [NEW]</span>
+    └── <span class="new">template.ts</span>          <span class="comment"># 템플릿 관련 타입 [NEW]</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Priority Table -->
+    <section>
+      <h2>📈 리팩토링 우선순위</h2>
+      <table class="priority-table">
+        <thead>
+          <tr>
+            <th>순위</th>
+            <th>파일</th>
+            <th>이유</th>
+            <th>복잡도</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><div class="priority-num">1</div></td>
+            <td><code>EvaluationTab.tsx</code></td>
+            <td>가장 길고, UI/로직 혼재 심함</td>
+            <td>중간</td>
+          </tr>
+          <tr>
+            <td><div class="priority-num">2</div></td>
+            <td><code>dashboard/page.tsx</code></td>
+            <td>사용자 진입점, 복잡도 높음</td>
+            <td>중간</td>
+          </tr>
+          <tr>
+            <td><div class="priority-num">3</div></td>
+            <td><code>api/chat/route.ts</code></td>
+            <td>핵심 API, 테스트 어려움</td>
+            <td>중간</td>
+          </tr>
+          <tr>
+            <td><div class="priority-num">4</div></td>
+            <td><code>ChatTab.tsx</code></td>
+            <td>일부 개선됨, 추가 분리 필요</td>
+            <td>낮음</td>
+          </tr>
+          <tr>
+            <td><div class="priority-num">5</div></td>
+            <td><code>types/rag.ts</code></td>
+            <td>타입만이라 위험도 낮음</td>
+            <td>낮음</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Best Practices -->
+    <section>
+      <h2>💡 리팩토링 원칙</h2>
+      <div class="principles-grid">
+        <div class="principle-card">
+          <h4>📏 300줄 이하 유지</h4>
+          <p>하나의 파일은 300줄 이하로 유지하여 가독성과 유지보수성을 높입니다.</p>
+        </div>
+        <div class="principle-card">
+          <h4>🎯 단일 책임 원칙</h4>
+          <p>하나의 파일/컴포넌트는 하나의 역할만 담당해야 합니다.</p>
+        </div>
+        <div class="principle-card">
+          <h4>🪝 커스텀 훅 분리</h4>
+          <p>비즈니스 로직은 커스텀 훅으로 분리하여 재사용성을 높입니다.</p>
+        </div>
+        <div class="principle-card">
+          <h4>📦 API 라우트는 얇게</h4>
+          <p>실제 로직은 서비스 레이어로 분리하고, 라우트는 연결만 담당합니다.</p>
+        </div>
+      </div>
+
+      <div class="expert-quote">
+        <div class="title">⚡ Vercel Best Practices 전문가 의견</div>
+        <p>
+          컴포넌트 크기가 커지면 번들 사이즈, 리렌더링 성능, 그리고 개발자 경험 모두 저하됩니다.
+          특히 Next.js App Router에서는 서버/클라이언트 컴포넌트 경계를 명확히 하기 위해
+          작은 단위로 분리하는 것이 중요합니다. 300줄을 넘어가면 분리를 고려하고,
+          500줄을 넘어가면 반드시 분리해야 합니다.
+        </p>
+      </div>
+    </section>
+
+    <footer>
+      <p>Generated by Claude Code with Vercel React Best Practices</p>
+      <p style="margin-top: 0.5rem;">PRISM Writer Refactoring Analysis Report - 2026.01.20</p>
+    </footer>
+  </div>
+</body>
+</html>

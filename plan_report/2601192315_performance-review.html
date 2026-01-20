@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PRISM Writer - React/Next.js 성능 리뷰 보고서</title>
+  <style>
+    :root {
+      --color-critical: #dc2626;
+      --color-high: #ea580c;
+      --color-medium: #ca8a04;
+      --color-good: #16a34a;
+      --color-bg: #f8fafc;
+      --color-card: #ffffff;
+      --color-border: #e2e8f0;
+      --color-text: #1e293b;
+      --color-text-muted: #64748b;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--color-bg);
+      color: var(--color-text);
+      line-height: 1.6;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 3rem;
+      padding-bottom: 2rem;
+      border-bottom: 2px solid var(--color-border);
+    }
+
+    header h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    header p {
+      color: var(--color-text-muted);
+      font-size: 1.1rem;
+    }
+
+    .meta {
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      margin-top: 1rem;
+      font-size: 0.9rem;
+      color: var(--color-text-muted);
+    }
+
+    .summary-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 3rem;
+    }
+
+    .summary-card {
+      background: var(--color-card);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      border-left: 4px solid;
+    }
+
+    .summary-card.critical { border-left-color: var(--color-critical); }
+    .summary-card.high { border-left-color: var(--color-high); }
+    .summary-card.medium { border-left-color: var(--color-medium); }
+    .summary-card.good { border-left-color: var(--color-good); }
+
+    .summary-card .count {
+      font-size: 2.5rem;
+      font-weight: 700;
+    }
+
+    .summary-card.critical .count { color: var(--color-critical); }
+    .summary-card.high .count { color: var(--color-high); }
+    .summary-card.medium .count { color: var(--color-medium); }
+    .summary-card.good .count { color: var(--color-good); }
+
+    .summary-card .label {
+      color: var(--color-text-muted);
+      font-size: 0.9rem;
+      margin-top: 0.25rem;
+    }
+
+    section {
+      margin-bottom: 3rem;
+    }
+
+    section h2 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .badge.critical { background: #fef2f2; color: var(--color-critical); }
+    .badge.high { background: #fff7ed; color: var(--color-high); }
+    .badge.medium { background: #fefce8; color: var(--color-medium); }
+    .badge.good { background: #f0fdf4; color: var(--color-good); }
+
+    .issue-card {
+      background: var(--color-card);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      border: 1px solid var(--color-border);
+    }
+
+    .issue-card h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+
+    .issue-card h3 .number {
+      background: #f1f5f9;
+      color: var(--color-text-muted);
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      flex-shrink: 0;
+    }
+
+    .issue-card .file {
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+      font-size: 0.85rem;
+      color: var(--color-text-muted);
+      background: #f1f5f9;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      margin-bottom: 1rem;
+      display: inline-block;
+    }
+
+    .issue-card .description {
+      margin-bottom: 1rem;
+      color: var(--color-text);
+    }
+
+    .issue-card .impact {
+      background: #fef3c7;
+      border-left: 3px solid #f59e0b;
+      padding: 0.75rem 1rem;
+      border-radius: 0 8px 8px 0;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+    }
+
+    .issue-card .impact strong {
+      color: #b45309;
+    }
+
+    pre {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 1rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      margin: 1rem 0;
+    }
+
+    pre .comment { color: #94a3b8; }
+    pre .keyword { color: #c084fc; }
+    pre .string { color: #86efac; }
+    pre .function { color: #93c5fd; }
+
+    .code-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .code-label.problem::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: var(--color-critical);
+      border-radius: 50%;
+    }
+
+    .code-label.solution::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: var(--color-good);
+      border-radius: 50%;
+    }
+
+    .good-practice {
+      background: var(--color-card);
+      border-radius: 12px;
+      padding: 1rem 1.5rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      border: 1px solid var(--color-border);
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+
+    .good-practice .icon {
+      font-size: 1.5rem;
+      flex-shrink: 0;
+    }
+
+    .good-practice .content h4 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .good-practice .content p {
+      color: var(--color-text-muted);
+      font-size: 0.9rem;
+    }
+
+    .good-practice .content code {
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+      font-size: 0.8rem;
+      background: #f1f5f9;
+      padding: 0.1rem 0.3rem;
+      border-radius: 3px;
+    }
+
+    .priority-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--color-card);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .priority-table th,
+    .priority-table td {
+      padding: 1rem;
+      text-align: left;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .priority-table th {
+      background: #f8fafc;
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+    }
+
+    .priority-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .priority-table .priority-num {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+    }
+
+    .effect {
+      color: var(--color-good);
+      font-weight: 500;
+    }
+
+    footer {
+      text-align: center;
+      padding-top: 2rem;
+      border-top: 1px solid var(--color-border);
+      color: var(--color-text-muted);
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 1rem;
+      }
+
+      header h1 {
+        font-size: 1.75rem;
+      }
+
+      .meta {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .summary-cards {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>React/Next.js 성능 리뷰 보고서</h1>
+      <p>PRISM Writer 프로젝트 - Vercel 베스트 프랙티스 기준 분석</p>
+      <div class="meta">
+        <span>분석일: 2026년 1월 19일</span>
+        <span>프레임워크: Next.js 14.0.4 + React 18.2.0</span>
+      </div>
+    </header>
+
+    <!-- Summary Cards -->
+    <div class="summary-cards">
+      <div class="summary-card critical">
+        <div class="count">3</div>
+        <div class="label">심각 (Critical)</div>
+      </div>
+      <div class="summary-card high">
+        <div class="count">2</div>
+        <div class="label">높음 (High)</div>
+      </div>
+      <div class="summary-card medium">
+        <div class="count">1</div>
+        <div class="label">중간 (Medium)</div>
+      </div>
+      <div class="summary-card good">
+        <div class="count">5</div>
+        <div class="label">잘 적용됨</div>
+      </div>
+    </div>
+
+    <!-- Critical Issues -->
+    <section>
+      <h2><span class="badge critical">Critical</span> 심각 - 즉시 수정 권장</h2>
+
+      <div class="issue-card">
+        <h3>
+          <span class="number">1</span>
+          next.config.js에 optimizePackageImports 누락
+        </h3>
+        <div class="file">frontend/next.config.js</div>
+        <div class="description">
+          <code>@heroicons/react</code> 배럴 파일에서 아이콘을 import하고 있는데,
+          <code>optimizePackageImports</code> 설정이 없어서 전체 아이콘 라이브러리가 로드됩니다.
+        </div>
+        <div class="impact">
+          <strong>영향:</strong> 콜드 스타트마다 200-800ms 지연, 빌드 속도 저하
+        </div>
+
+        <div class="code-label problem">현재 코드 (문제)</div>
+<pre><span class="comment">// 영향받는 파일들</span>
+<span class="keyword">import</span> { CheckIcon, XMarkIcon } <span class="keyword">from</span> <span class="string">'@heroicons/react/24/outline'</span>
+<span class="keyword">import</span> { FunnelIcon, ArrowPathIcon } <span class="keyword">from</span> <span class="string">'@heroicons/react/24/outline'</span>
+<span class="keyword">import</span> { HandThumbUpIcon } <span class="keyword">from</span> <span class="string">'@heroicons/react/24/solid'</span></pre>
+
+        <div class="code-label solution">해결 방법</div>
+<pre><span class="comment">// next.config.js</span>
+<span class="keyword">const</span> nextConfig = {
+  <span class="function">experimental</span>: {
+    <span class="function">optimizePackageImports</span>: [<span class="string">'@heroicons/react'</span>]
+  }
+}</pre>
+      </div>
+
+      <div class="issue-card">
+        <h3>
+          <span class="number">2</span>
+          Analytics 컴포넌트가 초기 번들을 차단
+        </h3>
+        <div class="file">frontend/src/app/layout.tsx:16</div>
+        <div class="description">
+          <code>@vercel/analytics</code>가 동기적으로 import되어 초기 번들에 포함됩니다.
+          Analytics는 hydration 후에 로드해도 충분합니다.
+        </div>
+        <div class="impact">
+          <strong>영향:</strong> 초기 번들 50-100KB 증가, Time to Interactive 지연
+        </div>
+
+        <div class="code-label problem">현재 코드 (문제)</div>
+<pre><span class="keyword">import</span> { Analytics } <span class="keyword">from</span> <span class="string">'@vercel/analytics/react'</span>
+
+<span class="comment">// layout.tsx 하단</span>
+&lt;Analytics /&gt;</pre>
+
+        <div class="code-label solution">해결 방법</div>
+<pre><span class="keyword">import</span> dynamic <span class="keyword">from</span> <span class="string">'next/dynamic'</span>
+
+<span class="keyword">const</span> Analytics = <span class="function">dynamic</span>(
+  () => <span class="keyword">import</span>(<span class="string">'@vercel/analytics/react'</span>).<span class="function">then</span>(m => m.Analytics),
+  { <span class="function">ssr</span>: <span class="keyword">false</span> }
+)</pre>
+      </div>
+
+      <div class="issue-card">
+        <h3>
+          <span class="number">3</span>
+          ReactFlow 동적 import 미적용
+        </h3>
+        <div class="file">frontend/src/components/structure/OutlineMap.tsx</div>
+        <div class="description">
+          ReactFlow(~100KB 이상)가 정적으로 import됩니다.
+          이 컴포넌트는 Feature Flag로 제어되는 "구조" 탭에서만 사용되므로,
+          대부분의 사용자에게 불필요한 번들이 로드됩니다.
+        </div>
+        <div class="impact">
+          <strong>영향:</strong> 기능 미사용 시에도 100KB+ 추가 로드
+        </div>
+
+        <div class="code-label problem">현재 코드 (문제)</div>
+<pre><span class="keyword">import</span> ReactFlow, {
+  Node, Edge, useNodesState, useEdgesState,
+  Controls, Background, ...
+} <span class="keyword">from</span> <span class="string">'reactflow'</span></pre>
+
+        <div class="code-label solution">해결 방법</div>
+<pre><span class="comment">// StructureTab.tsx 또는 상위 컴포넌트에서</span>
+<span class="keyword">import</span> dynamic <span class="keyword">from</span> <span class="string">'next/dynamic'</span>
+
+<span class="keyword">const</span> OutlineMap = <span class="function">dynamic</span>(
+  () => <span class="keyword">import</span>(<span class="string">'./OutlineMap'</span>),
+  { <span class="function">ssr</span>: <span class="keyword">false</span>, <span class="function">loading</span>: () => &lt;Skeleton /&gt; }
+)</pre>
+      </div>
+    </section>
+
+    <!-- High Issues -->
+    <section>
+      <h2><span class="badge high">High</span> 높음 - 개선 권장</h2>
+
+      <div class="issue-card">
+        <h3>
+          <span class="number">4</span>
+          Resize 이벤트가 픽셀 단위로 리렌더링 유발
+        </h3>
+        <div class="file">frontend/src/components/Editor/ThreePaneLayout.tsx:24-29</div>
+        <div class="description">
+          <code>window.innerWidth</code> 값을 직접 구독하여 창 크기 조절 시
+          매 픽셀마다 불필요한 리렌더링이 발생합니다.
+          실제로 필요한 것은 "모바일인지 아닌지"의 boolean 값 변화입니다.
+        </div>
+        <div class="impact">
+          <strong>영향:</strong> 창 크기 조절 시 연속적인 리렌더링, UI 버벅임
+        </div>
+
+        <div class="code-label problem">현재 코드 (문제)</div>
+<pre><span class="keyword">const</span> [isMobile, setIsMobile] = <span class="function">useState</span>(<span class="keyword">false</span>)
+
+<span class="function">useEffect</span>(() => {
+  <span class="keyword">const</span> checkMobile = () => <span class="function">setIsMobile</span>(window.innerWidth < 1024)
+  <span class="function">checkMobile</span>()
+  window.<span class="function">addEventListener</span>(<span class="string">'resize'</span>, checkMobile)
+  <span class="keyword">return</span> () => window.<span class="function">removeEventListener</span>(<span class="string">'resize'</span>, checkMobile)
+}, [])</pre>
+
+        <div class="code-label solution">해결 방법 - matchMedia 사용</div>
+<pre><span class="function">useEffect</span>(() => {
+  <span class="keyword">const</span> mq = window.<span class="function">matchMedia</span>(<span class="string">'(max-width: 1023px)'</span>)
+  <span class="keyword">const</span> handleChange = (e: MediaQueryListEvent) => <span class="function">setIsMobile</span>(e.matches)
+
+  <span class="function">setIsMobile</span>(mq.matches)
+  mq.<span class="function">addEventListener</span>(<span class="string">'change'</span>, handleChange)
+  <span class="keyword">return</span> () => mq.<span class="function">removeEventListener</span>(<span class="string">'change'</span>, handleChange)
+}, [])</pre>
+      </div>
+
+      <div class="issue-card">
+        <h3>
+          <span class="number">5</span>
+          채팅 메시지의 ReactMarkdown 렌더링 비용
+        </h3>
+        <div class="file">frontend/src/components/Assistant/ChatTab.tsx</div>
+        <div class="description">
+          <code>react-markdown</code> + <code>remarkGfm</code>이 모든 채팅 메시지에 렌더링됩니다.
+          긴 대화에서 성능 저하가 발생할 수 있습니다.
+        </div>
+        <div class="impact">
+          <strong>영향:</strong> 메시지 50개 이상 시 스크롤 버벅임 가능
+        </div>
+
+        <div class="code-label solution">개선 방안</div>
+<pre><span class="comment">// 1. 메시지 컴포넌트 메모이제이션</span>
+<span class="keyword">const</span> MessageItem = <span class="function">memo</span>(({ message }) => { ... })
+
+<span class="comment">// 2. 화면 밖 메시지에 CSS 적용</span>
+.message-item {
+  <span class="function">content-visibility</span>: auto;
+  <span class="function">contain-intrinsic-size</span>: 0 80px;
+}
+
+<span class="comment">// 3. 50개 이상 시 가상화 라이브러리 사용</span>
+<span class="keyword">import</span> { <span class="function">VirtualScroller</span> } <span class="keyword">from</span> <span class="string">'virtua'</span></pre>
+      </div>
+    </section>
+
+    <!-- Medium Issues -->
+    <section>
+      <h2><span class="badge medium">Medium</span> 중간 - 고려 사항</h2>
+
+      <div class="issue-card">
+        <h3>
+          <span class="number">6</span>
+          localStorage 캐싱 미적용
+        </h3>
+        <div class="file">frontend/src/components/Assistant/ChatTab.tsx</div>
+        <div class="description">
+          <code>addToLocalBackup</code>, <code>getFailedBackups</code> 함수에서
+          localStorage를 매번 읽습니다. localStorage 접근은 동기적이고 비용이 있습니다.
+        </div>
+        <div class="impact">
+          <strong>영향:</strong> 반복적인 I/O 비용 (소폭 개선 가능)
+        </div>
+
+        <div class="code-label solution">해결 방법</div>
+<pre><span class="keyword">const</span> storageCache = <span class="keyword">new</span> <span class="function">Map</span>&lt;string, string | null&gt;()
+
+<span class="keyword">function</span> <span class="function">getCachedStorage</span>(key: string) {
+  <span class="keyword">if</span> (!storageCache.<span class="function">has</span>(key)) {
+    storageCache.<span class="function">set</span>(key, localStorage.<span class="function">getItem</span>(key))
+  }
+  <span class="keyword">return</span> storageCache.<span class="function">get</span>(key)
+}</pre>
+      </div>
+    </section>
+
+    <!-- Good Practices -->
+    <section>
+      <h2><span class="badge good">Good</span> 잘 적용된 부분</h2>
+
+      <div class="good-practice">
+        <div class="icon">✅</div>
+        <div class="content">
+          <h4>MDEditor 동적 import</h4>
+          <p><code>MarkdownEditor.tsx</code>에서 <code>ssr: false</code>로 클라이언트 전용 로드 적용</p>
+        </div>
+      </div>
+
+      <div class="good-practice">
+        <div class="icon">✅</div>
+        <div class="content">
+          <h4>SWR 설정 최적화</h4>
+          <p><code>lib/swr.ts</code>에서 <code>revalidateOnFocus: false</code>, 30초 캐시 적용</p>
+        </div>
+      </div>
+
+      <div class="good-practice">
+        <div class="icon">✅</div>
+        <div class="content">
+          <h4>Promise.all 병렬 처리</h4>
+          <p><code>api/chat/route.ts</code>에서 Memory, Template, RAG 검색을 동시 실행</p>
+        </div>
+      </div>
+
+      <div class="good-practice">
+        <div class="icon">✅</div>
+        <div class="content">
+          <h4>Zustand 효율적 사용</h4>
+          <p><code>useEditorState.ts</code>에서 selector 기반 구독으로 불필요한 리렌더링 방지</p>
+        </div>
+      </div>
+
+      <div class="good-practice">
+        <div class="icon">✅</div>
+        <div class="content">
+          <h4>탭 패널 CSS 숨김</h4>
+          <p><code>AssistantPanel.tsx</code>에서 상태 유지하며 <code>hidden</code> 클래스로 전환</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Priority Table -->
+    <section>
+      <h2>수정 우선순위 요약</h2>
+      <table class="priority-table">
+        <thead>
+          <tr>
+            <th>우선순위</th>
+            <th>문제</th>
+            <th>예상 개선 효과</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><div class="priority-num">1</div></td>
+            <td><code>optimizePackageImports</code> 추가</td>
+            <td class="effect">콜드 스타트 200-800ms 단축</td>
+          </tr>
+          <tr>
+            <td><div class="priority-num">2</div></td>
+            <td>Analytics 동적 import</td>
+            <td class="effect">초기 번들 50-100KB 감소</td>
+          </tr>
+          <tr>
+            <td><div class="priority-num">3</div></td>
+            <td>ReactFlow 동적 import</td>
+            <td class="effect">미사용 시 100KB+ 절약</td>
+          </tr>
+          <tr>
+            <td><div class="priority-num">4</div></td>
+            <td>matchMedia 사용</td>
+            <td class="effect">리렌더링 횟수 대폭 감소</td>
+          </tr>
+          <tr>
+            <td><div class="priority-num">5</div></td>
+            <td>localStorage 캐싱</td>
+            <td class="effect">소폭 개선</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <footer>
+      <p>Generated by Claude Code with Vercel React Best Practices</p>
+      <p style="margin-top: 0.5rem;">PRISM Writer Performance Review - 2026.01.19</p>
+    </footer>
+  </div>
+</body>
+</html>

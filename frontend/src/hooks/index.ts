@@ -21,3 +21,15 @@ export type { SearchHistoryItem, UseSearchHistoryReturn } from './useSearchHisto
 export { useIntersectionObserver, default as useIntersectionObserverDefault } from './useIntersectionObserver'
 export type { UseIntersectionObserverOptions, UseIntersectionObserverReturn } from './useIntersectionObserver'
 
+// =============================================================================
+// [REFACTOR] 평가 비즈니스 로직 훅
+// =============================================================================
+export { useEvaluation } from './useEvaluation'
+export type { SavedEvaluation, UseEvaluationReturn } from './useEvaluation'
+
+// =============================================================================
+// [REFACTOR] 채팅 비즈니스 로직 훅
+// =============================================================================
+export { useChat } from './useChat'
+export type { UseChatOptions, UseChatReturn } from './useChat'
+
