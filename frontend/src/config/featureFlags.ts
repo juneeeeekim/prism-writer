@@ -103,7 +103,7 @@ export const FEATURE_FLAGS = {
    * - 사용자 쿼리를 동의어로 확장하여 검색 커버리지 향상
    * - 도메인 특화 용어 매핑 적용
    */
-  ENABLE_QUERY_EXPANSION: process.env.ENABLE_QUERY_EXPANSION !== 'false',
+  ENABLE_QUERY_EXPANSION: process.env.ENABLE_QUERY_EXPANSION === 'true',
 
   /**
    * 환각 탐지 기능 활성화
@@ -382,7 +382,7 @@ export const FEATURE_FLAGS = {
    * - 할루시네이션 탐지 및 경고 표시
    * - 롤백: OFF 시 기존 검색 로직 유지
    */
-  ENABLE_SELF_RAG: process.env.NEXT_PUBLIC_ENABLE_SELF_RAG !== 'false',
+  ENABLE_SELF_RAG: process.env.NEXT_PUBLIC_ENABLE_SELF_RAG === 'true',
 
   /**
    * Self-RAG 사용 LLM 모델 (P3-02)
