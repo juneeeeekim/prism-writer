@@ -67,11 +67,17 @@ export class OpenAIProvider implements LLMProvider {
       topK, // [v3.0] OpenAI 미지원 - 의도적 무시 (API 호출에 전달 안 함)
     } = options;
 
+    // [v3.1] OpenAI o1/o3 모델은 'max_tokens' 대신 'max_completion_tokens' 사용 필수
+    const isReasoningModel = modelId.startsWith('o1') || modelId.startsWith('o3');
+    const tokenParam = isReasoningModel 
+      ? { max_completion_tokens: maxOutputTokens } 
+      : { max_tokens: maxOutputTokens };
+
     try {
       const response = await client.chat.completions.create({
         model: modelId,
         messages: [{ role: "user", content: prompt }],
-        max_tokens: maxOutputTokens,
+        ...tokenParam,
         temperature,
         top_p: topP,
       });
@@ -126,11 +132,17 @@ export class OpenAIProvider implements LLMProvider {
       topK, // [v3.0] OpenAI 미지원 - 의도적 무시 (API 호출에 전달 안 함)
     } = options;
 
+    // [v3.1] OpenAI o1/o3 모델은 'max_tokens' 대신 'max_completion_tokens' 사용 필수
+    const isReasoningModel = modelId.startsWith('o1') || modelId.startsWith('o3');
+    const tokenParam = isReasoningModel 
+      ? { max_completion_tokens: maxOutputTokens } 
+      : { max_tokens: maxOutputTokens };
+
     try {
       const stream = await client.chat.completions.create({
         model: modelId,
         messages: [{ role: "user", content: prompt }],
-        max_tokens: maxOutputTokens,
+        ...tokenParam,
         temperature,
         top_p: topP,
         stream: true,
