@@ -8,6 +8,7 @@ export {
   formatUserPreferences,
   searchTemplateContext,
   touchSession,
+  shouldRunLazySelfRAG,
 } from './chatService'
 
 export { performRAGSearch, type RAGSearchResult, type RAGSearchOptions } from './ragSearchService'

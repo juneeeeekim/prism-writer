@@ -149,3 +149,48 @@ export async function touchSession(
     console.warn('Session touch failed', e)
   }
 }
+
+// =============================================================================
+// [L2-01] Lazy Self-RAG 조건 판단 함수 (2026-01-21 추가)
+// 목적: 고위험 응답에만 Self-RAG 검증 실행하여 LLM 비용 70% 절감
+// =============================================================================
+
+/**
+ * Lazy Self-RAG 조건 판단
+ * 
+ * @description
+ * 모든 응답이 아닌 고위험 응답에만 Self-RAG 검증을 적용합니다.
+ * 조건: 참고 자료 있음 + 응답 길이 충분 + 질문 길이 충분
+ * 
+ * @param query - 사용자 질문
+ * @param fullResponse - LLM 응답 전문
+ * @param hasRetrievedDocs - 참고 자료 존재 여부
+ * @returns true면 Self-RAG 실행, false면 스킵
+ */
+export function shouldRunLazySelfRAG(
+  query: string,
+  fullResponse: string,
+  hasRetrievedDocs: boolean
+): boolean {
+  // Lazy 모드 비활성화 시 기존 ENABLE_SELF_RAG 따름
+  if (!FEATURE_FLAGS.LAZY_SELF_RAG_MODE) {
+    return FEATURE_FLAGS.ENABLE_SELF_RAG
+  }
+
+  // 참고 자료가 없으면 스킵 (근거 검증 불가)
+  if (!hasRetrievedDocs) {
+    return false
+  }
+
+  // 짧은 응답은 스킵 (기본값: 500자 미만)
+  if (fullResponse.length < FEATURE_FLAGS.LAZY_SELF_RAG_MIN_RESPONSE_LENGTH) {
+    return false
+  }
+
+  // 짧은 질문은 스킵 (기본값: 50자 미만)
+  if (query.length < FEATURE_FLAGS.LAZY_SELF_RAG_MIN_QUERY_LENGTH) {
+    return false
+  }
+
+  return true
+}
