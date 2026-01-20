@@ -406,6 +406,41 @@ export const FEATURE_FLAGS = {
   SELF_RAG_CRITIQUE_THRESHOLD: parseFloat(process.env.NEXT_PUBLIC_SELF_RAG_CRITIQUE_THRESHOLD || '0.6'),
 
   // ==========================================================================
+  // [L1-01] Lazy Self-RAG Feature Flags (2026-01-21 추가)
+  // 목적: 고위험 응답에만 Self-RAG 적용하여 비용 70% 절감
+  // ==========================================================================
+
+  /**
+   * Lazy Self-RAG 모드 활성화
+   * 환경 변수: NEXT_PUBLIC_LAZY_SELF_RAG_MODE
+   * 기본값: true (조건부 검증 활성화)
+   * 
+   * @description
+   * - 모든 응답이 아닌 고위험 응답에만 Self-RAG 검증 적용
+   * - 참고 자료 있음 + 긴 응답 + 긴 질문일 때만 검증 실행
+   * - 비용 70% 절감 예상
+   */
+  LAZY_SELF_RAG_MODE: process.env.NEXT_PUBLIC_LAZY_SELF_RAG_MODE !== 'false',
+
+  /**
+   * Lazy Self-RAG 최소 응답 길이 (L1-01)
+   * 환경 변수: NEXT_PUBLIC_LAZY_SELF_RAG_MIN_RESPONSE_LENGTH
+   * 기본값: 500 (500자 이상 응답에만 검증)
+   */
+  LAZY_SELF_RAG_MIN_RESPONSE_LENGTH: parseInt(
+    process.env.NEXT_PUBLIC_LAZY_SELF_RAG_MIN_RESPONSE_LENGTH || '500'
+  ),
+
+  /**
+   * Lazy Self-RAG 최소 질문 길이 (L1-01)
+   * 환경 변수: NEXT_PUBLIC_LAZY_SELF_RAG_MIN_QUERY_LENGTH
+   * 기본값: 50 (50자 이상 질문에만 검증)
+   */
+  LAZY_SELF_RAG_MIN_QUERY_LENGTH: parseInt(
+    process.env.NEXT_PUBLIC_LAZY_SELF_RAG_MIN_QUERY_LENGTH || '50'
+  ),
+
+  // ==========================================================================
   // [AI-STRUCTURER] AI Structurer Feature Flags (2026-01-08 추가)
   // ==========================================================================
 
