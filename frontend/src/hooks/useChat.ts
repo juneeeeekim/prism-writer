@@ -73,15 +73,33 @@ export function useChat({ sessionId, onSessionChange }: UseChatOptions): UseChat
     const storedModel = localStorage.getItem('prism_selected_model')
     setSelectedModel(storedModel)
 
-    // 다른 탭/컴포넌트에서의 변경 감지 (StorageEvent)
+    // [기존] 다른 탭에서의 변경 감지 (StorageEvent)
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'prism_selected_model') {
         setSelectedModel(e.newValue)
       }
     }
 
+    // =========================================================================
+    // [BUG-FIX] 같은 탭 내 실시간 동기화를 위한 CustomEvent 리스너
+    // ChatModelSelector에서 발행한 'prism-model-change' 이벤트 수신
+    // 2026-01-23: Model Switcher 버그 수정 (#P2-01, #P2-02)
+    // =========================================================================
+    const handleModelChange = (e: Event) => {
+      const customEvent = e as CustomEvent<string>
+      const modelId = customEvent.detail
+      // 빈 문자열(Default 선택)인 경우 null로 변환
+      setSelectedModel(modelId === '' ? null : modelId)
+    }
+
     window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
+    window.addEventListener('prism-model-change', handleModelChange)
+
+    // [BUG-FIX] Cleanup: 모든 리스너 제거 (#P2-03)
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('prism-model-change', handleModelChange)
+    }
   }, [])
 
   // Chat Draft consumption

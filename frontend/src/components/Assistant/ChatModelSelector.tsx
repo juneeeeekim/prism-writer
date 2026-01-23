@@ -122,6 +122,13 @@ export default function ChatModelSelector({ onModelChange }: ChatModelSelectorPr
       localStorage.removeItem(STORAGE_KEY)
     }
 
+    // =========================================================================
+    // [BUG-FIX] 같은 탭 내 실시간 동기화를 위한 CustomEvent 발행
+    // StorageEvent는 다른 탭에서만 발생하므로, 같은 탭의 useChat에 알리기 위해 필요
+    // 2026-01-23: Model Switcher 버그 수정 (#P1-01)
+    // =========================================================================
+    window.dispatchEvent(new CustomEvent('prism-model-change', { detail: modelId }))
+
     // 콜백 호출 (부모 컴포넌트에 알림)
     onModelChange?.(modelId)
   }
