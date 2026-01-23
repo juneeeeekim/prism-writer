@@ -44,7 +44,7 @@ export default function RAGSearchPage() {
   // ---------------------------------------------------------------------------
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <AuthHeader showLogo />
+      <AuthHeader showLogo showProjectSelector />
       
       <main className="max-w-2xl mx-auto px-4 py-16">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 text-center">

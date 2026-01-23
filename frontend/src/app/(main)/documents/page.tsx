@@ -16,18 +16,14 @@ import { useDocuments } from '@/hooks/useDocuments'
 import { useAuth } from '@/hooks/useAuth'
 import { useEditorState } from '@/hooks/useEditorState'
 import { AuthHeader } from '@/components/auth'
-// [P7-FIX] 프로젝트 Context 추가
-import { ProjectProvider, useProject } from '@/contexts/ProjectContext'
+// [P7-FIX] 프로젝트 Context (레이아웃에서 Provider 제공)
+import { useProject } from '@/contexts/ProjectContext'
 
 // =============================================================================
-// Page Component (ProjectProvider 래핑)
+// Page Component (ProjectProvider는 레이아웃에서 제공)
 // =============================================================================
 export default function DocumentsPage() {
-  return (
-    <ProjectProvider>
-      <DocumentsContent />
-    </ProjectProvider>
-  )
+  return <DocumentsContent />
 }
 
 // =============================================================================
@@ -75,7 +71,7 @@ function DocumentsContent() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <AuthHeader showLogo />
+      <AuthHeader showLogo showProjectSelector />
 
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 py-8">

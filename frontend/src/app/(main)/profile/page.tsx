@@ -90,7 +90,7 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <AuthHeader />
+        <AuthHeader showLogo showProjectSelector />
         <div className="container mx-auto px-4 py-8">
           <div className="max-w-2xl mx-auto">
             <div className="animate-pulse space-y-6">
@@ -147,7 +147,7 @@ export default function ProfilePage() {
   // =============================================================================
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <AuthHeader />
+      <AuthHeader showLogo showProjectSelector />
       
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto space-y-6">

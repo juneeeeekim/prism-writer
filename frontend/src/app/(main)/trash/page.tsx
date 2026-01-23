@@ -136,7 +136,7 @@ export default function TrashPage() {
   // ---------------------------------------------------------------------------
   return (
     <div className="min-h-screen flex flex-col">
-      <AuthHeader showLogo />
+      <AuthHeader showLogo showProjectSelector />
       <div className="trash-container flex-1">
       {/* -------------------------------------------------------------------
           헤더

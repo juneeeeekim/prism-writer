@@ -133,7 +133,7 @@ export default function AdminFeedbackPage() {
   // ---------------------------------------------------------------------------
   return (
     <>
-      <AuthHeader showLogo={true} />
+      <AuthHeader showLogo showProjectSelector />
       <div className="min-h-screen bg-gray-50 p-6">
         {/* -----------------------------------------------------------------------
             헤더

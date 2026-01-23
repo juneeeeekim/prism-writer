@@ -75,7 +75,7 @@ export default function UserManagementPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
-      <AuthHeader showLogo />
+      <AuthHeader showLogo showProjectSelector />
       <div className="flex-1 p-8">
         <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-8">
