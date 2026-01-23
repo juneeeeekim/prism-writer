@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ProjectProvider, useProject } from '@/contexts/ProjectContext'
+import { useProject } from '@/contexts/ProjectContext'
 import type { Project, CreateProjectInput, ProjectSortBy } from '@/types/project'
 import DeleteConfirmModal from '@/components/modals/DeleteConfirmModal'
 import AuthHeader from '@/components/auth/AuthHeader'
@@ -31,11 +31,7 @@ import {
 // =============================================================================
 
 export default function DashboardPage() {
-  return (
-    <ProjectProvider>
-      <DashboardContent />
-    </ProjectProvider>
-  )
+  return <DashboardContent />
 }
 
 // =============================================================================
@@ -161,11 +157,10 @@ function DashboardContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <AuthHeader showLogo={true} showProjectSelector={true} />
-
-      <div className="dashboard-container">
-        {/* Header */}
+    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+      <AuthHeader showLogo showProjectSelector />
+      <div className="flex-1 dashboard-container">
+        {/* Page Header */}
         <header className="dashboard-header">
           <div className="dashboard-header-content">
             <h1 className="dashboard-title">내 AI 코치 목록</h1>

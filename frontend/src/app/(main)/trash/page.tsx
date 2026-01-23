@@ -15,6 +15,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import type { Project } from '@/types/project'
+import AuthHeader from '@/components/auth/AuthHeader'
 
 // =============================================================================
 // 타입 정의
@@ -134,7 +135,9 @@ export default function TrashPage() {
   // 메인 렌더링
   // ---------------------------------------------------------------------------
   return (
-    <div className="trash-container">
+    <div className="min-h-screen flex flex-col">
+      <AuthHeader showLogo />
+      <div className="trash-container flex-1">
       {/* -------------------------------------------------------------------
           헤더
           ------------------------------------------------------------------- */}
@@ -220,7 +223,6 @@ export default function TrashPage() {
           ------------------------------------------------------------------- */}
       <style jsx>{`
         .trash-container {
-          min-height: 100vh;
           background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
           padding: 24px;
         }
@@ -461,6 +463,7 @@ export default function TrashPage() {
           }
         }
       `}</style>
+      </div>
     </div>
   )
 }

@@ -31,22 +31,18 @@ import { createClient } from '@/lib/supabase/client'
 // Pipeline v5: 중앙 집중 Feature Flag 사용
 // ---------------------------------------------------------------------------
 import { isFeatureEnabled, getUILayoutType, logFeatureFlags, FEATURE_FLAGS } from '@/config/featureFlags'
-// [P5-07-A] 프로젝트 Context Provider
-import { ProjectProvider, useProject } from '@/contexts/ProjectContext'
+// [P5-07-A] 프로젝트 Context (레이아웃에서 Provider 제공)
+import { useProject } from '@/contexts/ProjectContext'
 // [P6-04] Full-screen Onboarding
 import OnboardingGuide from '@/components/Assistant/Studio/OnboardingGuide'
 // [SHADOW-WRITER] Shadow Writer 에디터 (P3-01)
 import ShadowWriterEditor from '@/components/Editor/ShadowWriterEditor'
 
 // -----------------------------------------------------------------------------
-// Editor Page Component (ProjectProvider 래핑)
+// Editor Page Component (ProjectProvider는 레이아웃에서 제공)
 // -----------------------------------------------------------------------------
 export default function EditorPage() {
-  return (
-    <ProjectProvider>
-      <EditorContent />
-    </ProjectProvider>
-  )
+  return <EditorContent />
 }
 // -----------------------------------------------------------------------------
 // Editor Content Component

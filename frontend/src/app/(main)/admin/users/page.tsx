@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import RoleBadge from '@/components/ui/RoleBadge'
+import AuthHeader from '@/components/auth/AuthHeader'
 
 interface UserProfile {
   id: string
@@ -73,8 +74,10 @@ export default function UserManagementPage() {
   )
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+      <AuthHeader showLogo />
+      <div className="flex-1 p-8">
+        <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">사용자 관리</h1>
@@ -189,6 +192,7 @@ export default function UserManagementPage() {
               ))}
             </tbody>
           </table>
+        </div>
         </div>
       </div>
     </div>
