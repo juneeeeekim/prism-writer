@@ -77,20 +77,24 @@ export class OpenAIProvider implements LLMProvider {
     // [2026-01-23] GPT-5 계열 모델 모두 max_completion_tokens 사용 필요
     const isGPT5 = modelId.startsWith('gpt-5');
     
-    // Use max_completion_tokens if model is reasoning/thinking type or GPT-5 series
-    const useCompletionTokens = hasReasoningCap || isLegacyO1 || isGPT5;
+    // Reasoning 모델은 max_completion_tokens 사용 + temperature/top_p 미지원
+    const isReasoningModel = hasReasoningCap || isLegacyO1 || isGPT5;
 
-    const tokenParam = useCompletionTokens 
+    const tokenParam = isReasoningModel 
       ? { max_completion_tokens: maxOutputTokens } 
       : { max_tokens: maxOutputTokens };
+
+    // [2026-01-23] Reasoning 모델은 temperature/top_p 파라미터를 지원하지 않음 (default 1만 허용)
+    const samplingParams = isReasoningModel
+      ? {} // temperature, top_p 생략
+      : { temperature, top_p: topP };
 
     try {
       const response = await client.chat.completions.create({
         model: modelId,
         messages: [{ role: "user", content: prompt }],
         ...tokenParam,
-        temperature,
-        top_p: topP,
+        ...samplingParams,
       });
 
       const text = response.choices[0]?.message?.content;
@@ -151,20 +155,24 @@ export class OpenAIProvider implements LLMProvider {
     // [2026-01-23] GPT-5 계열 모델 모두 max_completion_tokens 사용 필요
     const isGPT5 = modelId.startsWith('gpt-5');
     
-    // Use max_completion_tokens if model is reasoning/thinking type or GPT-5 series
-    const useCompletionTokens = hasReasoningCap || isLegacyO1 || isGPT5;
+    // Reasoning 모델은 max_completion_tokens 사용 + temperature/top_p 미지원
+    const isReasoningModel = hasReasoningCap || isLegacyO1 || isGPT5;
 
-    const tokenParam = useCompletionTokens 
+    const tokenParam = isReasoningModel 
       ? { max_completion_tokens: maxOutputTokens } 
       : { max_tokens: maxOutputTokens };
+
+    // [2026-01-23] Reasoning 모델은 temperature/top_p 파라미터를 지원하지 않음 (default 1만 허용)
+    const samplingParams = isReasoningModel
+      ? {} // temperature, top_p 생략
+      : { temperature, top_p: topP };
 
     try {
       const stream = await client.chat.completions.create({
         model: modelId,
         messages: [{ role: "user", content: prompt }],
         ...tokenParam,
-        temperature,
-        top_p: topP,
+        ...samplingParams,
         stream: true,
       });
 
