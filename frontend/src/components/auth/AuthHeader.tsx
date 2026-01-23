@@ -59,7 +59,7 @@ export default function AuthHeader({
 
   return (
     <header
-      className={`h-14 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 ${className}`}
+      className={`h-14 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 sticky top-0 z-50 w-full ${className}`}
     >
       {/* =================================================================
           Left Section - Logo + Navigation
