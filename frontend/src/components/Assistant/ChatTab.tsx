@@ -11,6 +11,7 @@
 import { useRef, useEffect } from 'react'
 import { useChat } from '@/hooks/useChat'
 import { MessageItem, ChatInput } from './chat'
+import ChatModelSelector from './ChatModelSelector'
 
 // =============================================================================
 // Types
@@ -35,6 +36,7 @@ export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
     isLoading,
     handleSend,
     projectId,
+    statusText,  // [P3-01] Progressive Streaming 상태 메시지
   } = useChat({ sessionId, onSessionChange })
 
   // Auto-scroll to bottom
@@ -44,6 +46,13 @@ export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-900">
+      {/* =========================================================================
+          [Phase 2] Model Selector - 채팅 모델 선택 UI (2026-01-23 추가)
+          ========================================================================= */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+        <ChatModelSelector />
+      </div>
+
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && (
@@ -60,6 +69,14 @@ export default function ChatTab({ sessionId, onSessionChange }: ChatTabProps) {
             projectId={projectId}
           />
         ))}
+
+        {/* [P3-01] Progressive Streaming - 상태 메시지 UI */}
+        {statusText && (
+          <div className="flex items-center gap-2 px-4 py-2 text-sm text-gray-500 dark:text-gray-400 animate-pulse">
+            <span>{statusText}</span>
+          </div>
+        )}
+
         <div ref={messagesEndRef} />
       </div>
 
