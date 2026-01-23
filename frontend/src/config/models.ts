@@ -207,7 +207,7 @@ export const MODEL_REGISTRY = {
   // ---------------------------------------------------------------------------
   // Anthropic 모델
   // ---------------------------------------------------------------------------
-  "claude-4.5-opus-20251124": {
+  "claude-opus-4-5-20251101": {
     provider: "anthropic",
     displayName: "Claude 4.5 Opus",
     capabilities: ["text-generation", "vision", "streaming", "reasoning"],
@@ -218,7 +218,7 @@ export const MODEL_REGISTRY = {
     tier: "premium",
     enabled: true,
   },
-  "claude-4.5-sonnet-20250929": {
+  "claude-sonnet-4-5-20250929": {
     provider: "anthropic",
     displayName: "Claude 4.5 Sonnet",
     capabilities: ["text-generation", "vision", "streaming"],
@@ -229,7 +229,7 @@ export const MODEL_REGISTRY = {
     tier: "premium",
     enabled: true,
   },
-  "claude-4.5-haiku-20251015": {
+  "claude-haiku-4-5-20251001": {
     provider: "anthropic",
     displayName: "Claude 4.5 Haiku",
     capabilities: ["text-generation", "streaming"],

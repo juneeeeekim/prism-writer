@@ -154,7 +154,7 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
   
 
   /* 'rag.answer': {
-       modelId: 'claude-4.5-sonnet-20250929',
+       modelId: 'claude-sonnet-4-5-20250929',
        fallback: 'gemini-3-flash-preview',
        maxTokens: 2700,
        description: 'RAG 기반 답변 생성 (Claude 4.5 Sonnet)',
