@@ -1,6 +1,9 @@
-
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+
+// [FIX] Vercel Build Error: Dynamic server usage in static export
+export const dynamic = 'force-dynamic'
+
 // [REMOVED] RAFT constants
 // import { RAFT_CATEGORIES } from '@/constants/raft'
 

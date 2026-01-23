@@ -5,6 +5,7 @@
 // 역할: OpenAI API를 사용한 LLMProvider 구현
 // =============================================================================
 
+
 import OpenAI from "openai";
 import { LLMProvider, LLMProviderError } from "./base";
 import {
@@ -18,6 +19,7 @@ import {
   MODEL_REGISTRY,
   ModelConfig,
   getDefaultModelId,
+  getModelConfig, // [FIX] Import getModelConfig
 } from "@/config/models";
 
 /**
@@ -67,9 +69,16 @@ export class OpenAIProvider implements LLMProvider {
       topK, // [v3.0] OpenAI 미지원 - 의도적 무시 (API 호출에 전달 안 함)
     } = options;
 
-    // [v3.1] OpenAI o1/o3 모델은 'max_tokens' 대신 'max_completion_tokens' 사용 필수
-    const isReasoningModel = modelId.startsWith('o1') || modelId.startsWith('o3');
-    const tokenParam = isReasoningModel 
+    // [v3.2] Fix: Check capabilities for reasoning models (e.g. gpt-5, o1, o3)
+    const config = getModelConfig(modelId);
+    const hasReasoningCap = config?.capabilities.includes('reasoning') || config?.capabilities.includes('thinking');
+    // Safety check for legacy models or unregistered fallback usage
+    const isLegacyO1 = modelId.startsWith('o1') || modelId.startsWith('o3');
+    
+    // Use max_completion_tokens if model is reasoning/thinking type
+    const useCompletionTokens = hasReasoningCap || isLegacyO1;
+
+    const tokenParam = useCompletionTokens 
       ? { max_completion_tokens: maxOutputTokens } 
       : { max_tokens: maxOutputTokens };
 
@@ -132,9 +141,16 @@ export class OpenAIProvider implements LLMProvider {
       topK, // [v3.0] OpenAI 미지원 - 의도적 무시 (API 호출에 전달 안 함)
     } = options;
 
-    // [v3.1] OpenAI o1/o3 모델은 'max_tokens' 대신 'max_completion_tokens' 사용 필수
-    const isReasoningModel = modelId.startsWith('o1') || modelId.startsWith('o3');
-    const tokenParam = isReasoningModel 
+    // [v3.2] Fix: Check capabilities for reasoning models (e.g. gpt-5, o1, o3)
+    const config = getModelConfig(modelId);
+    const hasReasoningCap = config?.capabilities.includes('reasoning') || config?.capabilities.includes('thinking');
+    // Safety check for legacy models or unregistered fallback usage
+    const isLegacyO1 = modelId.startsWith('o1') || modelId.startsWith('o3');
+    
+    // Use max_completion_tokens if model is reasoning/thinking type
+    const useCompletionTokens = hasReasoningCap || isLegacyO1;
+
+    const tokenParam = useCompletionTokens 
       ? { max_completion_tokens: maxOutputTokens } 
       : { max_tokens: maxOutputTokens };
 

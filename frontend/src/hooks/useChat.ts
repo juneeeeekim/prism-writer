@@ -16,7 +16,12 @@ import type { Message } from '@/components/Assistant/chat/MessageItem'
 // Constants
 // =============================================================================
 
-const CHAT_TIMEOUT_MS = 30_000
+// [FIX] 타임아웃 30초 → 60초 증가 (RAG 파이프라인 처리 시간 고려)
+// 2026-01-21: Self-RAG + Query Expansion 처리 시간으로 인한 타임아웃 방지
+const CHAT_TIMEOUT_MS = 60_000
+
+// [P2-01] Progressive Streaming - 상태 메시지 필터링용 접두사
+const STATUS_PREFIX = '[STATUS]'
 
 // =============================================================================
 // Types
@@ -34,6 +39,7 @@ export interface UseChatReturn {
   isLoading: boolean
   handleSend: () => Promise<void>
   projectId: string | null
+  statusText: string | null  // [P2-03] Progressive Streaming 상태 메시지
 }
 
 // =============================================================================
@@ -47,6 +53,36 @@ export function useChat({ sessionId, onSessionChange }: UseChatOptions): UseChat
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [statusText, setStatusText] = useState<string | null>(null)  // [P2-02] Progressive Streaming 상태
+
+  // ---------------------------------------------------------------------------
+  // [P3-01] 선택된 모델 상태 관리 - Chat Model Switcher 실시간 반영
+  // null이면 기본값(Auto) 사용
+  // ---------------------------------------------------------------------------
+  const [selectedModel, setSelectedModel] = useState<string | null>(null)
+
+  // ---------------------------------------------------------------------------
+  // [P3-02] localStorage 초기값 로드 및 StorageEvent 리스너
+  // 다른 탭/컴포넌트에서 모델 변경 시에도 실시간 동기화
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    // Safety: SSR 환경에서 window 접근 방지
+    if (typeof window === 'undefined') return
+
+    // 초기값 로드
+    const storedModel = localStorage.getItem('prism_selected_model')
+    setSelectedModel(storedModel)
+
+    // 다른 탭/컴포넌트에서의 변경 감지 (StorageEvent)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'prism_selected_model') {
+        setSelectedModel(e.newValue)
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [])
 
   // Chat Draft consumption
   const chatDraft = useEditorState((state) => state.chatDraft)
@@ -128,6 +164,7 @@ export function useChat({ sessionId, onSessionChange }: UseChatOptions): UseChat
     setMessages((prev) => [...prev, userMessage])
     setInput('')
     setIsLoading(true)
+    setStatusText(null)  // [P2-02] 상태 초기화
 
     const abortController = new AbortController()
     let timeoutId: NodeJS.Timeout | null = setTimeout(() => {
@@ -161,10 +198,12 @@ export function useChat({ sessionId, onSessionChange }: UseChatOptions): UseChat
         }
       }
 
-      const selectedModel =
-        typeof window !== 'undefined'
-          ? localStorage.getItem('prism_selected_model')
-          : null
+      // ---------------------------------------------------------------------------
+      // [P3-03] 선택된 모델 - 이제 상태에서 가져옴 (실시간 반영)
+      // 기존: localStorage.getItem('prism_selected_model')
+      // 개선: useState로 관리되는 selectedModel 사용 → 새로고침 없이 즉시 반영
+      // ---------------------------------------------------------------------------
+      // selectedModel은 상위 스코프에서 useState로 관리됨
 
       const backupTimestamp = new Date().toISOString()
       addToLocalBackup(currentSessionId ?? null, 'user', userMessage.content, 'pending')
@@ -214,6 +253,35 @@ export function useChat({ sessionId, onSessionChange }: UseChatOptions): UseChat
         }
 
         const chunk = decoder.decode(value, { stream: true })
+
+        // ---------------------------------------------------------------------
+        // [P2-01] Progressive Streaming - 상태 메시지 필터링 (개선)
+        // 청크에 [STATUS] 메시지가 포함된 경우 라인별로 분리하여 처리
+        // ---------------------------------------------------------------------
+        if (chunk.includes(STATUS_PREFIX)) {
+          const lines = chunk.split('\n')
+          let contentToAdd = ''
+          
+          for (const line of lines) {
+            if (line.startsWith(STATUS_PREFIX)) {
+              // 상태 메시지 추출 및 UI 업데이트
+              const statusMessage = line.replace(STATUS_PREFIX, '').trim()
+              if (statusMessage) {
+                setStatusText(statusMessage)
+              }
+            } else if (line.trim()) {
+              // 상태가 아닌 실제 콘텐츠
+              contentToAdd += line + '\n'
+            }
+          }
+          
+          // 실제 콘텐츠가 있으면 추가
+          if (contentToAdd.trim()) {
+            aiMessageContent += contentToAdd.trimEnd()
+          }
+          continue
+        }
+
         aiMessageContent += chunk
 
         setMessages((prev) =>
@@ -249,12 +317,13 @@ export function useChat({ sessionId, onSessionChange }: UseChatOptions): UseChat
     } finally {
       if (timeoutId) clearTimeout(timeoutId)
       setIsLoading(false)
+      setStatusText(null)  // [P2-02] 상태 클리어
 
       if (currentSessionId) {
         setTimeout(() => refreshMessages(currentSessionId!), 500)
       }
     }
-  }, [input, isLoading, messages, sessionId, projectId, onSessionChange])
+  }, [input, isLoading, messages, sessionId, projectId, onSessionChange, selectedModel])
 
   return {
     messages,
@@ -263,5 +332,6 @@ export function useChat({ sessionId, onSessionChange }: UseChatOptions): UseChat
     isLoading,
     handleSend,
     projectId,
+    statusText,  // [P2-03] Progressive Streaming 상태 메시지
   }
 }

@@ -97,10 +97,17 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
   // ---------------------------------------------------------------------------
   // RAG Pipeline
   // ---------------------------------------------------------------------------
+  
+  // ┌─────────────────────────────────────────────────────────────────────────┐
+  // │  [현재 사용] Google Gemini 3.0 Flash Preview                            │
+  // │  - 장점: 빠른 속도, 큰 컨텍스트 (1M), Thinking 기능, 저렴한 비용          │
+  // │  - 비용: $0.50/1M input, $3.00/1M output (가장 저렴)                     │
+  // │  - 환경변수: GOOGLE_API_KEY 필수                                        │
+  // └─────────────────────────────────────────────────────────────────────────┘
   'rag.answer': {
     modelId: 'gemini-3-flash-preview',
     fallback: 'gpt-5-mini',
-    maxTokens: 2000,
+    maxTokens: 2700,
     description: 'RAG 기반 답변 생성',
     // [Creative] 창의적 생성 구간
     generationConfig: {
@@ -109,6 +116,59 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
       topK: 40,
     },
   },
+
+  /* ===========================================================================
+  // [ALTERNATIVE MODELS] 대체 모델 설정 (주석 해제하여 사용)
+  // 사용법: 위의 rag.answer 설정을 주석 처리하고, 아래 중 하나를 주석 해제
+  // ===========================================================================
+  //
+  // ┌─────────────────────────────────────────────────────────────────────────┐
+  // │  [Option 1] OpenAI GPT-5.2                                              │
+  // │  - 장점: 최신 Reasoning 능력, 긴 컨텍스트 (400K)                         │
+  // │  - 단점: 비용 높음 ($1.75/1M input, $14/1M output)                      │
+  // │  - 환경변수: OPENAI_API_KEY 필수                                        │
+  // └─────────────────────────────────────────────────────────────────────────┘
+  */ 
+  
+  
+  /* 'rag.answer': {
+       modelId: 'gpt-5.2-2025-12-11',
+       fallback: 'gemini-3-flash-preview',
+       maxTokens: 2700,
+       description: 'RAG 기반 답변 생성 (OpenAI GPT-5.2)',
+       generationConfig: {
+         temperature: 0.9,
+         topP: 0.95,
+         // topK: OpenAI 미지원 - 자동 무시됨
+       },
+     },
+  */  
+  
+  
+  // ┌─────────────────────────────────────────────────────────────────────────┐
+  // │  [Option 2] Anthropic Claude 4.5 Sonnet                                 │
+  // │  - 장점: 높은 안정성, 좋은 한국어 지원                                    │
+  // │  - 단점: Gemini 대비 비용 높음 ($3/1M input, $15/1M output)              │
+  // │  - 환경변수: ANTHROPIC_API_KEY 필수                                     │
+  // └─────────────────────────────────────────────────────────────────────────┘
+  
+
+  /* 'rag.answer': {
+       modelId: 'claude-4.5-sonnet-20250929',
+       fallback: 'gemini-3-flash-preview',
+       maxTokens: 2700,
+       description: 'RAG 기반 답변 생성 (Claude 4.5 Sonnet)',
+       generationConfig: {
+         temperature: 0.9,
+         topP: 0.95,
+         topK: 40,  // Anthropic은 topK 지원
+       },
+     },
+  */
+  
+     //===========================================================================
+  
+
   'rag.reviewer': {
     modelId: 'gemma-3-27b-it',
     maxTokens: 500,
