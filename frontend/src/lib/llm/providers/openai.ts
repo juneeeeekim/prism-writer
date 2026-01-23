@@ -74,9 +74,11 @@ export class OpenAIProvider implements LLMProvider {
     const hasReasoningCap = config?.capabilities.includes('reasoning') || config?.capabilities.includes('thinking');
     // Safety check for legacy models or unregistered fallback usage
     const isLegacyO1 = modelId.startsWith('o1') || modelId.startsWith('o3');
+    // [2026-01-23] GPT-5 계열 모델 모두 max_completion_tokens 사용 필요
+    const isGPT5 = modelId.startsWith('gpt-5');
     
-    // Use max_completion_tokens if model is reasoning/thinking type
-    const useCompletionTokens = hasReasoningCap || isLegacyO1;
+    // Use max_completion_tokens if model is reasoning/thinking type or GPT-5 series
+    const useCompletionTokens = hasReasoningCap || isLegacyO1 || isGPT5;
 
     const tokenParam = useCompletionTokens 
       ? { max_completion_tokens: maxOutputTokens } 
@@ -146,9 +148,11 @@ export class OpenAIProvider implements LLMProvider {
     const hasReasoningCap = config?.capabilities.includes('reasoning') || config?.capabilities.includes('thinking');
     // Safety check for legacy models or unregistered fallback usage
     const isLegacyO1 = modelId.startsWith('o1') || modelId.startsWith('o3');
+    // [2026-01-23] GPT-5 계열 모델 모두 max_completion_tokens 사용 필요
+    const isGPT5 = modelId.startsWith('gpt-5');
     
-    // Use max_completion_tokens if model is reasoning/thinking type
-    const useCompletionTokens = hasReasoningCap || isLegacyO1;
+    // Use max_completion_tokens if model is reasoning/thinking type or GPT-5 series
+    const useCompletionTokens = hasReasoningCap || isLegacyO1 || isGPT5;
 
     const tokenParam = useCompletionTokens 
       ? { max_completion_tokens: maxOutputTokens } 
