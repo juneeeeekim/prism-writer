@@ -1,7 +1,6 @@
 {
-  "dependencies": {
-    "@supabase/supabase-js": "^2.89.0",
-    "ai": "^5.0.116",
-    "dotenv": "^17.2.3"
-  }
+  "private": true,
+  "description": "PRISM Writer - Monorepo Root (패키지는 frontend/package.json에서 관리)",
+  "dependencies": {},
+  "devDependencies": {}
 }

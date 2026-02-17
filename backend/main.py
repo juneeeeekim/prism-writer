@@ -24,19 +24,22 @@ app = FastAPI(
 # =============================================================================
 # CORS Middleware Configuration
 # =============================================================================
-# 개발 환경에서는 모든 origin 허용, 프로덕션에서는 제한 필요
+# [P1-03] CORS 보안 강화 (2026-02-17 Audit)
+# 빈 문자열 origin 제거, methods/headers 명시적 지정
+_frontend_url = os.getenv("FRONTEND_URL", "")
 origins = [
     "http://localhost:3000",      # Next.js 개발 서버
     "http://127.0.0.1:3000",
-    os.getenv("FRONTEND_URL", "")  # 프로덕션 프론트엔드 URL
 ]
+if _frontend_url:
+    origins.append(_frontend_url)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "X-Requested-With"],
 )
 
 

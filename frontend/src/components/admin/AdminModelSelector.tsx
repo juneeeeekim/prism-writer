@@ -49,8 +49,9 @@ export default function AdminModelSelector() {
     } else {
       localStorage.removeItem('prism_selected_model')
     }
-    // 페이지 새로고침하여 설정 반영 (가장 확실한 방법)
-    window.location.reload()
+    // [P3-03] CustomEvent dispatch로 변경 — 리로드 없이 모델 전환 (2026-02-17 Audit)
+    // ChatModelSelector 패턴과 동일 (useChat.ts의 prism-model-change 리스너가 수신)
+    window.dispatchEvent(new CustomEvent('prism-model-change', { detail: modelId }))
   }
 
   if (!isAdmin) return null

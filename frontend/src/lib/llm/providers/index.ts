@@ -55,6 +55,11 @@ export function getProviderByModel(modelId: string): LLMProvider {
   return getProvider(config.provider);
 }
 
-// 모든 Provider 관련 타입 및 클래스 내보내기
+// =============================================================================
+// [P1-01] 모든 Provider 관련 타입 및 클래스 내보내기
+// 수정: openai, anthropic re-export 누락 수정 (2026-02-17 Audit)
+// =============================================================================
 export * from "./base";
 export * from "./gemini";
+export * from "./openai";
+export * from "./anthropic";

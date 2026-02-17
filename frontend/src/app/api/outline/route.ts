@@ -14,7 +14,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { vectorSearch } from '@/lib/rag/search'
 import { isFeatureEnabled } from '@/config/featureFlags'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+// =============================================================================
+// [P2-01] LLM Gateway 전환 (2026-02-17 Audit)
+// 변경: GoogleGenerativeAI 직접 사용 → generateText/isLLMAvailable (gateway)
+// =============================================================================
+import { generateText, isLLMAvailable } from '@/lib/llm/gateway'
 // P2-10-A: LLM 중앙 관리 마이그레이션 (2026-01-10)
 import { getModelForUsage } from '@/config/llm-usage-map'
 
@@ -34,7 +38,6 @@ interface OutlineRequest {
   documentIds?: string[]
   /** 최대 깊이 (기본 3) */
   maxDepth?: number
-  /** 검색 결과 개수 (기본 10) */
   /** 검색 결과 개수 (기본 10) */
   topK?: number
   /** [RAG-ISOLATION] 프로젝트 ID (필수) */
@@ -79,14 +82,13 @@ export async function POST(
     }
 
     // -------------------------------------------------------------------------
-    // 1. API Key 확인
+    // 1. [P2-01] LLM 사용 가능 여부 확인 (Gateway 기반)
     // -------------------------------------------------------------------------
-    const apiKey = process.env.GOOGLE_API_KEY
-    if (!apiKey) {
+    if (!isLLMAvailable()) {
       return NextResponse.json({
         success: false,
-        message: 'GOOGLE_API_KEY가 설정되지 않았습니다.',
-        error: 'API_KEY_NOT_CONFIGURED',
+        message: 'LLM이 설정되지 않았습니다.',
+        error: 'LLM_NOT_AVAILABLE',
       }, { status: 503 })
     }
 
@@ -175,20 +177,16 @@ ${referenceContext}
 JSON만 출력하세요.`
 
     // -------------------------------------------------------------------------
-    // 6. LLM 호출 (Gemini)
+    // 6. [P2-01] LLM 호출 (Gateway 경유 — Provider 자동 선택 + Fallback 지원)
     // -------------------------------------------------------------------------
-    const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: MODEL_NAME })
-
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 2000,
-      },
+    const llmResponse = await generateText(prompt, {
+      model: MODEL_NAME,
+      maxOutputTokens: 2000,
+      temperature: 0.7,
+      context: 'outline.generation',  // fallback 모델 자동 조회
     })
 
-    const responseText = result.response.text()
+    const responseText = llmResponse.text
 
     // -------------------------------------------------------------------------
     // 7. JSON 파싱

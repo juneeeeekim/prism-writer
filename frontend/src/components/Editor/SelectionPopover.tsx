@@ -89,9 +89,12 @@ export default function SelectionPopover({
     // Feature Flag로 비활성화된 경우 이벤트 리스너 등록 안 함
     if (!enabled) return
 
+    // [P3-04] setTimeout cleanup 추가 — 언마운트 시 메모리 누수 방지 (2026-02-17 Audit)
+    let mouseUpTimerId: ReturnType<typeof setTimeout> | null = null
+
     const handleMouseUp = () => {
       // 약간의 딜레이로 선택 완료 후 처리 (브라우저 선택 동작 완료 대기)
-      setTimeout(() => {
+      mouseUpTimerId = setTimeout(() => {
         const selection = window.getSelection()
         const text = selection?.toString().trim()
 
@@ -147,8 +150,10 @@ export default function SelectionPopover({
 
     // ---------------------------------------------------------------------------
     // [P3-01-06] Cleanup 함수 (메모리 누수 방지)
+    // [P3-04] setTimeout cleanup 추가 (2026-02-17 Audit)
     // ---------------------------------------------------------------------------
     return () => {
+      if (mouseUpTimerId) clearTimeout(mouseUpTimerId)
       document.removeEventListener('mouseup', handleMouseUp)
       document.removeEventListener('mousedown', handleMouseDown)
       window.removeEventListener('scroll', handleScroll, true)

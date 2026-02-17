@@ -8,7 +8,7 @@
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
-from typing import Optional
+# [P3-02] 미사용 Optional import 제거 (2026-02-17 Audit)
 import logging
 
 # 로거 설정
@@ -25,7 +25,7 @@ router = APIRouter()
 class OutlineGenerateRequest(BaseModel):
     """목차 생성 요청 모델"""
     topic: str = Field(..., min_length=1, max_length=500, description="글의 주제")
-    document_ids: list[str] = Field(default=[], description="참조할 문서 ID 리스트")
+    document_ids: list[str] = Field(default_factory=list, description="참조할 문서 ID 리스트")
     max_depth: int = Field(default=3, ge=1, le=5, description="목차 최대 깊이")
     
     class Config:
@@ -109,7 +109,9 @@ async def generate_outline(request: OutlineGenerateRequest):
         logger.error(f"목차 생성 실패: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail=f"목차 생성 중 오류가 발생했습니다: {str(e)}"
+            # [P3-02] 내부 에러 메시지 클라이언트 노출 방지 (2026-02-17 Audit)
+            # logger.error()에 str(e)는 유지 (서버 로그용)
+            detail="목차 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
         )
 
 

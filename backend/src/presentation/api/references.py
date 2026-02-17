@@ -6,7 +6,7 @@
 # 경로: /v1/drafts/{draft_id}/references
 # =============================================================================
 
-from fastapi import APIRouter, HTTPException, Path
+from fastapi import APIRouter, HTTPException, Path, Body
 from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
@@ -77,7 +77,7 @@ _references_store: dict[str, list[dict]] = {}
 )
 async def create_reference(
     draft_id: str = Path(..., description="글 ID"),
-    request: ReferenceCreateRequest = None
+    request: ReferenceCreateRequest = Body(...),
 ):
     """
     참조 추가 API
@@ -140,6 +140,7 @@ async def get_references(
     # 청크 내용 추가 (실제로는 DB에서 조회)
     result = []
     for ref in references:
+        # TODO(DB-INTEGRATION): chunk_content, chunk_source를 실제 DB 조회로 교체
         result.append(ReferenceWithContentResponse(
             **ref,
             chunk_content="[청크 내용 - DB 연동 후 실제 내용으로 대체됨]",

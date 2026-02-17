@@ -124,19 +124,14 @@ class GenerateOutlineUseCase:
         
         for attempt in range(self.max_retries + 1):
             try:
-                # TODO: 실제 LLM 호출 구현
-                # response = await self.llm_client.chat.completions.create(...)
-                # return response.choices[0].message.content
-                
-                # 현재는 기본 JSON 반환
+                # [STUB] LLM 미연동 상태 — 항상 기본 목차 반환
+                # 실제 구현 시 self.llm_client를 사용하여 교체
                 return self._get_default_outline_json(topic)
                 
-            except Exception as e:
+            except (ValueError, RuntimeError, IOError, json.JSONDecodeError) as e:
                 logger.warning(f"LLM 호출 실패 (시도 {attempt + 1}): {e}")
                 if attempt == self.max_retries:
                     raise
-        
-        return "[]"
     
     def _parse_outline_json(self, json_str: str) -> list[OutlineItem]:
         """JSON 문자열을 OutlineItem 리스트로 파싱"""
