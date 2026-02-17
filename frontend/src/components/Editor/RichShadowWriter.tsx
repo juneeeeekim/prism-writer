@@ -513,8 +513,13 @@ export default function RichShadowWriter({
           className="prose prose-lg dark:prose-invert max-w-none h-full
                      px-4 py-4
                      focus:outline-none
+                     text-gray-900 dark:text-gray-100
                      [&_.ProseMirror]:h-full
                      [&_.ProseMirror]:outline-none
+                     [&_.ProseMirror]:text-gray-900
+                     [&_.ProseMirror]:dark:text-gray-100
+                     [&_.ProseMirror_p]:text-gray-900
+                     [&_.ProseMirror_p]:dark:text-gray-100
                      [&_.ProseMirror_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)]
                      [&_.ProseMirror_p.is-editor-empty:first-child::before]:text-gray-400
                      [&_.ProseMirror_p.is-editor-empty:first-child::before]:pointer-events-none

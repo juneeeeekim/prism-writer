@@ -13,6 +13,8 @@ import Link from 'next/link'
 import { useAuth } from '@/hooks/useAuth'
 import UserDropdown from '@/components/ui/UserDropdown'
 import AdminModelSelector from '@/components/admin/AdminModelSelector'
+// [P2-02] 테마 토글 버튼 컴포넌트
+import ThemeToggle from '@/components/layout/ThemeToggle'
 // [P5-07-A] 프로젝트 선택기 컴포넌트 (Dynamic import로 ProjectProvider 없을 때 에러 방지)
 import dynamic from 'next/dynamic'
 
@@ -159,13 +161,18 @@ export default function AuthHeader({
             </button>
             <button
               onClick={onExport}
-              className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              className="px-3 py-1.5 text-sm text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               aria-label="내보내기"
             >
               📤 내보내기
             </button>
           </div>
         )}
+
+        {/* ---------------------------------------------------------------
+            [P2-02] Theme Toggle Button
+            --------------------------------------------------------------- */}
+        <ThemeToggle size="md" />
 
         {/* ---------------------------------------------------------------
             Auth Section

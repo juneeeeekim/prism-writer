@@ -10,6 +10,12 @@ import dynamic from 'next/dynamic'
 import './globals.css'
 import ToastContainer from '@/components/ui/ToastContainer'
 // =============================================================================
+// [P1-02] ThemeProvider - 전역 테마 상태 관리
+// - 다크/라이트 모드 토글 기능 제공
+// - localStorage 기반 사용자 선호도 저장
+// =============================================================================
+import { ThemeProvider } from '@/contexts/ThemeContext'
+// =============================================================================
 // [P-A03-02] Vercel Analytics 컴포넌트 - 동적 import
 // 페이지뷰, 사용자 행동 분석을 위한 Vercel Analytics
 // - 개발 환경에서는 자동 비활성화됨 (Vercel 환경 아니면 noop)
@@ -38,24 +44,32 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="ko" className="h-full">
+    // [P1-02] suppressHydrationWarning: 테마 초기화 시 SSR/CSR 불일치 경고 방지
+    <html lang="ko" className="h-full" suppressHydrationWarning>
       <body className="h-full antialiased">
-        {/* 메인 컨텐츠 영역 */}
-        <main className="h-full">
-          {children}
-        </main>
-        
-        {/* Toast 알림 컨테이너 (Phase 2) */}
-        <ToastContainer />
-
         {/* =====================================================================
-            [P-A03-02] Vercel Analytics
-            - Vercel 배포 환경에서 자동으로 페이지뷰 및 사용자 행동 추적
-            - 개발 환경(localhost)에서는 noop (데이터 수집 안함)
-            - Vercel 대시보드에서 실시간 분석 확인 가능
-            - [Performance] 동적 import로 초기 번들 크기 절약
+            [P1-02] ThemeProvider - 전역 테마 상태 관리
+            - 모든 하위 컴포넌트에서 useTheme() 훅 사용 가능
+            - 다크/라이트 모드 토글 및 localStorage 저장 지원
             ===================================================================== */}
-        <AnalyticsProvider />
+        <ThemeProvider>
+          {/* 메인 컨텐츠 영역 */}
+          <main className="h-full">
+            {children}
+          </main>
+
+          {/* Toast 알림 컨테이너 (Phase 2) */}
+          <ToastContainer />
+
+          {/* =====================================================================
+              [P-A03-02] Vercel Analytics
+              - Vercel 배포 환경에서 자동으로 페이지뷰 및 사용자 행동 추적
+              - 개발 환경(localhost)에서는 noop (데이터 수집 안함)
+              - Vercel 대시보드에서 실시간 분석 확인 가능
+              - [Performance] 동적 import로 초기 번들 크기 절약
+              ===================================================================== */}
+          <AnalyticsProvider />
+        </ThemeProvider>
       </body>
     </html>
   )

@@ -6,6 +6,10 @@ import { useEditorState } from '@/hooks/useEditorState'
 import { useAutosave, type SaveStatus } from '@/hooks/useAutosave'  // Pipeline v5: Autosave
 // [P7-FIX] 프로젝트 Context 추가
 import { useProject } from '@/contexts/ProjectContext'
+// [P3-01] 전역 테마 Context 사용
+import { useTheme } from '@/contexts/ThemeContext'
+// [P2-02] 테마 토글 버튼 컴포넌트
+import ThemeToggle from '@/components/layout/ThemeToggle'
 
 // 동적 import (SSR 비활성화 - 마크다운 에디터는 클라이언트 전용)
 const MDEditor = dynamic(() => import('@uiw/react-md-editor'), { ssr: false })
@@ -43,6 +47,16 @@ export default function MarkdownEditor() {
   // [Font Size Control] 폰트 크기 조절 (기본값 16px)
   const [fontSize, setFontSize] = useState<number>(16)
 
+  // =========================================================================
+  // [P3-01] 전역 테마 Context 사용 (기존 로컬 state 대체)
+  // - ThemeContext를 통한 전역 테마 상태 관리
+  // - localStorage 기반 사용자 선호도 저장 지원
+  // - 수동 토글 기능 연동
+  // =========================================================================
+  const { theme } = useTheme()
+  // theme이 null일 경우 (SSR 또는 초기화 전) 기본값 'light' 사용
+  const isDarkMode = theme === 'dark'
+
   const handleZoomIn = () => setFontSize(prev => Math.min(prev + 1, 32))
   const handleZoomOut = () => setFontSize(prev => Math.max(prev - 1, 12)) 
 
@@ -79,6 +93,80 @@ export default function MarkdownEditor() {
       document.removeEventListener('keydown', handleKeyDown)
     }
   }, [handleKeyDown])
+
+  // =========================================================================
+  // [P3-02] 다크 모드 에디터 스타일 강제 적용 (JavaScript DOM 조작)
+  // - CSS 오버라이드가 작동하지 않는 경우를 위한 폴백
+  // - 테마 변경 시 에디터 내부 요소 스타일 직접 설정
+  // =========================================================================
+  useEffect(() => {
+    if (theme === null) return // 테마 로드 전
+
+    const applyEditorStyles = () => {
+      const container = document.getElementById('markdown-editor-container')
+      if (!container) return
+
+      const textColor = isDarkMode ? '#f9fafb' : '#1f2937'
+      const bgColor = isDarkMode ? '#1f2937' : '#ffffff'
+
+      // 에디터 내부 모든 텍스트 요소에 색상 적용
+      // TipTap/ProseMirror 기반 에디터 + 기존 @uiw/react-md-editor 선택자 모두 포함
+      const selectors = [
+        // TipTap/ProseMirror 에디터 (실제 사용 중)
+        '.tiptap',
+        '.ProseMirror',
+        '.tiptap.ProseMirror',
+        '[contenteditable="true"]',
+        '.tiptap p',
+        '.ProseMirror p',
+        // @uiw/react-md-editor (폴백)
+        '.w-md-editor',
+        '.w-md-editor-text',
+        '.w-md-editor-text-pre',
+        '.w-md-editor-text-pre code',
+        '.w-md-editor-text-input',
+        '.w-md-editor-content',
+        '.w-md-editor-area',
+        'textarea',
+      ]
+
+      selectors.forEach(selector => {
+        const elements = container.querySelectorAll(selector)
+        elements.forEach(el => {
+          const htmlEl = el as HTMLElement
+          htmlEl.style.setProperty('color', textColor, 'important')
+          htmlEl.style.setProperty('-webkit-text-fill-color', textColor, 'important')
+          if (selector === '.w-md-editor' || selector === '.w-md-editor-content' || selector === '.w-md-editor-area') {
+            htmlEl.style.setProperty('background-color', bgColor, 'important')
+          }
+        })
+      })
+    }
+
+    // 즉시 적용
+    applyEditorStyles()
+
+    // 에디터가 늦게 렌더링될 수 있으므로 약간의 지연 후 재적용
+    const timeoutId = setTimeout(applyEditorStyles, 100)
+    const timeoutId2 = setTimeout(applyEditorStyles, 500)
+
+    // MutationObserver로 에디터 내용 변경 시에도 스타일 유지
+    const container = document.getElementById('markdown-editor-container')
+    let observer: MutationObserver | null = null
+
+    if (container) {
+      observer = new MutationObserver(() => {
+        applyEditorStyles()
+      })
+      observer.observe(container, { childList: true, subtree: true })
+    }
+
+    return () => {
+      clearTimeout(timeoutId)
+      clearTimeout(timeoutId2)
+      if (observer) observer.disconnect()
+    }
+  }, [theme, isDarkMode])
 
   // =========================================================================
   // [Pipeline v5] 저장 상태 표시 정보
@@ -123,22 +211,47 @@ export default function MarkdownEditor() {
             +
           </button>
         </div>
+
+        {/* [P2-02] 테마 토글 버튼 - 폰트 조절 옆 */}
+        <ThemeToggle size="sm" />
       </div>
 
       {/* -----------------------------------------------------------------------
           Markdown Editor
+          [P2-01] data-color-mode: isDarkMode 상태에 따라 동적 전환
           ----------------------------------------------------------------------- */}
-      <div 
+      <div
         id="markdown-editor-container"
-        className="flex-1 overflow-hidden" 
-        data-color-mode="light"
+        className="flex-1 overflow-hidden"
+        data-color-mode={isDarkMode ? 'dark' : 'light'}
       >
-        {/* [Fix] 라이브러리 내부 스타일 강제 오버라이드 */}
+        {/* [Fix] 라이브러리 내부 스타일 강제 오버라이드
+            [P4-01] 다크 모드 시 텍스트 색상 동적 적용
+            [P3-05] TipTap/ProseMirror 에디터 지원 추가 */}
         <style>{`
           #markdown-editor-container .w-md-editor-text-pre > code,
           #markdown-editor-container .w-md-editor-text-input {
             font-size: ${fontSize}px !important;
             line-height: 1.6 !important;
+          }
+
+          /* TipTap/ProseMirror 다크 모드 강제 적용 */
+          #markdown-editor-container .tiptap,
+          #markdown-editor-container .tiptap.ProseMirror,
+          #markdown-editor-container .ProseMirror,
+          #markdown-editor-container [contenteditable="true"],
+          #markdown-editor-container .tiptap p,
+          #markdown-editor-container .tiptap *,
+          #markdown-editor-container .ProseMirror p,
+          #markdown-editor-container .ProseMirror * {
+            color: ${isDarkMode ? '#f9fafb' : '#1f2937'} !important;
+            -webkit-text-fill-color: ${isDarkMode ? '#f9fafb' : '#1f2937'} !important;
+          }
+
+          #markdown-editor-container .tiptap,
+          #markdown-editor-container .ProseMirror {
+            background-color: ${isDarkMode ? '#1f2937' : '#ffffff'} !important;
+            caret-color: ${isDarkMode ? '#f9fafb' : '#1f2937'} !important;
           }
         `}</style>
         <MDEditor
