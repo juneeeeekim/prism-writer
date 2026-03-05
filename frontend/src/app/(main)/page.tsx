@@ -5,14 +5,20 @@
 // 역할: 홈 페이지 - 에디터 페이지로 리다이렉트 또는 랜딩 페이지
 // =============================================================================
 
+'use client'
+
 import Link from 'next/link'
+import AuthHeader from '@/components/auth/AuthHeader'
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-slate-900 dark:via-purple-900 dark:to-slate-900">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-slate-900 dark:via-purple-900 dark:to-slate-900">
+      <AuthHeader showLogo />
+
       {/* ---------------------------------------------------------------------
           Hero Section
           --------------------------------------------------------------------- */}
+      <div className="flex-1 flex flex-col items-center justify-center">
       <div className="text-center space-y-6 p-8">
         {/* Logo */}
         <h1 className="text-5xl font-bold bg-gradient-to-r from-indigo-600 to-pink-500 bg-clip-text text-transparent">
@@ -57,6 +63,7 @@ export default function HomePage() {
           title="Reference Linking"
           description="문단별 출처 매핑으로 신뢰성 확보"
         />
+      </div>
       </div>
     </div>
   )
