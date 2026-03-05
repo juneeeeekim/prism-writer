@@ -39,6 +39,22 @@
   );
 }
 
+/* 모바일: 대시보드 헤더/본문 패딩 축소 */
+@media (max-width: 640px) {
+  .dashboard-header {
+    padding: 1.5rem 1rem 1rem;
+  }
+  .dashboard-main {
+    padding: 1rem;
+  }
+  .dashboard-toolbar {
+    padding: 0 1rem;
+  }
+  .dashboard-title {
+    font-size: 1.5rem;
+  }
+}
+
 .dashboard-header-content {
   max-width: 800px;
   margin: 0 auto;
@@ -500,6 +516,14 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1.5rem;
+}
+
+/* 모바일: 프로젝트 그리드 단일 컬럼 */
+@media (max-width: 640px) {
+  .project-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
 }
 
 /* -----------------------------------------------------------------------------

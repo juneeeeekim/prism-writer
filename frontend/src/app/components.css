@@ -43,10 +43,14 @@
     flex-direction: column;
   }
 
-  .editor-pane,
+  .editor-pane {
+    width: 100% !important;
+    height: 60%;
+  }
+
   .assistant-pane {
     width: 100% !important;
-    height: 50%;
+    height: 40%;
   }
 
   /* 모바일에서 드래그 리사이저 숨김 */

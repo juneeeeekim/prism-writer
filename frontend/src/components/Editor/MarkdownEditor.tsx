@@ -190,7 +190,7 @@ export default function MarkdownEditor() {
         />
         
         {/* [Font Size Control] 폰트 크기 조절 UI */}
-        <div className="shrink-0 z-10 flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 border border-gray-200 dark:border-gray-700">
+        <div className="shrink-0 z-10 hidden sm:flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 border border-gray-200 dark:border-gray-700">
           <button
             onClick={handleZoomOut}
             disabled={fontSize <= 12}
@@ -213,7 +213,7 @@ export default function MarkdownEditor() {
         </div>
 
         {/* [P2-02] 테마 토글 버튼 - 폰트 조절 옆 */}
-        <ThemeToggle size="sm" />
+        <div className="hidden sm:block"><ThemeToggle size="sm" /></div>
       </div>
 
       {/* -----------------------------------------------------------------------
@@ -268,7 +268,7 @@ export default function MarkdownEditor() {
       {/* -----------------------------------------------------------------------
           Status Bar (Character Counter + Save Status) - Pipeline v5 업그레이드
           ----------------------------------------------------------------------- */}
-      <div className="flex items-center justify-between px-4 py-2 text-sm border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+      <div className="flex items-center justify-between flex-wrap gap-2 px-2 sm:px-4 py-2 text-sm border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
         {/* 좌측: 글자 수 + 저장 상태 */}
         <div className="flex items-center gap-4">
           <span id="char-counter" className="text-gray-500 dark:text-gray-400">

@@ -76,6 +76,18 @@ export default function AuthHeader({
               </h1>
             </Link>
             
+            {/* 모바일 대시보드 바로가기 (640px 이하에서만 표시) */}
+            <Link
+              href="/dashboard"
+              className="sm:hidden p-1.5 text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 rounded transition-colors"
+              aria-label="대시보드"
+              title="대시보드로 이동"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+              </svg>
+            </Link>
+
             {/* =============================================================
                 [P5-07-A] 프로젝트 선택기 드롭다운
                 ============================================================= */}
