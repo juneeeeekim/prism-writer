@@ -17,6 +17,7 @@ import React, {
   useEffect,
   useMemo,
 } from 'react'
+import { useAuth } from '@/hooks/useAuth'
 import type {
   Project,
   CreateProjectInput,
@@ -56,6 +57,11 @@ interface ProjectProviderProps {
  * ```
  */
 export function ProjectProvider({ children }: ProjectProviderProps) {
+  // ---------------------------------------------------------------------------
+  // 인증 상태 (프로젝트 로드 전 인증 확인용)
+  // ---------------------------------------------------------------------------
+  const { user, loading: authLoading } = useAuth()
+
   // ---------------------------------------------------------------------------
   // 상태 정의
   // ---------------------------------------------------------------------------
@@ -337,13 +343,16 @@ export function ProjectProvider({ children }: ProjectProviderProps) {
   }, [])
 
   // ---------------------------------------------------------------------------
-  // 초기 로드
+  // 초기 로드 (인증 준비 후)
   // ---------------------------------------------------------------------------
 
   useEffect(() => {
-    refreshProjects()
+    // 인증 로딩 중이면 대기, 로그인 상태일 때만 프로젝트 로드
+    if (!authLoading && user) {
+      refreshProjects()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [authLoading, user])
 
   // ---------------------------------------------------------------------------
   // [P8-SEARCH] 필터 변경 시 목록 새로고침
