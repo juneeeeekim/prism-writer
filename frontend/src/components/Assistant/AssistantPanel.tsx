@@ -267,18 +267,20 @@ export default function AssistantPanel({ defaultTab = 'reference' }: AssistantPa
           aria-labelledby="tab-chat"
           className={`h-full flex ${activeTab !== 'chat' ? 'hidden' : ''}`}
         >
-          {/* Feature Flag: 세션 목록 표시 여부 */}
+          {/* Feature Flag: 세션 목록 표시 여부 (모바일에서는 숨김 — 공간 부족) */}
           {showSessionList && (
-            <ChatSessionList 
-              selectedSessionId={selectedSessionId} 
-              onSelectSession={setSelectedSessionId} 
-            />
+            <div className="hidden sm:block">
+              <ChatSessionList
+                selectedSessionId={selectedSessionId}
+                onSelectSession={setSelectedSessionId}
+              />
+            </div>
           )}
           <div className="flex-1 min-w-0 h-full">
             {/* Feature Flag OFF 시 세션 관리 비활성화 (기존 동작 유지) */}
             {/* Phase 14.5: Pass category for scoped personalization */}
-            <ChatTab 
-              sessionId={showSessionList ? selectedSessionId : undefined} 
+            <ChatTab
+              sessionId={showSessionList ? selectedSessionId : undefined}
               onSessionChange={setSelectedSessionId}
             />
           </div>

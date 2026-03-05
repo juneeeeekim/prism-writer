@@ -37,23 +37,9 @@
    - 태블릿/데스크탑(768px 이상): 가로 분할 (기존 동작)
    ============================================================================= */
 
-/* 모바일: 세로 스택 레이아웃 */
+/* 모바일: React에서 전체화면 에디터 + 오버레이 어시스턴트로 처리
+   (DualPaneContainer.tsx 참조 — 767px 이하에서 조건부 렌더링) */
 @media (max-width: 767px) {
-  .dual-pane-container {
-    flex-direction: column;
-  }
-
-  .editor-pane {
-    width: 100% !important;
-    height: 60%;
-  }
-
-  .assistant-pane {
-    width: 100% !important;
-    height: 40%;
-  }
-
-  /* 모바일에서 드래그 리사이저 숨김 */
   .pane-divider {
     display: none;
   }
