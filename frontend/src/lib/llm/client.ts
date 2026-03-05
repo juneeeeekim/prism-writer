@@ -11,20 +11,9 @@ import type { LLMGenerateOptions, LLMResponse, LLMStreamChunk } from './types'
 export type { LLMGenerateOptions, LLMResponse, LLMStreamChunk }
 
 // =============================================================================
-// Helper Functions
+// Helper Functions — estimateLLMTokenCount는 ./utils.ts로 이동 (순환 의존성 해소)
 // =============================================================================
-
-/**
- * 텍스트의 토큰 수 추정 (대략적)
- * 
- * @param text - 텍스트
- * @returns 예상 토큰 수
- */
-export function estimateLLMTokenCount(text: string): number {
-  // 영어: ~4 chars/token, 한글: ~2 chars/token
-  // 보수적으로 3으로 계산
-  return Math.ceil(text.length / 3)
-}
+export { estimateLLMTokenCount } from './utils'
 
 // =============================================================================
 // Main Functions (Deprecated - Redirected to Gateway)

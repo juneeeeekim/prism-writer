@@ -8,6 +8,10 @@
 import type { Metadata } from 'next'
 import dynamic from 'next/dynamic'
 import './globals.css'
+// [P4-03] CSS 모듈화: globals.css에서 역할별로 분리 (2026-03-05 Health Audit)
+import './editor.css'
+import './components.css'
+import './dashboard.css'
 import ToastContainer from '@/components/ui/ToastContainer'
 // =============================================================================
 // [P1-02] ThemeProvider - 전역 테마 상태 관리

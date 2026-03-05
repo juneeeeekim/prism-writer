@@ -144,66 +144,78 @@ export const MessageItem = memo(function MessageItem({ message, projectId }: Mes
         containIntrinsicSize: '0 80px',
       }}
     >
-      <div
-        className={`max-w-[85%] rounded-lg p-3 ${
-          message.role === 'user'
-            ? 'bg-prism-primary text-white'
-            : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
-        }`}
-      >
-        {message.role === 'user' ? (
-          <p className="whitespace-pre-wrap break-words">{message.content}</p>
-        ) : (
-          <div className="prose dark:prose-invert max-w-none text-sm break-words">
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              components={{
-                code({ inline, className, children, ...props }: any) {
-                  const match = /language-(\w+)/.exec(className || '')
-                  return !inline && match ? (
-                    <div className="bg-gray-800 text-white p-2 rounded overflow-x-auto my-2">
+      {/* ---------------------------------------------------------------------------
+         메시지 컨테이너: 말풍선 + 부가 정보를 세로 배치
+         - Citation Badge, Sources Panel, Feedback Buttons를 말풍선 아래에 표시
+         --------------------------------------------------------------------------- */}
+      <div className="flex flex-col max-w-[85%]">
+        {/* 메시지 말풍선 */}
+        <div
+          className={`rounded-lg p-3 ${
+            message.role === 'user'
+              ? 'bg-prism-primary text-white'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+          }`}
+        >
+          {message.role === 'user' ? (
+            <p className="whitespace-pre-wrap break-words">{message.content}</p>
+          ) : (
+            <div className="prose dark:prose-invert max-w-none text-sm break-words">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  code({ inline, className, children, ...props }: any) {
+                    const match = /language-(\w+)/.exec(className || '')
+                    return !inline && match ? (
+                      <div className="bg-gray-800 text-white p-2 rounded overflow-x-auto my-2">
+                        <code className={className} {...props}>
+                          {children}
+                        </code>
+                      </div>
+                    ) : (
                       <code className={className} {...props}>
                         {children}
                       </code>
-                    </div>
-                  ) : (
-                    <code className={className} {...props}>
-                      {children}
-                    </code>
-                  )
-                },
-              }}
-            >
-              {message.content}
-            </ReactMarkdown>
-          </div>
+                    )
+                  },
+                }}
+              >
+                {message.content}
+              </ReactMarkdown>
+            </div>
+          )}
+          <span className="text-xs opacity-70 mt-1 block">
+            {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        </div>
+
+        {/* 말풍선 아래: Citation Badge + Sources + Feedback (세로 배치) */}
+        {message.role === 'assistant' && (
+          <>
+            {/* Citation Badge */}
+            {message.metadata?.citation_verification && (
+              <CitationBadge
+                score={message.metadata.citation_verification.matchScore}
+                rubricTier={message.metadata.rubric_tier}
+              />
+            )}
+
+            {/* Sources Panel */}
+            {message.metadata?.sources && message.metadata.sources.length > 0 && (
+              <SourcesPanel sources={message.metadata.sources} />
+            )}
+
+            {/* Feedback Buttons — 응답 하단에 배치 */}
+            {projectId && (
+              <AdaptiveFeedbackButtons
+                messageId={message.id}
+                projectId={projectId}
+                initialFeedback={message.feedback}
+              />
+            )}
+          </>
         )}
-        <span className="text-xs opacity-70 mt-1 block">
-          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </span>
       </div>
-
-      {/* Citation Badge */}
-      {message.role === 'assistant' && message.metadata?.citation_verification && (
-        <CitationBadge
-          score={message.metadata.citation_verification.matchScore}
-          rubricTier={message.metadata.rubric_tier}
-        />
-      )}
-
-      {/* Sources Panel */}
-      {message.role === 'assistant' && message.metadata?.sources && message.metadata.sources.length > 0 && (
-        <SourcesPanel sources={message.metadata.sources} />
-      )}
-
-      {/* Feedback Buttons */}
-      {message.role === 'assistant' && projectId && (
-        <AdaptiveFeedbackButtons
-          messageId={message.id}
-          projectId={projectId}
-          initialFeedback={message.feedback}
-        />
-      )}
     </div>
   )
 })

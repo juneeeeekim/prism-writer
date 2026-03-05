@@ -7,7 +7,7 @@
 
 export { useAuth, default as useAuthDefault } from './useAuth'
 export { useLLMUsage, default as useLLMUsageDefault } from './useLLMUsage'
-export { useAssistantSessions } from './useAssistantSessions'
+// [DEAD CODE REMOVED] useAssistantSessions — 2026-03-05 Health Audit
 // =============================================================================
 // [P-A05-01] 검색 히스토리 훅 export
 // =============================================================================

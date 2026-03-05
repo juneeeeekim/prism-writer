@@ -28,6 +28,15 @@ export interface EmbeddingConfig {
 /**
  * 서비스에서 지원하는 모든 임베딩 모델 목록
  */
+// =============================================================================
+// [SHARED] 공통 임베딩 설정 — lib/ai/embedding.ts, lib/rag/embedding.ts에서 참조
+// =============================================================================
+export const SHARED_EMBEDDING_CONFIG = {
+  modelId: 'text-embedding-3-small' as const,
+  dimensions: 1536,
+  maxTokens: 8191,
+} as const
+
 export const EMBEDDING_REGISTRY: Record<string, EmbeddingConfig> = {
   // ---------------------------------------------------------------------------
   // Google Gemini 임베딩 모델

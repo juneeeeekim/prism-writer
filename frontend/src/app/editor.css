@@ -1,0 +1,119 @@
+/* =============================================================================
+   PRISM Writer - Editor Styles
+   =============================================================================
+   파일: frontend/src/app/editor.css
+   역할: 마크다운 에디터 (w-md-editor, TipTap/ProseMirror) 다크 모드 스타일
+   분리: 2026-03-05 Health Audit P4-03 — globals.css 모듈화
+   ============================================================================= */
+
+/* -----------------------------------------------------------------------------
+   Editor Styles
+   ----------------------------------------------------------------------------- */
+.markdown-editor {
+  min-height: 100%;
+}
+
+/* Markdown editor dark mode override */
+.dark .w-md-editor {
+  --color-canvas-default: #1f2937;
+  --color-fg-default: #f9fafb;
+}
+
+/* =============================================================================
+   [P3-01] 마크다운 에디터 다크 모드 강화 오버라이드
+   - data-color-mode 속성과 무관하게 .dark 클래스 기반 강제 적용
+   - 라이브러리 CSS 명시도보다 높은 선택자 사용 (html.dark 접두사)
+   - macOS/Windows 시스템 다크 모드 대응
+   ============================================================================= */
+html.dark #markdown-editor-container .w-md-editor,
+html.dark #markdown-editor-container .w-md-editor-text,
+html.dark #markdown-editor-container .w-md-editor-text-pre,
+html.dark #markdown-editor-container .w-md-editor-text-input,
+html.dark #markdown-editor-container .w-md-editor-preview,
+html.dark #markdown-editor-container .wmde-markdown {
+  --color-canvas-default: #1f2937 !important;
+  --color-fg-default: #f9fafb !important;
+  background-color: #1f2937 !important;
+  color: #f9fafb !important;
+}
+
+/* [P3-01-EXT] 에디터 내부 모든 텍스트 요소 다크 모드 강제 적용
+   - code, span, pre 등 라이브러리 내부 요소 포함
+   - 와일드카드 선택자로 모든 자식 요소 커버 */
+html.dark #markdown-editor-container .w-md-editor *,
+html.dark #markdown-editor-container .w-md-editor-text *,
+html.dark #markdown-editor-container .w-md-editor-text-pre *,
+html.dark #markdown-editor-container .w-md-editor-text-pre > code,
+html.dark #markdown-editor-container .w-md-editor-text-pre code,
+html.dark #markdown-editor-container .w-md-editor-text-pre span,
+html.dark #markdown-editor-container .w-md-editor-area *,
+html.dark #markdown-editor-container .w-md-editor-content * {
+  color: #f9fafb !important;
+}
+
+/* [P3-01-EXT2] 에디터 textarea 및 코드 영역 다크 모드 */
+html.dark #markdown-editor-container textarea,
+html.dark #markdown-editor-container .w-md-editor-text-input,
+html.dark #markdown-editor-container .w-md-editor-text-pre > code {
+  color: #f9fafb !important;
+  background-color: transparent !important;
+  -webkit-text-fill-color: #f9fafb !important;
+}
+
+/* [P3-02] 에디터 textarea 커서(캐럿) 색상 - 다크 모드
+   - 다크 배경에서 커서가 잘 보이도록 흰색 설정 */
+html.dark #markdown-editor-container .w-md-editor-text-input {
+  caret-color: #f9fafb !important;
+}
+
+/* [P3-03] 에디터 툴바 다크 모드 스타일
+   - Tailwind Gray 팔레트 기준 색상
+   - 툴바 배경, 버튼 텍스트, 호버 상태 스타일링 */
+html.dark #markdown-editor-container .w-md-editor-toolbar {
+  background-color: #374151 !important;
+  border-color: #4b5563 !important;
+}
+
+html.dark #markdown-editor-container .w-md-editor-toolbar button {
+  color: #e5e7eb !important;
+}
+
+html.dark #markdown-editor-container .w-md-editor-toolbar button:hover {
+  background-color: #4b5563 !important;
+}
+
+/* [P3-04] 에디터 콘텐츠 영역 다크 모드 배경색 */
+html.dark #markdown-editor-container .w-md-editor-content,
+html.dark #markdown-editor-container .w-md-editor-area,
+html.dark #markdown-editor-container .w-md-editor-input {
+  background-color: #1f2937 !important;
+}
+
+/* =============================================================================
+   [P3-05] TipTap/ProseMirror 에디터 다크 모드 지원
+   - 실제 에디터가 TipTap 기반으로 렌더링됨
+   - contenteditable div에 직접 스타일 적용
+   ============================================================================= */
+html.dark #markdown-editor-container .tiptap,
+html.dark #markdown-editor-container .ProseMirror,
+html.dark #markdown-editor-container .tiptap.ProseMirror,
+html.dark #markdown-editor-container [contenteditable="true"] {
+  color: #f9fafb !important;
+  background-color: #1f2937 !important;
+  caret-color: #f9fafb !important;
+  -webkit-text-fill-color: #f9fafb !important;
+}
+
+html.dark #markdown-editor-container .tiptap p,
+html.dark #markdown-editor-container .ProseMirror p,
+html.dark #markdown-editor-container .tiptap *,
+html.dark #markdown-editor-container .ProseMirror * {
+  color: #f9fafb !important;
+  -webkit-text-fill-color: #f9fafb !important;
+}
+
+/* [P1-02] Markdown Editor Text Wrap Override */
+.w-md-editor-text {
+  word-break: break-word !important;
+  white-space: pre-wrap !important;
+}

@@ -9,23 +9,24 @@
 
 import OpenAI from 'openai'
 import { LRUCache, hashText } from '@/lib/cache/lruCache'
+import { SHARED_EMBEDDING_CONFIG } from '@/config/embedding-models'
 
 // =============================================================================
-// 상수 및 설정
+// 상수 및 설정 — config/embedding-models.ts에서 공통 설정 참조
 // =============================================================================
 
 /**
  * 임베딩 모델 설정
- * 
+ *
  * @description
- * 임베딩 모델 정보를 중앙화하여 버전 관리 용이
+ * 공통 설정은 config/embedding-models.ts SHARED_EMBEDDING_CONFIG에서 관리
  * DB 저장 시 embedding_model_id, embedding_dim 값으로 사용됨
  */
 export const EMBEDDING_CONFIG = {
   /** 임베딩 모델 ID (OpenAI) */
-  modelId: 'text-embedding-3-small',
-  /** 임베딩 벡터 차원 수 (1536) */
-  dimensions: 1536,
+  modelId: SHARED_EMBEDDING_CONFIG.modelId,
+  /** 임베딩 벡터 차원 수 */
+  dimensions: SHARED_EMBEDDING_CONFIG.dimensions,
   /** 벤더/제공자 */
   vendor: 'openai',
 } as const

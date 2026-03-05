@@ -84,6 +84,15 @@ const PROTECTED_ROUTES: Array<{ pattern: RegExp; requirement: RouteRequirement }
       redirectTo: '/login?redirect=%2Ftrash',
     },
   },
+  // 문서 관리 (로그인 필수) — 2026-03-05 Health Audit 추가
+  {
+    pattern: /^\/documents/,
+    requirement: {
+      minimumRole: 'pending',
+      requireApproval: false,
+      redirectTo: '/login?redirect=%2Fdocuments',
+    },
+  },
   // 일반 에디터 (free 이상, 승인 필요)
   {
     pattern: /^\/editor/,
@@ -266,7 +275,7 @@ export async function middleware(req: NextRequest) {
 // =============================================================================
 /**
  * matcher: 미들웨어가 실행될 경로 패턴
- * - /editor, /admin, /profile, /dashboard, /trash 경로에 적용
+ * - /editor, /admin, /profile, /dashboard, /trash, /documents 경로에 적용
  * - 성능 최적화: 필요한 경로에만 미들웨어 실행
  */
 export const config = {
@@ -276,6 +285,7 @@ export const config = {
     '/profile/:path*',
     '/dashboard/:path*',
     '/trash/:path*',
+    '/documents/:path*',
   ],
 }
 

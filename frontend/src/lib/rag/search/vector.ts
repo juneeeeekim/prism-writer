@@ -9,7 +9,15 @@
 import { createClient } from '@/lib/supabase/server'
 import { embedText } from '../embedding'
 import { validateACL } from '../aclGate'
-import { PIPELINE_V4_FLAGS } from '../featureFlags'
+// [HEALTH AUDIT] rag/featureFlags.ts 이중화 해소 → config/featureFlags.ts로 통합
+import { FEATURE_FLAGS } from '@/config/featureFlags'
+const PIPELINE_V4_FLAGS = {
+  useChunkTypeFilter: FEATURE_FLAGS.ENABLE_PIPELINE_V4,
+  enableRegressionGate: FEATURE_FLAGS.ENABLE_PIPELINE_V4,
+  autoGenerateValidationSamples: FEATURE_FLAGS.ENABLE_PIPELINE_V4,
+  enableClassificationLogging: process.env.NODE_ENV === 'development',
+  enablePromptLengthLimit: FEATURE_FLAGS.ENABLE_PIPELINE_V4,
+}
 import { logger } from '@/lib/utils/logger'
 
 import type { SearchResult, SearchOptions } from './types'

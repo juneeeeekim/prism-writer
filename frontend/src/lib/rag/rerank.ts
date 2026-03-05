@@ -14,7 +14,8 @@
 import { FEATURE_FLAGS } from '@/config/featureFlags'
 import { logger } from '@/lib/utils/logger'
 import { generateText } from '@/lib/llm/gateway'
-import type { SearchResult } from './search'
+// [HEALTH AUDIT] 순환 의존성 해소: ./search 배럴 → ./search/types 직접 참조
+import type { SearchResult } from './search/types'
 // P2-03-A: LLM 중앙 관리 마이그레이션 (2026-01-10)
 import { getModelForUsage } from '@/config/llm-usage-map'
 

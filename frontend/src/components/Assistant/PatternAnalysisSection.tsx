@@ -89,13 +89,6 @@ export default function PatternAnalysisSection({ documentId }: PatternAnalysisSe
   const projectId = currentProject?.id ?? null
 
   // ---------------------------------------------------------------------------
-  // Feature Flag 체크
-  // ---------------------------------------------------------------------------
-  if (!FEATURE_FLAGS.ENABLE_RUBRIC_CANDIDATE_UI) {
-    return null // UI 비활성화 시 렌더링하지 않음
-  }
-
-  // ---------------------------------------------------------------------------
   // 후보 목록 로드
   // ---------------------------------------------------------------------------
   const loadCandidates = useCallback(async () => {
@@ -285,6 +278,13 @@ export default function PatternAnalysisSection({ documentId }: PatternAnalysisSe
     if (tierFilter === 'all') return candidates
     return candidates.filter(c => c.tier === tierFilter)
   }, [candidates, tierFilter])
+
+  // ---------------------------------------------------------------------------
+  // Feature Flag 체크 (모든 Hooks 호출 이후에 배치 — rules-of-hooks 준수)
+  // ---------------------------------------------------------------------------
+  if (!FEATURE_FLAGS.ENABLE_RUBRIC_CANDIDATE_UI) {
+    return null // UI 비활성화 시 렌더링하지 않음
+  }
 
   // ---------------------------------------------------------------------------
   // [NEW] 전체 초기화

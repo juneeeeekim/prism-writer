@@ -5,6 +5,5 @@
 // 역할: 인증 관련 컴포넌트 export 통합
 // =============================================================================
 
-export { default as LoginForm } from './LoginForm'
-export { default as SignupForm } from './SignupForm'
+// [DEAD CODE REMOVED] LoginForm, SignupForm — 페이지에서 인라인 폼 사용 (2026-03-05 Health Audit)
 export { default as AuthHeader } from './AuthHeader'

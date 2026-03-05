@@ -111,7 +111,6 @@ async function parsePDF(buffer: Buffer): Promise<string> {
   return new Promise((resolve, reject) => {
     try {
       // [Vercel Fix] pdf2json 동적 import
-      // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
       const PDFParser = require('pdf2json')
       
       const pdfParser = new PDFParser()
@@ -128,7 +127,6 @@ async function parsePDF(buffer: Buffer): Promise<string> {
       })
       
       // 성공 핸들러
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       pdfParser.on('pdfParser_dataReady', (pdfData: any) => {
         try {
           // =================================================================

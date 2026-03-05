@@ -4,7 +4,15 @@ import { mineRulesByCategory, saveRulesToDatabase, type Rule, type RuleCategory 
 import { processExamplesForRule, saveExamplesToDatabase, type Example, type ExampleSet } from './exampleMiner'
 import { validateAllGates, type AllGatesResult } from './templateGates'
 import { type TemplateSchema, type TemplateBuilderResult, type Template } from './templateTypes'
-import { PIPELINE_V4_FLAGS } from './featureFlags'
+// [HEALTH AUDIT] rag/featureFlags.ts 이중화 해소 → config/featureFlags.ts로 통합
+import { FEATURE_FLAGS } from '@/config/featureFlags'
+const PIPELINE_V4_FLAGS = {
+  useChunkTypeFilter: FEATURE_FLAGS.ENABLE_PIPELINE_V4,
+  enableRegressionGate: FEATURE_FLAGS.ENABLE_PIPELINE_V4,
+  autoGenerateValidationSamples: FEATURE_FLAGS.ENABLE_PIPELINE_V4,
+  enableClassificationLogging: process.env.NODE_ENV === 'development',
+  enablePromptLengthLimit: FEATURE_FLAGS.ENABLE_PIPELINE_V4,
+}
 import { v4 as uuidv4 } from 'uuid'
 
 // =============================================================================

@@ -10,23 +10,24 @@ import OpenAI from 'openai'
 import { createHash } from 'crypto'
 import { getTokenCount } from './tokenizer'
 import { createClient } from '@/lib/supabase/server'
+import { SHARED_EMBEDDING_CONFIG } from '@/config/embedding-models'
 
 // =============================================================================
-// 상수 및 설정
+// 상수 및 설정 — config/embedding-models.ts에서 공통 설정 참조
 // =============================================================================
 
 /**
  * 임베딩 모델 설정 (버전 관리용)
- * 
+ *
  * @description
- * 임베딩 모델 정보를 중앙화하여 버전 관리 용이
+ * 공통 설정은 config/embedding-models.ts SHARED_EMBEDDING_CONFIG에서 관리
  * DB 저장 시 embedding_model_id, embedding_dim 값으로 사용됨
  */
 export const EMBEDDING_CONFIG = {
   /** 임베딩 모델 ID */
-  modelId: 'text-embedding-3-small',
+  modelId: SHARED_EMBEDDING_CONFIG.modelId,
   /** 임베딩 벡터 차원 수 */
-  dimensions: 1536,
+  dimensions: SHARED_EMBEDDING_CONFIG.dimensions,
   /** 벤더/제공자 */
   vendor: 'openai',
 } as const

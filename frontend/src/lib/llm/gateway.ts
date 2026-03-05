@@ -126,5 +126,5 @@ export function isLLMAvailable(modelId?: string): boolean {
   }
 }
 
-// 기존 client.ts 호환성을 위한 토큰 계산 유틸리티 재내보내기
-export { estimateLLMTokenCount } from "./client";
+// [HEALTH AUDIT] 순환 의존성 해소: client.ts → utils.ts로 직접 참조
+export { estimateLLMTokenCount } from "./utils";
