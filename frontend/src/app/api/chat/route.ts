@@ -58,6 +58,29 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // =========================================================================
+    // 1.5. 월간 질문 한도 체크 + 카운트 증가 (원자적 RPC)
+    // =========================================================================
+    const { data: usageResult, error: usageError } = await supabase.rpc(
+      'check_and_increment_monthly_questions',
+      { p_user_id: userId }
+    )
+
+    if (usageError) {
+      console.error('[Chat API] Usage check RPC error:', usageError)
+      // RPC 에러 시에도 서비스는 계속 제공 (graceful degradation)
+    } else if (usageResult && !usageResult.allowed) {
+      return NextResponse.json(
+        {
+          error: 'usage_limit_exceeded',
+          message: `이번 달 질문 한도(${usageResult.limit}회)를 초과했습니다.`,
+          limit: usageResult.limit,
+          current: usageResult.current_count,
+        },
+        { status: 429 }
+      )
+    }
+
     // Save user message
     if (sessionId && lastMessage.role === 'user') {
       await saveMessageWithRetry(supabase, {

@@ -241,6 +241,24 @@ export function useChat({ sessionId, onSessionChange }: UseChatOptions): UseChat
         signal: abortController.signal,
       })
 
+      // -----------------------------------------------------------------
+      // 429 한도 초과 에러 처리
+      // -----------------------------------------------------------------
+      if (response.status === 429) {
+        const errorData = await response.json()
+        const limitMessage = errorData.message || '이번 달 질문 한도를 초과했습니다.'
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: `${limitMessage}\n\n프리미엄으로 업그레이드하시면 더 많은 질문이 가능합니다.\n업그레이드를 원하시면 juneeee.kim@gmail.com으로 연락해 주세요.`,
+            timestamp: new Date(),
+          },
+        ])
+        return
+      }
+
       if (!response.ok) throw new Error('Network response was not ok')
       if (!response.body) throw new Error('No response body')
 

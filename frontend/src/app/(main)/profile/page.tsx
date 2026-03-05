@@ -30,25 +30,21 @@ const ROLE_BENEFITS: Record<string, string[]> = {
     '승인 후 서비스 이용 가능',
   ],
   free: [
-    '일일 5회 LLM 요청',
-    '월간 10,000 토큰',
+    '월간 30회 AI 질문',
     '기본 에디터 기능',
   ],
   premium: [
-    '일일 50회 LLM 요청',
-    '월간 30,000 토큰',
+    '월간 300회 AI 질문',
     '고급 에디터 기능',
     '우선 지원',
   ],
   special: [
-    '무제한 LLM 요청',
-    '월간 200,000 토큰',
+    '무제한 AI 질문',
     '모든 기능 이용 가능',
     'VIP 지원',
   ],
   admin: [
-    '무제한 LLM 요청',
-    '무제한 토큰',
+    '무제한 AI 질문',
     '관리자 대시보드 접근',
     '시스템 관리 권한',
   ],
@@ -64,13 +60,12 @@ export default function ProfilePage() {
   // =============================================================================
   // Hooks
   // =============================================================================
-  const { 
-    user, 
-    profile, 
-    loading, 
-    role, 
-    dailyRequestLimit, 
-    monthlyTokenLimit 
+  const {
+    user,
+    profile,
+    loading,
+    role,
+    monthlyQuestionLimit
   } = useAuth()
   
   const { usage, loading: usageLoading, refetch } = useLLMUsage()
@@ -124,17 +119,6 @@ export default function ProfilePage() {
   // =============================================================================
   // 리셋 시간 계산
   // =============================================================================
-  const getDailyResetTime = () => {
-    const now = new Date()
-    const tomorrow = new Date(now)
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    tomorrow.setHours(0, 0, 0, 0)
-    const diff = tomorrow.getTime() - now.getTime()
-    const hours = Math.floor(diff / (1000 * 60 * 60))
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-    return `${hours}시간 ${minutes}분 후 리셋`
-  }
-
   const getMonthlyResetTime = () => {
     const now = new Date()
     const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
@@ -261,31 +245,16 @@ export default function ProfilePage() {
             {usageLoading ? (
               <div className="space-y-4 animate-pulse">
                 <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded" />
-                <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded" />
               </div>
             ) : (
               <div className="space-y-6">
-                {/* 일일 사용량 */}
+                {/* 월간 질문 사용량 */}
                 <div>
                   <UsageGauge
-                    current={usage?.daily.requestCount ?? 0}
-                    limit={dailyRequestLimit}
-                    label="오늘 사용량"
-                    type="daily"
+                    current={usage?.monthlyQuestions.questionCount ?? 0}
+                    limit={monthlyQuestionLimit}
+                    label="이번 달 질문"
                     unit="회"
-                  />
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                    {getDailyResetTime()}
-                  </p>
-                </div>
-
-                {/* 월간 토큰 */}
-                <div>
-                  <UsageGauge
-                    current={usage?.monthly.totalTokensUsed ?? 0}
-                    limit={monthlyTokenLimit}
-                    label="이번 달 토큰"
-                    type="monthly"
                   />
                   <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                     {getMonthlyResetTime()}
@@ -310,11 +279,11 @@ export default function ProfilePage() {
               <ul className="space-y-2 mb-4">
                 <li className="flex items-center gap-2 text-sm">
                   <span className="text-yellow-300">✦</span>
-                  일일 50회 요청 (현재의 10배!)
+                  월간 300회 AI 질문 (현재의 10배!)
                 </li>
                 <li className="flex items-center gap-2 text-sm">
                   <span className="text-yellow-300">✦</span>
-                  월간 30,000 토큰 (현재의 3배!)
+                  고급 에디터 기능
                 </li>
                 <li className="flex items-center gap-2 text-sm">
                   <span className="text-yellow-300">✦</span>
@@ -325,8 +294,7 @@ export default function ProfilePage() {
               <button
                 className="w-full py-2 px-4 bg-white text-indigo-600 font-semibold rounded-lg hover:bg-gray-100 transition-colors"
                 onClick={() => {
-                  // TODO: 업그레이드 문의 또는 결제 페이지로 이동
-                  alert('업그레이드 문의는 관리자에게 연락해 주세요.')
+                  alert('프리미엄 업그레이드를 원하시면 juneeee.kim@gmail.com으로 연락해 주세요.')
                 }}
               >
                 업그레이드 문의하기

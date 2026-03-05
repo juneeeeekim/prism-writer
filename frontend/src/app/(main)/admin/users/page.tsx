@@ -11,8 +11,7 @@ interface UserProfile {
   email: string
   role: 'pending' | 'free' | 'premium' | 'special' | 'admin'
   is_approved: boolean
-  monthly_token_limit: number
-  daily_request_limit: number
+  monthly_question_limit: number
   created_at: string
   last_sign_in_at?: string
 }
@@ -165,8 +164,7 @@ export default function UserManagementPage() {
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <div>일일: {user.daily_request_limit}회</div>
-                    <div>월간: {user.monthly_token_limit?.toLocaleString() ?? 0} 토큰</div>
+                    <div>월간: {user.monthly_question_limit ?? 0}회</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {new Date(user.created_at).toLocaleDateString()}

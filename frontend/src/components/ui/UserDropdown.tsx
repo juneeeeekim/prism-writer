@@ -51,10 +51,8 @@ interface UserDropdownProps {
   user: User
   /** 사용자 역할 */
   role: UserRole | null
-  /** 일일 요청 한도 */
-  dailyRequestLimit: number
-  /** 월간 토큰 한도 */
-  monthlyTokenLimit: number
+  /** 월간 질문 한도 */
+  monthlyQuestionLimit: number
   /** 로그아웃 함수 */
   onSignOut: () => Promise<void>
   /** 로그아웃 진행 중 여부 */
@@ -86,8 +84,7 @@ interface UserDropdownProps {
  * <UserDropdown
  *   user={user}
  *   role="free"
- *   dailyRequestLimit={5}
- *   monthlyTokenLimit={10000}
+ *   monthlyQuestionLimit={30}
  *   onSignOut={signOut}
  * />
  * ```
@@ -95,8 +92,7 @@ interface UserDropdownProps {
 export default function UserDropdown({
   user,
   role,
-  dailyRequestLimit,
-  monthlyTokenLimit,
+  monthlyQuestionLimit,
   onSignOut,
   signingOut = false,
   lastSyncedAt,
@@ -147,21 +143,19 @@ export default function UserDropdown({
   // =============================================================================
   // 사용량 표시 텍스트 생성
   // =============================================================================
-  const dailyUsageText = usageLoading
-    ? '로딩 중...'
-    : usage
-      ? `오늘 ${usage.daily.requestCount}/${dailyRequestLimit}회`
-      : (dailyRequestLimit === 0 && role !== 'pending') 
-        ? '정보 없음' 
-        : `오늘 0/${dailyRequestLimit}회`
-
   const monthlyUsageText = usageLoading
     ? '로딩 중...'
     : usage
-      ? `이번 달 ${usage.monthly.totalTokensUsed.toLocaleString()}/${monthlyTokenLimit.toLocaleString()}`
-      : (monthlyTokenLimit === 0 && role !== 'pending')
+      ? `이번 달 ${usage.monthlyQuestions.questionCount}/${monthlyQuestionLimit}회`
+      : (monthlyQuestionLimit === 0 && role !== 'pending')
         ? '정보 없음'
-        : `이번 달 0/${monthlyTokenLimit.toLocaleString()}`
+        : `이번 달 0/${monthlyQuestionLimit}회`
+
+  const usageColor = usage?.isAtLimit
+    ? 'text-red-600 dark:text-red-400'
+    : usage?.isNearLimit
+      ? 'text-yellow-600 dark:text-yellow-400'
+      : 'text-gray-900 dark:text-white'
 
   // =============================================================================
   // Render
@@ -222,33 +216,11 @@ export default function UserDropdown({
               사용량 섹션
               --------------------------------------------------------------- */}
           <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
-            <div className="space-y-2">
-              {/* 일일 사용량 */}
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-gray-500 dark:text-gray-400">일일 요청</span>
-                <span className={`text-sm font-medium ${
-                  usage?.isAtDailyLimit 
-                    ? 'text-red-600 dark:text-red-400' 
-                    : usage?.isNearDailyLimit 
-                      ? 'text-yellow-600 dark:text-yellow-400'
-                      : 'text-gray-900 dark:text-white'
-                }`}>
-                  {dailyUsageText}
-                </span>
-              </div>
-              {/* 월간 토큰 */}
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-gray-500 dark:text-gray-400">월간 토큰</span>
-                <span className={`text-sm font-medium ${
-                  usage?.isAtMonthlyLimit 
-                    ? 'text-red-600 dark:text-red-400' 
-                    : usage?.isNearMonthlyLimit 
-                      ? 'text-yellow-600 dark:text-yellow-400'
-                      : 'text-gray-900 dark:text-white'
-                }`}>
-                  {monthlyUsageText}
-                </span>
-              </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-gray-500 dark:text-gray-400">월간 질문</span>
+              <span className={`text-sm font-medium ${usageColor}`}>
+                {monthlyUsageText}
+              </span>
             </div>
             {/* ---------------------------------------------------------------
                 P4-03: 수동 새로고침 버튼

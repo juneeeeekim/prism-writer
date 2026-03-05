@@ -49,10 +49,8 @@ interface UseAuthReturn {
   isPremium: boolean
   /** LLM 사용 가능 여부 (pending이 아니고 승인됨) */
   canUseLLM: boolean
-  /** 일일 요청 한도 */
-  dailyRequestLimit: number
-  /** 월간 토큰 한도 */
-  monthlyTokenLimit: number
+  /** 월간 질문 한도 */
+  monthlyQuestionLimit: number
   /** 프로필 새로고침 함수 */
   refreshProfile: () => Promise<void>
   // ==========================================================================
@@ -416,8 +414,7 @@ export function useAuth(): UseAuthReturn {
   const isAdmin = role === 'admin'
   const isPremium = ['premium', 'special', 'admin'].includes(role ?? '')
   const canUseLLM = role !== 'pending' && role !== null && profile?.isApproved === true
-  const dailyRequestLimit = profile?.dailyRequestLimit ?? 0
-  const monthlyTokenLimit = profile?.monthlyTokenLimit ?? 0
+  const monthlyQuestionLimit = profile?.monthlyQuestionLimit ?? 0
 
   return {
     user,
@@ -432,8 +429,7 @@ export function useAuth(): UseAuthReturn {
     isAdmin,
     isPremium,
     canUseLLM,
-    dailyRequestLimit,
-    monthlyTokenLimit,
+    monthlyQuestionLimit,
     refreshProfile,
     // v2.3: UI 피드백 (P4-01)
     lastSyncedAt,

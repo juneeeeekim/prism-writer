@@ -55,9 +55,9 @@ export default function AuthHeader({
   onExport,
   isSaving = false,
 }: AuthHeaderProps) {
-  // v2.0: 추가 필드 (role, dailyRequestLimit, monthlyTokenLimit)
+  // v3.0: monthlyQuestionLimit
   // v2.3: lastSyncedAt, refreshProfile 추가 (P4-02, P4-03)
-  const { user, loading, signOut, signingOut, role, isAdmin, dailyRequestLimit, monthlyTokenLimit, lastSyncedAt, refreshProfile } = useAuth()
+  const { user, loading, signOut, signingOut, role, isAdmin, monthlyQuestionLimit, lastSyncedAt, refreshProfile } = useAuth()
 
   return (
     <header
@@ -187,8 +187,7 @@ export default function AuthHeader({
           <UserDropdown
             user={user}
             role={role}
-            dailyRequestLimit={dailyRequestLimit}
-            monthlyTokenLimit={monthlyTokenLimit}
+            monthlyQuestionLimit={monthlyQuestionLimit}
             onSignOut={signOut}
             signingOut={signingOut}
             lastSyncedAt={lastSyncedAt}
