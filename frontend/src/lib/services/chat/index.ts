@@ -18,5 +18,9 @@ export {
   buildFullPrompt,
   buildImprovedSystemPrompt,
   buildLegacySystemPrompt,
+  formatWebContext,
   type PromptContext,
 } from './promptBuilder'
+
+export { performWebSearch } from './webSearchService'
+export type { WebSearchResult, WebSearchOptions } from './webSearchService'

@@ -509,6 +509,51 @@ export const FEATURE_FLAGS = {
    * - 롤백: OFF 시 Research 탭 숨김
    */
   ENABLE_DEEP_SCHOLAR: process.env.NEXT_PUBLIC_ENABLE_DEEP_SCHOLAR !== 'false',
+
+  // ==========================================================================
+  // [2603060100] 웹 검색 통합 Feature Flags (2026-03-06 추가)
+  // 목적: AI 채팅에 Brave Search + Tavily 웹 검색 통합
+  // ==========================================================================
+
+  /**
+   * AI 채팅 내 웹 검색 마스터 스위치
+   * 환경 변수: ENABLE_WEB_SEARCH / NEXT_PUBLIC_ENABLE_WEB_SEARCH
+   * 기본값: false (명시적 활성화 필요)
+   *
+   * @description
+   * - 채팅 질문에 대해 외부 웹 검색을 병렬 수행
+   * - 사용자 문서(RAG) 우선, 웹 검색은 보충 역할
+   * - 롤백: OFF 시 기존 RAG 전용 채팅으로 복귀
+   */
+  ENABLE_WEB_SEARCH_IN_CHAT:
+    process.env.ENABLE_WEB_SEARCH === 'true'
+    || process.env.NEXT_PUBLIC_ENABLE_WEB_SEARCH === 'true',
+
+  /**
+   * Brave Search API 활성화
+   * ENABLE_WEB_SEARCH_IN_CHAT가 true이고 BRAVE_API_KEY가 설정된 경우만 활성
+   *
+   * @description
+   * - 일반 웹 검색 (뉴스, 블로그, 기술 문서, 위키 등)
+   * - API 키 미설정 시 자동 비활성화
+   */
+  ENABLE_BRAVE_SEARCH:
+    (process.env.ENABLE_WEB_SEARCH === 'true'
+    || process.env.NEXT_PUBLIC_ENABLE_WEB_SEARCH === 'true')
+    && !!process.env.BRAVE_API_KEY,
+
+  /**
+   * Tavily 채팅 연동 (기존 Deep Scholar 탭은 ENABLE_DEEP_SCHOLAR로 별도 관리)
+   * ENABLE_WEB_SEARCH_IN_CHAT가 true이고 TAVILY_API_KEY가 설정된 경우만 활성
+   *
+   * @description
+   * - 학술/정부 검색 (arXiv, PubMed, .gov, .edu 등)
+   * - 학술 키워드 감지 시에만 호출 (비용 최적화)
+   */
+  ENABLE_TAVILY_IN_CHAT:
+    (process.env.ENABLE_WEB_SEARCH === 'true'
+    || process.env.NEXT_PUBLIC_ENABLE_WEB_SEARCH === 'true')
+    && !!process.env.TAVILY_API_KEY,
 } as const
 
 // =============================================================================

@@ -34,6 +34,12 @@ export interface Message {
       chunkId: string
       score: number
     }>
+    web_sources?: Array<{
+      title: string
+      url: string
+      source: 'brave' | 'tavily'
+      trustBadge: 'academic' | 'government' | 'news' | 'other'
+    }>
   }
   feedback?: 'chat_helpful' | 'chat_not_helpful' | 'chat_hallucination' | null
 }
@@ -131,6 +137,58 @@ function SourcesPanel({ sources }: { sources: Array<{ title: string; chunkId: st
 }
 
 // =============================================================================
+// [2603060100] Web Sources Panel Component
+// =============================================================================
+
+function WebSourcesPanel({ sources }: {
+  sources: NonNullable<Message['metadata']>['web_sources']
+}) {
+  if (!sources || sources.length === 0) return null
+
+  const badgeIcon = (badge: string) =>
+    badge === 'academic' ? '🎓'
+    : badge === 'government' ? '🏛️'
+    : badge === 'news' ? '📰'
+    : '🌐'
+
+  const badgeColor = (badge: string) =>
+    badge === 'academic' ? 'text-purple-600 dark:text-purple-400'
+    : badge === 'government' ? 'text-blue-600 dark:text-blue-400'
+    : badge === 'news' ? 'text-orange-600 dark:text-orange-400'
+    : 'text-gray-600 dark:text-gray-400'
+
+  return (
+    <details className="mt-2 group">
+      <summary className="cursor-pointer text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
+        <span>🌐 웹 출처 ({sources.length}건)</span>
+        <svg className="w-3 h-3 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </summary>
+      <ul className="mt-1.5 space-y-1 pl-1">
+        {sources.map((s, i) => (
+          <li key={i} className="flex items-center gap-1.5 text-xs">
+            <span>{badgeIcon(s.trustBadge)}</span>
+            <a
+              href={s.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`hover:underline truncate max-w-[250px] ${badgeColor(s.trustBadge)}`}
+              title={s.title}
+            >
+              {s.title}
+            </a>
+            <span className="text-gray-400 text-[10px] shrink-0">
+              ({s.source === 'tavily' ? '학술' : '웹'})
+            </span>
+          </li>
+        ))}
+      </ul>
+    </details>
+  )
+}
+
+// =============================================================================
 // MessageItem Component (Memoized)
 // =============================================================================
 
@@ -200,9 +258,14 @@ export const MessageItem = memo(function MessageItem({ message, projectId }: Mes
               />
             )}
 
-            {/* Sources Panel */}
+            {/* Sources Panel (사용자 문서 출처) */}
             {message.metadata?.sources && message.metadata.sources.length > 0 && (
               <SourcesPanel sources={message.metadata.sources} />
+            )}
+
+            {/* Web Sources Panel (웹 검색 출처) */}
+            {message.metadata?.web_sources && message.metadata.web_sources.length > 0 && (
+              <WebSourcesPanel sources={message.metadata.web_sources} />
             )}
 
             {/* Feedback Buttons — 응답 하단에 배치 */}

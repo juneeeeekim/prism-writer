@@ -20,8 +20,10 @@ import {
   formatUserPreferences,
   searchTemplateContext,
   performRAGSearch,
+  performWebSearch,
   buildSystemPrompt,
   buildFullPrompt,
+  formatWebContext,
   touchSession,
   shouldRunLazySelfRAG,
 } from '@/lib/services/chat'
@@ -33,6 +35,7 @@ export const runtime = 'nodejs'
 // =============================================================================
 const STATUS_MESSAGES = {
   SEARCHING: '[STATUS]🔍 자료 검색 중...\n',
+  WEB_SEARCHING: '[STATUS]🌐 웹 검색 중...\n',
   GENERATING: '[STATUS]📚 답변 생성 중...\n',
 } as const
 
@@ -110,33 +113,44 @@ export async function POST(req: NextRequest) {
           controller.enqueue(encode(STATUS_MESSAGES.SEARCHING))
 
           // ---------------------------------------------------------------------
-          // Step 2: Parallel Fetch - RAG 검색 (스트림 내에서 실행)
+          // Step 2: Parallel Fetch - RAG + 웹 검색 (스트림 내에서 실행)
+          // [2603060100] 웹 검색을 Parallel Fetch에 추가
           // ---------------------------------------------------------------------
-          const [userPreferences, templateContext, ragResult] = await Promise.all([
+          const [userPreferences, templateContext, ragResult, webResults] = await Promise.all([
             searchUserPreferences(userId, query),
             searchTemplateContext(supabase, userId, query),
             performRAGSearch(query, { userId, projectId }),
+            FEATURE_FLAGS.ENABLE_WEB_SEARCH_IN_CHAT
+              ? performWebSearch(query)
+              : Promise.resolve([]),
           ])
 
           console.log(`[Chat API] Parallel fetch: ${(performance.now() - startTime).toFixed(0)}ms`)
 
           // ---------------------------------------------------------------------
-          // Step 3: Build Prompt
+          // Step 3: Build Prompt (+ 웹 검색 컨텍스트)
+          // [2603060100] 웹 검색 결과를 프롬프트에 주입
           // ---------------------------------------------------------------------
           const userPreferencesContext = formatUserPreferences(userPreferences)
           const { context, hasRetrievedDocs, uniqueResults } = ragResult
+          const webContext = formatWebContext(webResults)
 
           const systemPrompt = buildSystemPrompt({
             userPreferences: userPreferencesContext,
             templateContext,
             ragContext: context,
+            webContext,
           })
 
           const fullPrompt = buildFullPrompt(systemPrompt, messages)
 
           // ---------------------------------------------------------------------
-          // Step 4: LLM 응답 생성 상태 전송
+          // Step 4: 웹 검색 결과 + LLM 응답 생성 상태 전송
+          // [2603060100] 웹 검색 결과가 있으면 상태 메시지 추가
           // ---------------------------------------------------------------------
+          if (webResults.length > 0) {
+            controller.enqueue(encode(STATUS_MESSAGES.WEB_SEARCHING))
+          }
           controller.enqueue(encode(STATUS_MESSAGES.GENERATING))
 
           // ---------------------------------------------------------------------
@@ -193,6 +207,16 @@ export async function POST(req: NextRequest) {
           // ---------------------------------------------------------------------
           if (sessionId && fullResponse) {
             const citationMetadata = buildCitationMetadata(fullResponse, hasRetrievedDocs, uniqueResults)
+
+            // [2603060100] 웹 출처 메타데이터 추가
+            if (webResults.length > 0) {
+              citationMetadata.web_sources = webResults.map(r => ({
+                title: r.title,
+                url: r.url,
+                source: r.source,
+                trustBadge: r.trustBadge,
+              }))
+            }
 
             const saveSuccess = await saveMessageWithRetry(supabase, {
               session_id: sessionId,

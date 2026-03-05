@@ -7,6 +7,7 @@
 // =============================================================================
 
 import { FEATURE_FLAGS } from '@/config/featureFlags'
+import type { WebSearchResult } from './webSearchService'
 
 // =============================================================================
 // Types
@@ -16,6 +17,7 @@ export interface PromptContext {
   userPreferences: string
   templateContext: string
   ragContext: string
+  webContext?: string  // [2603060100] 웹 검색 결과 컨텍스트 (optional)
 }
 
 // =============================================================================
@@ -42,6 +44,13 @@ ${ctx.templateContext || '(템플릿 기준 없음)'}
 
 # 참고 자료
 ${ctx.ragContext || '(참고 자료 없음 - 일반 지식으로 답변 가능)'}
+${ctx.webContext ? `
+# 외부 웹 검색 결과
+아래는 웹에서 검색된 참고 자료입니다. 사용자 문서보다 낮은 우선순위로 참고하세요.
+웹 정보를 인용할 때는 반드시 출처 URL을 표기하세요.
+
+${ctx.webContext}
+` : ''}
 
 ${FEATURE_FLAGS.ENABLE_CITATION_MARKERS ? `# 🔖 출처 표기 규칙 (Citation Rules)
 ⚠️ 참고 자료를 인용할 때는 반드시 아래 규칙을 따르세요:
@@ -118,4 +127,28 @@ export function buildFullPrompt(
     .join('\n')
 
   return `${systemPrompt}\n\n[대화 기록]\n${conversationHistory}\n\nAI:`
+}
+
+// =============================================================================
+// [2603060100] Web Context Formatter
+// =============================================================================
+
+/**
+ * 웹 검색 결과를 프롬프트 문자열로 변환
+ *
+ * @param results - 웹 검색 결과 배열
+ * @returns 프롬프트에 삽입할 문자열 (결과 없으면 빈 문자열)
+ */
+export function formatWebContext(results: WebSearchResult[]): string {
+  if (!results || results.length === 0) return ''
+
+  return results
+    .map((r, i) => {
+      const badge = r.trustBadge === 'academic' ? '🎓'
+        : r.trustBadge === 'government' ? '🏛️'
+        : r.trustBadge === 'news' ? '📰'
+        : '🌐'
+      return `[${i + 1}] ${badge} ${r.title}\n    ${r.content}\n    출처: ${r.url}`
+    })
+    .join('\n\n')
 }
