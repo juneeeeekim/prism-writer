@@ -21,6 +21,7 @@ import {
   searchTemplateContext,
   performRAGSearch,
   performWebSearch,
+  shouldPerformWebSearch,
   buildSystemPrompt,
   buildFullPrompt,
   formatWebContext,
@@ -116,11 +117,14 @@ export async function POST(req: NextRequest) {
           // Step 2: Parallel Fetch - RAG + 웹 검색 (스트림 내에서 실행)
           // [2603060100] 웹 검색을 Parallel Fetch에 추가
           // ---------------------------------------------------------------------
+          // 웹 검색: 사용자가 "웹검색" 등 명시적 키워드를 사용한 경우에만 실행
+          const useWebSearch = FEATURE_FLAGS.ENABLE_WEB_SEARCH_IN_CHAT && shouldPerformWebSearch(query)
+
           const [userPreferences, templateContext, ragResult, webResults] = await Promise.all([
             searchUserPreferences(userId, query),
             searchTemplateContext(supabase, userId, query),
             performRAGSearch(query, { userId, projectId }),
-            FEATURE_FLAGS.ENABLE_WEB_SEARCH_IN_CHAT
+            useWebSearch
               ? performWebSearch(query)
               : Promise.resolve([]),
           ])

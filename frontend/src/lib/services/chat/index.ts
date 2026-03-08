@@ -22,5 +22,5 @@ export {
   type PromptContext,
 } from './promptBuilder'
 
-export { performWebSearch } from './webSearchService'
+export { performWebSearch, shouldPerformWebSearch } from './webSearchService'
 export type { WebSearchResult, WebSearchOptions } from './webSearchService'

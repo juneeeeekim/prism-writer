@@ -52,6 +52,25 @@ export interface WebSearchOptions {
 }
 
 // =============================================================================
+// Web Search Intent Detection
+// =============================================================================
+
+const WEB_SEARCH_KEYWORDS = [
+  '웹검색', '웹 검색', '인터넷 검색', '검색해줘', '검색해서',
+  '찾아줘', '찾아봐', '최신 정보', '최근 정보', '실시간',
+  'web search', 'search the web', 'search online', 'look up',
+]
+
+/**
+ * 사용자가 웹 검색을 명시적으로 요청했는지 감지
+ * "웹검색", "검색해줘" 등의 키워드가 포함된 경우에만 true 반환
+ */
+export function shouldPerformWebSearch(query: string): boolean {
+  const lower = query.toLowerCase()
+  return WEB_SEARCH_KEYWORDS.some(kw => lower.includes(kw))
+}
+
+// =============================================================================
 // Academic Keyword Detection
 // =============================================================================
 
