@@ -21,6 +21,14 @@ const ALLOWED_FILE_TYPES = {
   'text/markdown': { ext: 'md', name: 'Markdown' },
 } as const
 
+/** 확장자 → MIME 타입 매핑 (브라우저가 MIME을 올바르게 설정하지 않는 경우 fallback) */
+const EXTENSION_TO_MIME: Record<string, string> = {
+  pdf: 'application/pdf',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  txt: 'text/plain',
+  md: 'text/markdown',
+}
+
 /** 최대 파일 크기 (50MB - Supabase Free Plan 최대치) */
 const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB in bytes
 
@@ -122,21 +130,30 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
 
     // ---------------------------------------------------------------------------
     // 4. 파일 타입 검증 (PDF, DOCX, TXT, MD만 허용)
+    //    브라우저가 MIME을 올바르게 설정하지 않는 경우가 많음 (특히 .md, .docx)
+    //    → 확장자 기반 fallback 적용
     // ---------------------------------------------------------------------------
-    const fileType = file.type
+    let fileType = file.type
     if (!(fileType in ALLOWED_FILE_TYPES)) {
-      const allowedTypes = Object.values(ALLOWED_FILE_TYPES)
-        .map((t) => t.name)
-        .join(', ')
+      // MIME이 매칭되지 않으면 확장자로 fallback
+      const ext = file.name.split('.').pop()?.toLowerCase()
+      const fallbackMime = ext ? EXTENSION_TO_MIME[ext] : undefined
+      if (fallbackMime && fallbackMime in ALLOWED_FILE_TYPES) {
+        fileType = fallbackMime
+      } else {
+        const allowedTypes = Object.values(ALLOWED_FILE_TYPES)
+          .map((t) => t.name)
+          .join(', ')
 
-      return NextResponse.json(
-        {
-          success: false,
-          message: `지원되지 않는 파일 형식입니다. 허용된 형식: ${allowedTypes}`,
-          error: 'UNSUPPORTED_FILE_TYPE',
-        },
-        { status: 415 }
-      )
+        return NextResponse.json(
+          {
+            success: false,
+            message: `지원되지 않는 파일 형식입니다. 허용된 형식: ${allowedTypes}`,
+            error: 'UNSUPPORTED_FILE_TYPE',
+          },
+          { status: 415 }
+        )
+      }
     }
 
     // ---------------------------------------------------------------------------

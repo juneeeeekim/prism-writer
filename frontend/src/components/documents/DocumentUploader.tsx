@@ -61,13 +61,9 @@ export default function DocumentUploader({ onUploadSuccess, className = '', proj
       return `파일 크기가 너무 큽니다. 최대 50MB까지 업로드 가능합니다. (현재: ${(file.size / (1024 * 1024)).toFixed(1)}MB)`
     }
 
-    // 파일 타입 검증
+    // 파일 타입 검증 (확장자 기반 — 브라우저 MIME은 신뢰할 수 없음)
     const fileExtension = file.name.split('.').pop()?.toLowerCase()
     if (!fileExtension || !ALLOWED_EXTENSIONS.includes(fileExtension)) {
-      return `지원되지 않는 파일 형식입니다. 허용된 형식: PDF, DOCX, TXT, MD`
-    }
-
-    if (!ALLOWED_TYPES.includes(file.type) && file.type !== '') {
       return `지원되지 않는 파일 형식입니다. 허용된 형식: PDF, DOCX, TXT, MD`
     }
 
