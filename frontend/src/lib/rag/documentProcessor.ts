@@ -233,12 +233,16 @@ async function parseDocumentContent(filePath: string, fileType?: string): Promis
     return await data.text()
   }
   
-  // DOCX 파일 (현재 미지원)
+  // DOCX 파일 처리
   if (
     fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
     filePath.toLowerCase().endsWith('.docx')
   ) {
-    throw new Error('DOCX 파일은 현재 지원되지 않습니다. PDF, TXT, MD 파일을 사용해 주세요.')
+    const mammoth = await import('mammoth')
+    const arrayBuffer = await data.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+    const result = await mammoth.extractRawText({ buffer })
+    return result.value
   }
   
   // 알 수 없는 파일 타입 (기본: 텍스트로 시도)
