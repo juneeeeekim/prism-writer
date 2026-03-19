@@ -215,6 +215,27 @@ export function useAutosave(): UseAutosaveReturn {
       removeLocalBackup()
       setHasLocalBackup(false)
 
+      // =====================================================================
+      // [Phase A] 자동 버전 스냅샷 생성 (non-blocking)
+      // - 저장 성공 후 비동기로 버전 스냅샷 생성
+      // - 실패해도 autosave 흐름에 영향 없음
+      // =====================================================================
+      const savedDocId = documentId || data.id
+      if (savedDocId) {
+        fetch('/api/documents/versions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            documentId: savedDocId,
+            title: title || '제목 없음',
+            content,
+            snapshotType: 'auto',
+          }),
+        }).catch((versionError) => {
+          console.warn('[Autosave] Version snapshot failed (non-blocking):', versionError)
+        })
+      }
+
       console.log('[Autosave] Saved successfully')
       return true
     } catch (error) {

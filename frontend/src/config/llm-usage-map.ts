@@ -47,7 +47,12 @@ export type LLMUsageContext =
   | 'judge.align'          // 개별 평가
   | 'judge.holistic'       // 종합 평가
   | 'outline.generation'   // 목차 생성
-  | 'ocr.vision';          // OCR 비전
+  | 'ocr.vision'           // OCR 비전
+  // ---------------------------------------------------------------------------
+  // AI Coach Persona (P3-04~06, 2026-03-19 추가)
+  // ---------------------------------------------------------------------------
+  | 'coach.style.analysis'   // 문서 스타일 분석 (코치 생성)
+  | 'coach.persona.feedback'; // 코치 페르소나 기반 피드백
 
 /**
  * 사용 설정 인터페이스
@@ -443,6 +448,32 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
       temperature: 0.0,
       topP: 1.0,
       topK: 1,
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // AI Coach Persona (P3-04~06, 2026-03-19 추가)
+  // ---------------------------------------------------------------------------
+  'coach.style.analysis': {
+    modelId: 'gemini-3-flash-preview',
+    fallback: 'gpt-5-mini',
+    maxTokens: 1500,
+    description: '문서 스타일 분석 (코치 생성)',
+    // [Semi-Lossless] 스타일 분석은 정확하되 약간의 해석 여지
+    generationConfig: {
+      temperature: 0.3,
+      topP: 0.9,
+    },
+  },
+  'coach.persona.feedback': {
+    modelId: 'gemini-3-flash-preview',
+    fallback: 'gpt-5-mini',
+    maxTokens: 2000,
+    description: '코치 페르소나 기반 피드백',
+    // [Creative] 페르소나에 맞는 자연스러운 피드백 생성
+    generationConfig: {
+      temperature: 0.7,
+      topP: 0.95,
     },
   },
 };

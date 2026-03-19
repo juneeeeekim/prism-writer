@@ -109,6 +109,15 @@ export default function AuthHeader({
               >
                 📄 내 문서
               </Link>
+
+              {/* [P2-08] 성장 분석 대시보드 링크 */}
+              <Link
+                href="/analytics"
+                className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors flex items-center gap-1"
+                aria-label="성장 분석"
+              >
+                📊 성장 분석
+              </Link>
               
               {/* 관리자 전용 대시보드 링크 (Phase 4 Add) */}
               {/* v2.1: 실제 Admin 권한(DB) 또는 로컬 Admin 모드(localStorage)가 켜져있으면 노출 */}

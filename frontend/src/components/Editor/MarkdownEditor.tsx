@@ -10,6 +10,8 @@ import { useProject } from '@/contexts/ProjectContext'
 import { useTheme } from '@/contexts/ThemeContext'
 // [P2-02] 테마 토글 버튼 컴포넌트
 import ThemeToggle from '@/components/layout/ThemeToggle'
+// [Phase A] 버전 히스토리 패널
+import VersionHistoryPanel from '@/components/Editor/VersionHistoryPanel'
 
 // 동적 import (SSR 비활성화 - 마크다운 에디터는 클라이언트 전용)
 const MDEditor = dynamic(() => import('@uiw/react-md-editor'), { ssr: false })
@@ -42,10 +44,13 @@ export default function MarkdownEditor() {
   const { currentProject } = useProject()
   const projectId = currentProject?.id ?? null
 
-  const { content, setContent, title, setTitle } = useEditorState()
+  const { content, setContent, title, setTitle, documentId } = useEditorState()
 
   // [Font Size Control] 폰트 크기 조절 (기본값 16px)
   const [fontSize, setFontSize] = useState<number>(16)
+
+  // [Phase A] 버전 히스토리 패널 열림/닫힘
+  const [showVersionHistory, setShowVersionHistory] = useState(false)
 
   // =========================================================================
   // [P3-01] 전역 테마 Context 사용 (기존 로컬 state 대체)
@@ -174,7 +179,7 @@ export default function MarkdownEditor() {
   const statusDisplay = getSaveStatusDisplay(saveStatus, lastSavedAt, saveError)
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
       {/* -----------------------------------------------------------------------
           Title Input
           ----------------------------------------------------------------------- */}
@@ -211,6 +216,23 @@ export default function MarkdownEditor() {
             +
           </button>
         </div>
+
+        {/* [Phase A] 버전 히스토리 버튼 */}
+        <button
+          onClick={() => setShowVersionHistory(!showVersionHistory)}
+          disabled={!documentId}
+          className={`hidden sm:flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+            showVersionHistory
+              ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300'
+              : 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+          } disabled:opacity-40 disabled:cursor-not-allowed`}
+          title={documentId ? '버전 히스토리' : '문서를 저장한 후 사용할 수 있습니다'}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>버전</span>
+        </button>
 
         {/* [P2-02] 테마 토글 버튼 - 폰트 조절 옆 */}
         <div className="hidden sm:block"><ThemeToggle size="sm" /></div>
@@ -342,6 +364,19 @@ export default function MarkdownEditor() {
           </button>
         </div>
       </div>
+
+      {/* -------------------------------------------------------------------
+          [Phase A] 버전 히스토리 사이드 패널 (오버레이)
+          ------------------------------------------------------------------- */}
+      {showVersionHistory && (
+        <div className="absolute top-0 right-0 w-96 h-full z-30 shadow-xl border-l border-gray-200 dark:border-gray-700">
+          <VersionHistoryPanel
+            documentId={documentId}
+            currentContent={content}
+            onClose={() => setShowVersionHistory(false)}
+          />
+        </div>
+      )}
     </div>
   )
 }

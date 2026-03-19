@@ -28,6 +28,7 @@ import {
   touchSession,
   shouldRunLazySelfRAG,
 } from '@/lib/services/chat'
+import { buildCoachSystemPrompt, type StyleProfile } from '@/lib/services/coachService'
 
 export const runtime = 'nodejs'
 
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
     // =========================================================================
     // 1. Request Parsing & Auth
     // =========================================================================
-    const { messages, model: requestedModel, sessionId, projectId } = await req.json()
+    const { messages, model: requestedModel, sessionId, projectId, coachId } = await req.json()
     const lastMessage = messages[messages.length - 1]
     const query = lastMessage.content
 
@@ -139,12 +140,39 @@ export async function POST(req: NextRequest) {
           const { context, hasRetrievedDocs, uniqueResults } = ragResult
           const webContext = formatWebContext(webResults)
 
-          const systemPrompt = buildSystemPrompt({
+          let systemPrompt = buildSystemPrompt({
             userPreferences: userPreferencesContext,
             templateContext,
             ragContext: context,
             webContext,
           })
+
+          // -------------------------------------------------------------------
+          // [P3-09] Coach persona injection
+          // coachId가 있으면 해당 코치의 style_profile로 시스템 프롬프트 보강
+          // 코치가 없거나 오류 시 기존 동작 그대로 유지 (graceful fallback)
+          // -------------------------------------------------------------------
+          if (coachId) {
+            try {
+              const { data: coachData } = await supabase
+                .from('writing_coaches')
+                .select('name, style_profile')
+                .eq('id', coachId)
+                .eq('user_id', userId)
+                .maybeSingle()
+
+              if (coachData?.style_profile?.system_prompt_addition) {
+                const coachPrompt = buildCoachSystemPrompt(
+                  coachData.style_profile as StyleProfile,
+                  coachData.name
+                )
+                systemPrompt = systemPrompt + '\n\n' + coachPrompt
+                console.log(`[Chat API] Coach persona injected: ${coachData.name} (${coachId})`)
+              }
+            } catch (coachErr) {
+              console.warn('[Chat API] Coach lookup failed (continuing without coach):', coachErr)
+            }
+          }
 
           const fullPrompt = buildFullPrompt(systemPrompt, messages)
 

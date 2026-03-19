@@ -30,6 +30,8 @@ const STATUS_PREFIX = '[STATUS]'
 export interface UseChatOptions {
   sessionId?: string | null
   onSessionChange: (sessionId: string) => void
+  /** [P3-10] 활성 코치 ID (코치 페르소나 적용) */
+  coachId?: string | null
 }
 
 export interface UseChatReturn {
@@ -46,7 +48,7 @@ export interface UseChatReturn {
 // Hook
 // =============================================================================
 
-export function useChat({ sessionId, onSessionChange }: UseChatOptions): UseChatReturn {
+export function useChat({ sessionId, onSessionChange, coachId }: UseChatOptions): UseChatReturn {
   const { currentProject } = useProject()
   const projectId = currentProject?.id ?? null
 
@@ -237,6 +239,7 @@ export function useChat({ sessionId, onSessionChange }: UseChatOptions): UseChat
           model: selectedModel || undefined,
           sessionId: currentSessionId,
           projectId,
+          coachId: coachId || undefined,  // [P3-10] 코치 페르소나 적용
         }),
         signal: abortController.signal,
       })
@@ -359,7 +362,7 @@ export function useChat({ sessionId, onSessionChange }: UseChatOptions): UseChat
         setTimeout(() => refreshMessages(currentSessionId!), 500)
       }
     }
-  }, [input, isLoading, messages, sessionId, projectId, onSessionChange, selectedModel])
+  }, [input, isLoading, messages, sessionId, projectId, onSessionChange, selectedModel, coachId])
 
   return {
     messages,
