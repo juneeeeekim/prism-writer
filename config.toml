@@ -1,0 +1,8 @@
+# 디렉토리 경로: .codex/
+# 파일명: config.toml
+# 파일 코드의 역할/설명: 이 프로젝트의 Codex subagent 실행 한도만 정의한다. 개별 custom agent는 .codex/agents/*.toml standalone 파일에서 정의한다.
+
+[agents]
+max_threads = 4
+max_depth = 1
+job_max_runtime_seconds = 900

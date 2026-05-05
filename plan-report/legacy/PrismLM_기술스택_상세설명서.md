@@ -7,6 +7,10 @@
 
 ---
 
+juneeee.kim@gmail.com 
+로그인으로 사용
+
+
 ## 목차
 
 1. [프론트엔드 (Frontend)](#1-프론트엔드-frontend)
