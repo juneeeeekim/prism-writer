@@ -31,6 +31,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireCronAuthorization } from '@/lib/api/cronAuth'
 import { DocumentStatus } from '@/types/rag'
 
 // =============================================================================
@@ -38,7 +39,6 @@ import { DocumentStatus } from '@/types/rag'
 // =============================================================================
 
 /** Cron 인증 시크릿 (Vercel 환경변수) */
-const CRON_SECRET = process.env.CRON_SECRET
 
 /** 고아 파일로 간주하는 경과 일수 */
 const ORPHAN_THRESHOLD_DAYS = 7
@@ -67,22 +67,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // - Vercel Pro: Authorization 헤더 자동 설정
     // - 외부 Cron 서비스: ?key=CRON_SECRET 쿼리 파라미터
     // -------------------------------------------------------------------------
-    const authHeader = request.headers.get('authorization')
-    const { searchParams } = new URL(request.url)
-    const queryKey = searchParams.get('key')
+    const cronAuth = requireCronAuthorization(request, 'Cleanup')
 
-    const isAuthorized =
-      !CRON_SECRET || // 시크릿 미설정 시 통과 (개발 환경)
-      authHeader === `Bearer ${CRON_SECRET}` || // 헤더 인증
-      queryKey === CRON_SECRET // 쿼리 파라미터 인증
-
-    if (!isAuthorized) {
-      console.warn('[Cleanup] Unauthorized access attempt')
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
+    if (!cronAuth.ok) return cronAuth.response
 
     console.log('[Cleanup] Starting orphan file cleanup...')
 

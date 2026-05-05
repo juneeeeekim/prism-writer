@@ -6,6 +6,7 @@
 // =============================================================================
 
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAdmin } from '@/lib/api/adminAuth'
 import { generateText, isLLMAvailable } from '@/lib/llm/gateway'
 import { buildJudgePrompt, buildJudgePromptWithChunks, getDefaultJudgeResult } from '@/lib/rag/judgePrompt'
 import { parseJudgeResponse, parseJudgeResponseSafe } from '@/lib/rag/judgeParser'
@@ -61,7 +62,10 @@ interface JudgeResponse {
  *   "context": ["RAG는 Retrieval-Augmented Generation입니다.", "..."]
  * }
  */
-export async function POST(request: NextRequest): Promise<NextResponse<JudgeResponse>> {
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  const admin = await requireAdmin()
+  if (!admin.ok) return admin.response
+
   // ---------------------------------------------------------------------------
   // 1. API 키 확인
   // ---------------------------------------------------------------------------
@@ -187,6 +191,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<JudgeResp
 // =============================================================================
 
 export async function GET(): Promise<NextResponse> {
+  const admin = await requireAdmin()
+  if (!admin.ok) return admin.response
+
   return NextResponse.json({
     message: 'Judge API입니다. POST 요청으로 평가를 실행하세요.',
     apiKeyConfigured: isLLMAvailable(),

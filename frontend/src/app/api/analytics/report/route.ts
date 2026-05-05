@@ -14,6 +14,8 @@ import {
   type RubricCategory,
 } from '@/lib/rag/rubrics'
 
+export const dynamic = 'force-dynamic'
+
 // =============================================================================
 // Types
 // =============================================================================
@@ -196,7 +198,10 @@ export async function GET(request: NextRequest) {
     const projectId = searchParams.get('projectId')
     const type = searchParams.get('type') || 'weekly'
 
-    console.log('[Analytics/Report] GET request:', { userId: user.id, projectId, type })
+    console.log('[Analytics/Report] GET request:', {
+      projectScoped: Boolean(projectId && projectId !== 'null'),
+      type,
+    })
 
     // -------------------------------------------------------------------------
     // 기간 계산
@@ -242,7 +247,7 @@ export async function GET(request: NextRequest) {
     if (currentResult.error) {
       console.error('[Analytics/Report] Current period DB error:', currentResult.error)
       return NextResponse.json(
-        { success: false, error: 'Database error', message: currentResult.error.message },
+        { success: false, error: 'Database error' },
         { status: 500 }
       )
     }
@@ -250,7 +255,7 @@ export async function GET(request: NextRequest) {
     if (previousResult.error) {
       console.error('[Analytics/Report] Previous period DB error:', previousResult.error)
       return NextResponse.json(
-        { success: false, error: 'Database error', message: previousResult.error.message },
+        { success: false, error: 'Database error' },
         { status: 500 }
       )
     }

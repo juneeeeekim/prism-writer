@@ -1,9 +1,65 @@
+// =============================================================================
+// 주석(시니어, 2026-05-04 Phase 3): Template Gates(Consistency/Hallucination/
+// Regression)는 Gemini SDK를 직접 호출하며 응답을 JSON으로 파싱한다.
+// 'template.*' 컨텍스트는 fallback이 정의되어 있지 않다. cross-provider
+// fallback은 응답 구조 차이로 게이트의 신뢰도가 떨어질 수 있어 적용하지 않는다.
+// 안정성은 다음으로 보장:
+//   1) getModelForUsage가 ENV 오버라이드/사용자 선호 우선 적용.
+//   2) 각 게이트의 try/catch에서 실패 시 보수적으로 통과 처리(점수 0.5)하여
+//      시스템 장애로 인한 사용자 차단을 방지한다.
+// =============================================================================
 
 import { type TemplateSchema } from './templateTypes'
 import { type Chunk } from './search'
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { getModelForUsage } from '@/config/llm-usage-map'
+import { type LLMUsageContext } from '@/config/llm-usage-map'
 import { extractJSON } from '@/lib/llm/parser'
+import { callWithFallback } from '@/lib/llm/fallback-handler'
+
+// =============================================================================
+// 주석(시니어, 2026-05-04 Phase 3 완전 적용): 각 gate의 LLM 호출을 동일한
+// callWithFallback 래퍼로 표준화한다.
+// 설계 의도(왜 이 구조인가):
+//   - 각 gate가 동일한 fallback 정책(같은 Gemini 패밀리)을 공유해야 운영
+//     관점에서 일관된 안정성을 보장한다.
+//   - 응답 텍스트 추출까지만 fallback에 위임하고, JSON 파싱은 호출 측에서
+//     처리한다 — 파싱 실패는 게이트 고유의 안전 처리(0.5 점수)로 흡수된다.
+//   - apiKey 누락은 SDK 호출 전에 체크하여 callWithFallback 호출 자체를
+//     건너뛴다(quota mark 등 부수효과 방지).
+// =============================================================================
+
+/**
+ * 게이트 LLM 호출 공통 래퍼: 모델 ID를 받아 텍스트 응답을 반환한다.
+ *
+ * @returns 응답 텍스트 또는 null(키 없음/양쪽 실패)
+ */
+async function callGateLLM(
+  context: LLMUsageContext,
+  prompt: string,
+  generationConfig: {
+    temperature: number
+    responseMimeType?: 'application/json'
+  }
+): Promise<string | null> {
+  const apiKey = process.env.GOOGLE_API_KEY
+  if (!apiKey) return null
+
+  const out = await callWithFallback(context, async (modelId) => {
+    const genAI = new GoogleGenerativeAI(apiKey)
+    const model = genAI.getGenerativeModel({
+      model: modelId,
+      generationConfig,
+    })
+    const response = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    })
+    const content = response.response.text()
+    if (!content) throw new Error('No content')
+    return content
+  })
+
+  return out.success && out.result ? out.result : null
+}
 
 // =============================================================================
 // 타입 정의
@@ -65,18 +121,11 @@ export async function validateCitationGate(template: TemplateSchema): Promise<Ga
  * 주석(LLM 전문 개발자): Gemini 3 Flash로 업그레이드 (2025-12-25)
  */
 export async function validateConsistencyGate(template: TemplateSchema): Promise<GateResult> {
-  const apiKey = process.env.GOOGLE_API_KEY
-  if (!apiKey) return { passed: true, reason: 'Skipped (No GOOGLE_API_KEY)', score: 0.5 }
-
-  const genAI = new GoogleGenerativeAI(apiKey)
-  // 주석(중앙화 마이그레이션): getModelForUsage 적용 (2025-12-28)
-  const model = genAI.getGenerativeModel({ 
-    model: getModelForUsage('template.consistency'),
-    generationConfig: {
-      temperature: 1.0,  // Gemini 3 권장 (Gemini_3_Flash_Reference.md)
-      responseMimeType: 'application/json',
-    },
-  })
+  if (!process.env.GOOGLE_API_KEY) {
+    return { passed: true, reason: 'Skipped (No GOOGLE_API_KEY)', score: 0.5 }
+  }
+  // 주석(시니어, Phase 3 완전 적용): callWithFallback로 표준화. fallback은
+  // llm-usage-map의 'template.consistency' 항목에 정의되어 있다(같은 패밀리).
   
   const prompt = `
 다음 글쓰기 규칙과 예시들을 분석하여 논리적 일관성을 평가해주세요.
@@ -104,17 +153,18 @@ JSON 형식으로 응답해주세요:
 `
 
   try {
-    const response = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    const content = await callGateLLM('template.consistency', prompt, {
+      temperature: 1.0,
+      responseMimeType: 'application/json',
     })
+    if (!content) {
+      return { passed: true, reason: 'Validation skipped (no LLM)', score: 0.5 }
+    }
 
-    const content = response.response.text()
-    if (!content) throw new Error('No content')
-    
     // JSON 파싱 (Gemini는 JSON 응답을 텍스트로 반환할 수 있음)
     const jsonMatch = content.match(/\{[\s\S]*\}/)
     if (!jsonMatch) throw new Error('No JSON in response')
-    
+
     return JSON.parse(jsonMatch[0]) as GateResult
   } catch (error) {
     console.error('[ConsistencyGate] Validation failed:', error)
@@ -138,17 +188,10 @@ export async function validateHallucinationGate(
     return { passed: true, reason: 'No source chunks to compare', score: 0.5 }
   }
 
-  const apiKey = process.env.GOOGLE_API_KEY
-  if (!apiKey) return { passed: true, reason: 'Skipped (No GOOGLE_API_KEY)', score: 0.5 }
-
-  const genAI = new GoogleGenerativeAI(apiKey)
-  // 주석(중앙화 마이그레이션): getModelForUsage 적용 (2025-12-28)
-  const model = genAI.getGenerativeModel({ 
-    model: getModelForUsage('template.hallucination'),
-    generationConfig: {
-      temperature: 1.0,  // Gemini 3 권장 (Gemini_3_Flash_Reference.md)
-    },
-  })
+  if (!process.env.GOOGLE_API_KEY) {
+    return { passed: true, reason: 'Skipped (No GOOGLE_API_KEY)', score: 0.5 }
+  }
+  // 주석(시니어, Phase 3 완전 적용): callGateLLM(callWithFallback 래퍼) 사용
   const context = sourceChunks.map(c => c.content).join('\n\n')
 
   const prompt = `
@@ -172,17 +215,17 @@ JSON 형식으로 응답해주세요:
 `
 
   try {
-    const response = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    const content = await callGateLLM('template.hallucination', prompt, {
+      temperature: 1.0,
     })
-
-    const content = response.response.text()
-    if (!content) throw new Error('No content')
+    if (!content) {
+      return { passed: true, reason: 'Validation skipped (no LLM)', score: 0.5 }
+    }
 
     // JSON 파싱 (Gemini/Gemma 호환)
     const jsonString = extractJSON(content)
     if (!jsonString) throw new Error('No JSON in response')
-    
+
     // 타입 단언 (GateResult)
     return JSON.parse(jsonString) as GateResult
   } catch (error) {
@@ -268,22 +311,13 @@ export async function validateRegressionGate(
   // ---------------------------------------------------------------------------
   // Gemini 3 Flash 초기화 (LLM 전문 개발자)
   // ---------------------------------------------------------------------------
-  const apiKey = process.env.GOOGLE_API_KEY
-  if (!apiKey) {
+  if (!process.env.GOOGLE_API_KEY) {
     console.log('[RegressionGate] No GOOGLE_API_KEY - auto pass')
     return { passed: true, reason: 'Skipped (No GOOGLE_API_KEY)', score: 0.5 }
   }
+  // 주석(시니어, Phase 3 완전 적용): Regression Gate도 callGateLLM(callWithFallback)
+  // 사용. 병렬 호출이지만 fallback은 각 호출 단위로 적용된다.
 
-  const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({ 
-    model: getModelForUsage('template.regression'),
-    generationConfig: {
-      temperature: 1.0,  // Gemini 3 권장 (Gemini_3_Flash_Reference.md)
-      responseMimeType: 'application/json',
-      maxOutputTokens: 100,  // 응답 길이 제한 (속도 최적화)
-    },
-  })
-  
   try {
     // 병렬 평가 실행
     const evaluationPromises = limitedSamples.map(async (sample) => {
@@ -301,21 +335,16 @@ ${sample.input}
 
 JSON 형식으로 응답: {"score": number, "reason": "string"}
 `
-      // ---------------------------------------------------------------------------
-      // Gemini 3 Flash API 호출 (LLM 프롬프트 전문가)
-      // ---------------------------------------------------------------------------
-      const response = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        // thinking_level은 generationConfig에 포함되지 않음 (API 레벨에서 처리)
+      const content = await callGateLLM('template.regression', prompt, {
+        temperature: 1.0,
+        responseMimeType: 'application/json',
       })
+      if (!content) return { score: 0, deviation: 1, expectedScore: sample.expectedScore }
 
-      const content = response.response.text()
-      if (!content) return { score: 0, deviation: 1 }
-      
       // JSON 파싱 (Gemini는 JSON 응답을 텍스트로 반환할 수 있음)
       const jsonMatch = content.match(/\{[\s\S]*\}/)
-      if (!jsonMatch) return { score: 0, deviation: 1 }
-      
+      if (!jsonMatch) return { score: 0, deviation: 1, expectedScore: sample.expectedScore }
+
       const result = JSON.parse(jsonMatch[0])
       const deviation = Math.abs(result.score - sample.expectedScore)
       return { score: result.score, deviation, expectedScore: sample.expectedScore }

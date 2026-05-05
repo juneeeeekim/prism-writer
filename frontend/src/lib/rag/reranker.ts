@@ -12,6 +12,7 @@ import { GoogleGenerativeAI, type GenerativeModel } from '@google/generative-ai'
 import type { SearchResult } from './search'
 import { hasQuotes, hasDialogue, hasNumericData } from './chunking'
 import { getModelForUsage } from '@/config/llm-usage-map'
+import { callWithFallback } from '@/lib/llm/fallback-handler'
 
 // =============================================================================
 // 타입 정의
@@ -77,6 +78,17 @@ const DEFAULT_BATCH_SIZE = 10
 // - 기존 문제: 모듈 레벨 캐싱으로 설정 변경 시 앱 재시작 필요
 // - 해결책: 모델 ID 기반 캐시 키로 설정 변경 감지 + 수동 캐시 무효화 함수 제공
 // ---------------------------------------------------------------------------
+// 주석(시니어, 2026-05-04 Phase 3): Reranker는 Gemini SDK를 직접 호출한다.
+// `rag.reranker` 컨텍스트는 fallback이 정의되어 있지 않으며, cross-provider
+// 응답 포맷 차이(JSON 구조)로 인해 자동 fallback은 위험하다. 대신 다음 두
+// 보호장치로 안정성을 보장한다:
+//   1) getModelForUsage가 ENV 오버라이드/사용자 선호를 우선 적용 → 운영 중
+//      모델 교체가 코드 변경 없이 가능.
+//   2) evaluateRelevance의 try/catch가 LLM 실패 시 0.5 점수로 안전 복귀.
+// 향후 같은 Provider 패밀리(Gemini → Gemini)로 fallback이 필요하면
+// llm-usage-map의 'rag.reranker' 항목에 fallback 필드를 추가한 뒤 본 모듈을
+// fallback-handler로 래핑할 수 있다.
+// ---------------------------------------------------------------------------
 
 /** 캐시된 모델 정보 */
 interface CachedModel {
@@ -102,48 +114,47 @@ const MODEL_CACHE_TTL_MS = 5 * 60 * 1000
  * 주석(LLM 전문 개발자): Gemini 3 Flash 기본 사용
  * 주석(중앙화 마이그레이션): getModelForUsage 적용
  */
-function getGeminiModel(): GenerativeModel {
-  const currentModelId = getModelForUsage('rag.reranker')
+// 주석(시니어, 2026-05-04 Phase 3 완전 적용): Phase 3에서 cachedModelInfo는
+// 모델 ID별 캐시로 재구성되어 fallback 모델도 분리 캐싱한다. 같은 인스턴스를
+// 모델별로 보관하므로 fallback 시점에도 SDK 인스턴스 생성 비용이 한 번에 그친다.
+function getGeminiModelByIdInternal(modelId: string): GenerativeModel {
   const now = Date.now()
 
-  // 캐시 유효성 검사: 모델 ID 변경 또는 TTL 초과 시 재생성
-  const isCacheValid = cachedModelInfo &&
-    cachedModelInfo.modelId === currentModelId &&
-    (now - cachedModelInfo.createdAt) < MODEL_CACHE_TTL_MS
-
-  if (isCacheValid && cachedModelInfo) {
+  // 같은 modelId + TTL 내면 캐시 재사용
+  if (
+    cachedModelInfo &&
+    cachedModelInfo.modelId === modelId &&
+    now - cachedModelInfo.createdAt < MODEL_CACHE_TTL_MS
+  ) {
     return cachedModelInfo.model
   }
 
-  // 새 모델 인스턴스 생성
   const apiKey = process.env.GOOGLE_API_KEY
-
   if (!apiKey) {
     throw new Error(
       'GOOGLE_API_KEY 환경 변수가 설정되지 않았습니다. ' +
-      '.env.local 파일에 GOOGLE_API_KEY를 추가해주세요.'
+        '.env.local 파일에 GOOGLE_API_KEY를 추가해주세요.'
     )
   }
 
   const genAI = new GoogleGenerativeAI(apiKey)
   const model = genAI.getGenerativeModel({
-    model: currentModelId,
+    model: modelId,
     generationConfig: {
-      temperature: 1.0,  // Gemini 3 권장 (Gemini_3_Flash_Reference.md)
+      temperature: 1.0, // Gemini 3 권장 (Gemini_3_Flash_Reference.md)
       maxOutputTokens: 10,
     },
   })
 
-  // 캐시 업데이트
-  cachedModelInfo = {
-    model,
-    modelId: currentModelId,
-    createdAt: now,
-  }
-
-  console.log(`[Reranker] 모델 초기화: ${currentModelId}`)
-
+  cachedModelInfo = { model, modelId, createdAt: now }
+  console.log(`[Reranker] 모델 초기화: ${modelId}`)
   return model
+}
+
+// 기존 시그니처 유지(외부 코드 회귀 방지). 내부적으로 'rag.reranker' 컨텍스트의
+// 기본 모델을 사용한다.
+function getGeminiModel(): GenerativeModel {
+  return getGeminiModelByIdInternal(getModelForUsage('rag.reranker'))
 }
 
 /**
@@ -181,10 +192,8 @@ export function invalidateRerankerCache(): void {
 async function evaluateRelevance(
   query: string,
   chunk: string,
-  model: string
+  _modelHint: string
 ): Promise<number> {
-  const gemini = getGeminiModel()
-
   // ---------------------------------------------------------------------------
   // 프롬프트 구성
   // ---------------------------------------------------------------------------
@@ -203,39 +212,48 @@ async function evaluateRelevance(
 숫자만 답변해주세요 (예: 0.85):`
 
   // ---------------------------------------------------------------------------
-  // Gemini 3 Flash 호출
+  // 주석(시니어, Phase 3 완전 적용): callWithFallback로 래핑.
+  // - primary 실패 시 같은 Gemini 패밀리의 fallback 모델로 자동 재시도.
+  // - 응답 포맷(짧은 숫자)이 같은 SDK에서 보장되므로 호환 안전.
+  // - 양쪽 모두 실패하면 0.5 반환(기존 안전망 유지)으로 순위 매기기 자체는
+  //   계속 진행되어 RAG 흐름이 차단되지 않는다.
   // ---------------------------------------------------------------------------
-  try {
+  const out = await callWithFallback('rag.reranker', async (modelId) => {
+    const gemini = getGeminiModelByIdInternal(modelId)
     const response = await gemini.generateContent({
-      contents: [{
-        role: 'user',
-        parts: [{ text: '당신은 텍스트 관련성 평가 전문가입니다. 숫자만 답변해주세요.\n\n' + prompt }]
-      }],
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text:
+                '당신은 텍스트 관련성 평가 전문가입니다. 숫자만 답변해주세요.\n\n' +
+                prompt,
+            },
+          ],
+        },
+      ],
     })
-
     const content = response.response.text()?.trim()
-    if (!content) {
-      throw new Error('LLM 응답이 비어있습니다.')
-    }
+    if (!content) throw new Error('LLM 응답이 비어있습니다.')
+    return content
+  })
 
-    // ---------------------------------------------------------------------------
-    // 점수 파싱
-    // ---------------------------------------------------------------------------
-    // 숫자만 추출 (텍스트가 포함될 수 있음)
-    const scoreMatch = content.match(/([0-9]+\.?[0-9]*)/)
-    const score = scoreMatch ? parseFloat(scoreMatch[1]) : 0.5
-    
-    if (isNaN(score) || score < 0 || score > 1) {
-      console.warn(`Invalid relevance score: ${content}, defaulting to 0.5`)
-      return 0.5
-    }
-
-    return score
-  } catch (error) {
-    console.error('Failed to evaluate relevance:', error)
-    // 에러 시 중간 점수 반환
+  if (!out.success || !out.result) {
+    console.error('[Reranker] Both primary and fallback failed:', out.error?.type)
     return 0.5
   }
+
+  // ---------------------------------------------------------------------------
+  // 점수 파싱 (텍스트에서 숫자 추출)
+  // ---------------------------------------------------------------------------
+  const scoreMatch = out.result.match(/([0-9]+\.?[0-9]*)/)
+  const score = scoreMatch ? parseFloat(scoreMatch[1]) : 0.5
+  if (isNaN(score) || score < 0 || score > 1) {
+    console.warn(`Invalid relevance score: ${out.result}, defaulting to 0.5`)
+    return 0.5
+  }
+  return score
 }
 
 // =============================================================================

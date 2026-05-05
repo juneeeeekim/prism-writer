@@ -301,12 +301,20 @@ export async function POST(
     })
 
   } catch (error: any) {
+    // [2026-05-03] Phase 1: Gateway가 사용자 친화 메시지를 던지도록 변경되어
+    // error.message를 그대로 전달한다. 메시지가 비어 있을 때만 generic
+    // fallback을 사용해 UX 일관성과 운영 디버깅을 동시에 만족시킨다.
     console.error('[Evaluation API] Error:', error)
+    const friendlyMessage =
+      typeof error?.message === 'string' && error.message.trim().length > 0
+        ? error.message
+        : '평가 중 오류가 발생했습니다.'
+
     return NextResponse.json(
       {
         success: false,
-        message: '평가 중 오류가 발생했습니다.',
-        error: error.message || 'INTERNAL_SERVER_ERROR',
+        message: friendlyMessage,
+        error: error?.name || 'INTERNAL_SERVER_ERROR',
       },
       { status: 500 }
     )

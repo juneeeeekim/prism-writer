@@ -10,6 +10,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getRubricById, type RubricCategory } from '@/lib/rag/rubrics'
 
+export const dynamic = 'force-dynamic'
+
 // =============================================================================
 // Types
 // =============================================================================
@@ -157,7 +159,10 @@ export async function GET(request: NextRequest) {
     const projectId = searchParams.get('projectId')
     const period = searchParams.get('period') || '30d'
 
-    console.log('[Analytics/Growth] GET request:', { userId: user.id, projectId, period })
+    console.log('[Analytics/Growth] GET request:', {
+      projectScoped: Boolean(projectId && projectId !== 'null'),
+      period,
+    })
 
     // -------------------------------------------------------------------------
     // 쿼리 구성
@@ -184,7 +189,7 @@ export async function GET(request: NextRequest) {
     if (dbError) {
       console.error('[Analytics/Growth] DB error:', dbError)
       return NextResponse.json(
-        { success: false, error: 'Database error', message: dbError.message },
+        { success: false, error: 'Database error' },
         { status: 500 }
       )
     }

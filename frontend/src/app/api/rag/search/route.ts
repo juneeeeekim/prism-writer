@@ -12,6 +12,7 @@ import { NextResponse } from 'next/server'
 import { generateEmbedding, EMBEDDING_CONFIG } from '@/lib/ai/embedding'
 import { buildEvidencePack } from '@/lib/rag/evidencePack'
 import type { EvidencePack, EvidenceItem } from '@/types/rag'
+import { writeErrorLog } from '@/lib/error-log'
 
 // =============================================================================
 // 타입 정의
@@ -76,6 +77,8 @@ const DEFAULT_THRESHOLD = 0.5
  * @returns JSON response with EvidencePack
  */
 export async function POST(request: Request): Promise<NextResponse<SearchResponse>> {
+  const requestId = `rag_search_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+
   try {
     // ---------------------------------------------------------------------------
     // 1. 사용자 인증 확인
@@ -156,6 +159,22 @@ export async function POST(request: Request): Promise<NextResponse<SearchRespons
       queryEmbedding = await generateEmbedding(query.trim())
     } catch (embeddingError) {
       console.error('Failed to generate Gemini query embedding:', embeddingError)
+      await writeErrorLog({
+        category: 'external',
+        domain: 'embedding',
+        severity: 'error',
+        source: 'POST /api/rag/search',
+        operation: 'generateEmbedding',
+        requestId,
+        userId: session.user.id,
+        message: 'Query embedding generation failed',
+        error: embeddingError,
+        metadata: {
+          queryLength: query.trim().length,
+          projectId: body.projectId,
+          embeddingModelId: EMBEDDING_CONFIG.modelId,
+        },
+      })
       return NextResponse.json(
         {
           success: false,
@@ -185,6 +204,23 @@ export async function POST(request: Request): Promise<NextResponse<SearchRespons
 
     if (searchError) {
       console.error('Vector search error (match_document_chunks):', searchError)
+      await writeErrorLog({
+        category: 'db',
+        domain: 'rag-search',
+        severity: 'error',
+        source: 'POST /api/rag/search',
+        operation: 'match_document_chunks',
+        requestId,
+        userId: session.user.id,
+        message: 'RAG vector search RPC failed',
+        error: searchError,
+        metadata: {
+          topK: validTopK,
+          threshold,
+          category: effectiveCategory,
+          projectId: body.projectId,
+        },
+      })
       return NextResponse.json(
         {
           success: false,
@@ -234,6 +270,16 @@ export async function POST(request: Request): Promise<NextResponse<SearchRespons
     })
   } catch (error) {
     console.error('Unexpected error in RAG search API:', error)
+    await writeErrorLog({
+      category: 'api',
+      domain: 'rag-search',
+      severity: 'fatal',
+      source: 'POST /api/rag/search',
+      operation: 'POST',
+      requestId,
+      message: 'Unexpected RAG search API failure',
+      error,
+    })
     return NextResponse.json(
       {
         success: false,
@@ -244,4 +290,3 @@ export async function POST(request: Request): Promise<NextResponse<SearchRespons
     )
   }
 }
-

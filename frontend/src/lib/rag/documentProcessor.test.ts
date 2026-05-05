@@ -1,14 +1,28 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { processDocument } from './documentProcessor'
 import { DocumentStatus } from '@/types/rag'
 
+const { mockCreateServerClient } = vi.hoisted(() => ({
+  mockCreateServerClient: vi.fn(),
+}))
+
 // Mock dependencies
-vi.mock('@/lib/supabase/client', () => ({
-  createClient: vi.fn()
+vi.mock('next/headers', () => ({
+  cookies: vi.fn(async () => ({
+    get: vi.fn(),
+    set: vi.fn(),
+  })),
+}))
+
+vi.mock('@supabase/ssr', () => ({
+  createServerClient: mockCreateServerClient,
 }))
 
 vi.mock('./chunking', () => ({
   chunkDocument: vi.fn(),
+}))
+
+vi.mock('./agenticChunking', () => ({
+  agenticChunk: vi.fn(async () => [{ content: 'chunk1', index: 0, metadata: {} }]),
 }))
 
 vi.mock('./embedding', () => ({
@@ -23,9 +37,16 @@ vi.mock('./costGuard', () => ({
   trackUsage: vi.fn()
 }))
 
-import { createClient } from '@/lib/supabase/client'
+vi.mock('@/config/featureFlags', () => ({
+  FEATURE_FLAGS: {
+    ENABLE_AGENTIC_CHUNKING: false,
+    AGENTIC_CHUNKING_MODEL: 'gemini',
+  },
+}))
+
 import { chunkDocument } from './chunking'
 import { embedBatch } from './embedding'
+import { processDocument } from './documentProcessor'
 
 describe('documentProcessor', () => {
   let mockSupabase: any
@@ -48,13 +69,13 @@ describe('documentProcessor', () => {
       }
     }
     
-    ;(createClient as any).mockReturnValue(mockSupabase)
+    mockCreateServerClient.mockReturnValue(mockSupabase)
     ;(chunkDocument as any).mockReturnValue([{ content: 'chunk1', index: 0, metadata: {} }])
     ;(embedBatch as any).mockResolvedValue([[0.1, 0.2]])
   })
 
   it('should process document successfully and update status correctly', async () => {
-    const result = await processDocument('doc-123', 'path/to/file', 'user-123')
+    const result = await processDocument('doc-123', 'path/to/file.txt', 'user-123')
 
     expect(result.success).toBe(true)
     expect(result.documentId).toBe('doc-123')
@@ -80,7 +101,7 @@ describe('documentProcessor', () => {
     // Mock download failure
     mockSupabase.storage.download.mockResolvedValue({ data: null, error: { message: 'Download failed' } })
 
-    const result = await processDocument('doc-123', 'path/to/file', 'user-123')
+    const result = await processDocument('doc-123', 'path/to/file.txt', 'user-123')
 
     expect(result.success).toBe(false)
     expect(result.error).toBe('문서 처리 중 오류가 발생했습니다.') // Sanitized message
@@ -102,7 +123,7 @@ describe('documentProcessor', () => {
       error: null
     })
 
-    const result = await processDocument('doc-123', 'path/to/file', 'user-123')
+    const result = await processDocument('doc-123', 'path/to/file.txt', 'user-123')
 
     expect(result.success).toBe(false)
     expect(result.error).toBe('문서 내용이 비어있습니다.')
@@ -121,7 +142,7 @@ describe('documentProcessor', () => {
     const docs = ['doc-1', 'doc-2', 'doc-3']
     
     await Promise.all(docs.map(id => 
-      processDocument(id, `path/${id}`, 'user-123')
+      processDocument(id, `path/${id}.txt`, 'user-123')
     ))
 
     // Check if update was called for all documents
@@ -136,7 +157,7 @@ describe('documentProcessor', () => {
       return [[0.1, 0.2]]
     })
 
-    const result = await processDocument('doc-slow', 'path/slow', 'user-123')
+    const result = await processDocument('doc-slow', 'path/slow.txt', 'user-123')
 
     expect(result.success).toBe(true)
     expect(result.documentId).toBe('doc-slow')

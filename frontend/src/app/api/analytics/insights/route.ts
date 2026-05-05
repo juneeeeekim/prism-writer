@@ -14,6 +14,8 @@ import {
   type RubricCategory,
 } from '@/lib/rag/rubrics'
 
+export const dynamic = 'force-dynamic'
+
 // =============================================================================
 // Types
 // =============================================================================
@@ -189,7 +191,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const projectId = searchParams.get('projectId')
 
-    console.log('[Analytics/Insights] GET request:', { userId: user.id, projectId })
+    console.log('[Analytics/Insights] GET request:', {
+      projectScoped: Boolean(projectId && projectId !== 'null'),
+    })
 
     // -------------------------------------------------------------------------
     // 최근 10개 평가 조회
@@ -210,7 +214,7 @@ export async function GET(request: NextRequest) {
     if (dbError) {
       console.error('[Analytics/Insights] DB error:', dbError)
       return NextResponse.json(
-        { success: false, error: 'Database error', message: dbError.message },
+        { success: false, error: 'Database error' },
         { status: 500 }
       )
     }

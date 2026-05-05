@@ -5,10 +5,11 @@
 // 역할: LLM API 연결 및 기능 테스트 엔드포인트
 // =============================================================================
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { requireAdmin } from '@/lib/api/adminAuth'
 import { generateText, isLLMAvailable } from '@/lib/llm/gateway'
 import { buildEvaluationPrompt, type RubricItem, type SearchResult } from '@/lib/llm/prompts'
-import { parseEvaluationResponse, validateEvaluationResult, summarizeEvaluationResult } from '@/lib/llm/parser'
+import { parseEvaluationResponse, summarizeEvaluationResult } from '@/lib/llm/parser'
 
 // =============================================================================
 // 타입 정의
@@ -20,15 +21,6 @@ interface TestResult {
   message: string
   duration?: number
   details?: any
-}
-
-interface TestResponse {
-  success: boolean
-  totalTests: number
-  passed: number
-  failed: number
-  skipped: number
-  results: TestResult[]
 }
 
 // =============================================================================
@@ -75,7 +67,10 @@ const SAMPLE_SEARCH_RESULTS: SearchResult[] = [
 // POST: LLM 테스트 실행
 // =============================================================================
 
-export async function POST(request: Request): Promise<NextResponse<TestResponse>> {
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  const admin = await requireAdmin()
+  if (!admin.ok) return admin.response
+
   const modelOverride = request.headers.get('x-prism-model-id') || undefined
   const results: TestResult[] = []
   let passed = 0
@@ -280,6 +275,9 @@ export async function POST(request: Request): Promise<NextResponse<TestResponse>
 // =============================================================================
 
 export async function GET(): Promise<NextResponse> {
+  const admin = await requireAdmin()
+  if (!admin.ok) return admin.response
+
   return NextResponse.json({
     message: 'LLM 테스트 API입니다. POST 요청으로 테스트를 실행하세요.',
     apiKeyConfigured: isLLMAvailable(),

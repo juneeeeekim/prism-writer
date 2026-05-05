@@ -10,7 +10,7 @@
 // =============================================================================
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { requireAdmin } from '@/lib/api/adminAuth'
 import { embedText, EMBEDDING_CONFIG } from '@/lib/rag/embedding'
 
 // =============================================================================
@@ -58,10 +58,13 @@ interface DocumentListItem {
  */
 export async function GET(req: NextRequest) {
   try {
+    const admin = await requireAdmin()
+    if (!admin.ok) return admin.response
+
     const { searchParams } = new URL(req.url)
     const mode = searchParams.get('mode') || 'stats'
 
-    const supabase = await createClient()
+    const supabase = admin.supabase
 
     // =========================================================================
     // [MODE: stats] 마이그레이션 통계 조회
@@ -163,10 +166,13 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
+    const admin = await requireAdmin()
+    if (!admin.ok) return admin.response
+
     const body = await req.json()
     const mode = body.mode || 'batch'  // 기본값: 레거시 batch 모드
 
-    const supabase = await createClient()
+    const supabase = admin.supabase
 
     // =========================================================================
     // [MODE: process] 단일 문서 재처리 (체크리스트 M-01 핵심 로직)

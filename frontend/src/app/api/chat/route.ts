@@ -14,6 +14,7 @@ import { verifyCitation, hasCitationMarkers } from '@/lib/rag/citationGate'
 import { verifyGroundedness } from '@/lib/rag/selfRAG'
 import { FEATURE_FLAGS } from '@/config/featureFlags'
 import { type RubricTier } from '@/lib/rag/rubrics'
+import { validateChatRequestBody } from './requestValidation'
 import {
   saveMessageWithRetry,
   searchUserPreferences,
@@ -48,7 +49,25 @@ export async function POST(req: NextRequest) {
     // =========================================================================
     // 1. Request Parsing & Auth
     // =========================================================================
-    const { messages, model: requestedModel, sessionId, projectId, coachId } = await req.json()
+    let rawBody: unknown
+    try {
+      rawBody = await req.json()
+    } catch {
+      return NextResponse.json(
+        { error: 'BAD_REQUEST', message: '요청 JSON 형식이 올바르지 않습니다.' },
+        { status: 400 }
+      )
+    }
+
+    const parsedBody = validateChatRequestBody(rawBody)
+    if (!parsedBody.ok) {
+      return NextResponse.json(
+        { error: parsedBody.error, message: parsedBody.message },
+        { status: 400 }
+      )
+    }
+
+    const { messages, model: requestedModel, sessionId, projectId, coachId } = parsedBody.value
     const lastMessage = messages[messages.length - 1]
     const query = lastMessage.content
 
@@ -279,7 +298,7 @@ export async function POST(req: NextRequest) {
           
           // 사용자에게 에러 메시지 전송 후 정상 종료
           try {
-            controller.enqueue(encode(`\n\n❌ 오류가 발생했습니다: ${errorMsg}`))
+            controller.enqueue(encode('\n\n❌ 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'))
             controller.close()
           } catch {
             controller.error(error)
@@ -298,7 +317,7 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error('Chat API Error:', error)
     return NextResponse.json(
-      { error: 'Internal Server Error', details: error.message },
+      { error: 'Internal Server Error' },
       { status: 500 }
     )
   }
