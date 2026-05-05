@@ -194,4 +194,53 @@ console.log(config);
 
 ---
 
-_이 문서는 LLM 중앙화 마이그레이션(Phase 16) 결과물입니다._
+## 🆕 환경 변수 오버라이드 (2026-05-03 Phase 2)
+
+### 목적
+
+운영 중 특정 컨텍스트의 모델을 **코드 변경 없이** 환경 변수로 즉시 교체할 수 있습니다(쿼터 이슈, A/B 실험, 티어 조정 등).
+
+### 키 규칙
+
+```
+MODEL_<CONTEXT_UPPER_SNAKE>
+```
+
+| 컨텍스트 | 환경 변수 키 |
+| -------- | ------------ |
+| `rag.answer` | `MODEL_RAG_ANSWER` |
+| `template.consistency` | `MODEL_TEMPLATE_CONSISTENCY` |
+| `coach.persona.feedback` | `MODEL_COACH_PERSONA_FEEDBACK` |
+
+### 우선순위
+
+1. 환경 변수 (유효한 모델 ID일 때만 적용)
+2. `LLM_USAGE_MAP` 기본값
+3. 시스템 기본값 (`getDefaultModelId`)
+
+### 안전 정책
+
+- **잘못된 모델 ID는 자동 무시** + 경고 로그만 출력 → 운영 ENV 오타가 즉시 사용자 영향으로 이어지지 않음.
+- 클라이언트에서는 `process.env.MODEL_*`가 비어 있으므로 자동으로 기본값 경로 사용.
+- 시작 시 검증: `validateEnvModels()`로 잘못된 ENV 키를 한 번에 보고할 수 있습니다.
+
+### 사용 예시
+
+```bash
+# .env.local
+MODEL_RAG_ANSWER=gpt-5-mini      # Gemini 쿼터 이슈 시 OpenAI로 임시 전환
+MODEL_TEMPLATE_CONSISTENCY=gemma-3-27b-it
+```
+
+```typescript
+import { validateEnvModels } from '@/config/llm-usage-map'
+
+const { valid, errors } = validateEnvModels()
+if (!valid) {
+  console.warn('[Boot] Invalid ENV model overrides:', errors)
+}
+```
+
+---
+
+_이 문서는 LLM 중앙화 마이그레이션(Phase 16) 및 LLM 시스템 고도화(Phase 2) 결과물입니다._

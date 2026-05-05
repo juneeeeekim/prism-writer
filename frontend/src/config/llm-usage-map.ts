@@ -6,7 +6,29 @@
 // 근거: 2512281121_LLM_Centralization_Expert_Meeting.md "🏆 최종 아키텍처 제안"
 // =============================================================================
 
-import { getDefaultModelId, isValidModelId } from './models';
+import { getDefaultModelId, isValidModelId, MODEL_REGISTRY } from './models';
+
+// =============================================================================
+// [2026-05-03] Phase 2: 환경 변수 오버라이드 지원
+// 설계 의도(왜 이 구조인가):
+//   - 운영 중 특정 컨텍스트의 모델을 코드 변경 없이 빠르게 교체할 수 있어야
+//     한다(쿼터 이슈·실험·티어별 정책 등).
+//   - 코드(LLM_USAGE_MAP)는 기본값을 보유하고, 환경 변수가 있을 때만
+//     해당 컨텍스트를 덮어쓴다. 잘못된 모델 ID는 무시되고 경고만 남긴다
+//     → 잘못된 ENV 설정이 즉시 장애로 이어지지 않도록 안전 측면 우선.
+//   - 환경 변수 키 규칙: MODEL_<CONTEXT>  (예: rag.answer → MODEL_RAG_ANSWER)
+// =============================================================================
+
+/**
+ * 컨텍스트 → 환경 변수 키 변환.
+ *
+ * @example
+ *   contextToEnvKey('rag.answer')  // 'MODEL_RAG_ANSWER'
+ *   contextToEnvKey('coach.persona.feedback') // 'MODEL_COACH_PERSONA_FEEDBACK'
+ */
+function contextToEnvKey(context: string): string {
+  return `MODEL_${context.toUpperCase().replace(/[.\-]/g, '_')}`;
+}
 
 // =============================================================================
 // 타입 정의
@@ -187,6 +209,11 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
   },
   'rag.reranker': {
     modelId: 'gemma-3-2b-it',
+    // 주석(시니어, 2026-05-04 Phase 3 완전 적용): 같은 Gemini 패밀리 내 fallback.
+    // cross-provider fallback은 응답 포맷 차이로 위험하므로 같은 SDK가 처리할 수
+    // 있는 모델로 한정한다. 27B는 비용이 더 높지만 reranker는 호출 빈도가 낮아
+    // fallback 시점의 비용 영향이 제한적이다.
+    fallback: 'gemma-3-27b-it',
     description: '검색 결과 재순위 지정',
     // [Lossless] 순위 매기기는 결정적이어야 함
     generationConfig: {
@@ -199,8 +226,12 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
   // ---------------------------------------------------------------------------
   // Template System (Gates)
   // ---------------------------------------------------------------------------
+  // 주석(시니어, 2026-05-04 Phase 3 완전 적용): 모든 template gate에 같은
+  // Gemini 패밀리 fallback을 정의한다. JSON 응답 포맷이 동일한 SDK 내에서만
+  // 보장되므로 fallback도 Gemini/Gemma 안에서 결정한다.
   'template.consistency': {
     modelId: 'gemini-3-flash-preview',
+    fallback: 'gemma-3-27b-it',
     description: '템플릿 일관성 검증 (Consistency Gate)',
     // [Lossless] 검증은 결정적이어야 함
     generationConfig: {
@@ -211,6 +242,7 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
   },
   'template.hallucination': {
     modelId: 'gemma-3-27b-it',
+    fallback: 'gemini-3-flash-preview',
     description: '환각 검증 (Hallucination Gate)',
     // [Lossless] 할루시네이션 탐지는 팩트 기반이므로 결정적
     generationConfig: {
@@ -221,6 +253,7 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
   },
   'template.regression': {
     modelId: 'gemma-3-2b-it',
+    fallback: 'gemma-3-12b-it',
     description: '템플릿 회귀 검사 (Regression Gate)',
     // [Lossless] 회귀 테스트는 언제나 결과가 같아야 함
     generationConfig: {
@@ -484,24 +517,95 @@ export const LLM_USAGE_MAP: Record<LLMUsageContext, UsageConfig> = {
 
 /**
  * 서비스 컨텍스트에 맞는 LLM 모델 ID 반환
- * 
+ *
+ * 우선순위(상위가 더 우선):
+ *   0) 사용자 선호 모델 (Phase 5) — Premium 컨텍스트(`premium.*`)에 한해서만
+ *      적용. 그 외 컨텍스트는 보안/일관성을 위해 무시.
+ *   1) 환경 변수 (예: MODEL_RAG_ANSWER) — 유효한 모델 ID일 때만 적용
+ *   2) LLM_USAGE_MAP 기본값
+ *   3) 시스템 기본값 (방어)
+ *
+ * @description
+ * - 사용자 선호 모델은 Premium 사용자 권한 검증을 호출 측에서 마친 후 전달해야
+ *   안전하다. 본 함수는 컨텍스트 prefix(`premium.`)와 모델 유효성만 확인한다.
+ * - 환경 변수/사용자 모델에 잘못된 값이 들어오면 무시하고 경고만 남긴다.
+ *
  * @param context - LLM 사용 컨텍스트
- * @returns 모델 ID (없으면 시스템 기본값)
- * 
- * @example
- * const model = getModelForUsage('rag.answer');
- * // Returns: 'gemini-3-flash-preview'
+ * @param userPreference - 사용자 선호 모델 ID (선택, Premium 전용)
+ * @returns 모델 ID
  */
-export function getModelForUsage(context: LLMUsageContext): string {
+export function getModelForUsage(
+  context: LLMUsageContext,
+  userPreference?: string | null
+): string {
+  // 0) 사용자 선호 모델 — Premium 컨텍스트에만 적용 (Phase 5)
+  if (userPreference && context.startsWith('premium.')) {
+    if (isValidModelId(userPreference)) {
+      console.log(
+        `[LLM-USAGE-MAP] User preference applied for ${context}: ${userPreference}`
+      );
+      return userPreference;
+    }
+    console.warn(
+      `[LLM-USAGE-MAP] Invalid userPreference="${userPreference}" for ${context}; ignored`
+    );
+  }
+
+  // 1) 환경 변수 우선 (서버 사이드만 의미 있음 — process.env는 클라이언트에서
+  //    NEXT_PUBLIC_ 접두사 없으면 비어 있으므로 클라이언트 호출 시 자동으로
+  //    아래 기본값 경로로 진행된다)
+  const envKey = contextToEnvKey(context);
+  const envModel = process.env[envKey];
+  if (envModel) {
+    if (isValidModelId(envModel)) {
+      console.log(
+        `[LLM-USAGE-MAP] Env override applied for ${context}: ${envModel}`
+      );
+      return envModel;
+    }
+    console.warn(
+      `[LLM-USAGE-MAP] Env ${envKey}=${envModel} is not a valid model ID; ignored`
+    );
+  }
+
+  // 2) 중앙 매핑
   const config = LLM_USAGE_MAP[context];
-  
-  // 방어 로직: 잘못된 context 전달 시 기본값 반환 + 경고 로그
+
+  // 3) 방어 로직: 잘못된 context 전달 시 기본값 반환 + 경고 로그
   if (!config) {
     console.warn(`[LLM-USAGE-MAP] Unknown context: ${context}, using default`);
     return getDefaultModelId();
   }
-  
+
   return config.modelId;
+}
+
+/**
+ * 환경 변수로 설정된 모델 ID들이 모두 유효한지 검증.
+ *
+ * @description
+ * 서버 시작 시 호출하여 잘못된 ENV 설정을 빠르게 감지한다. 검증 실패는 경고
+ * 수준으로만 보고하며, 런타임에서는 isValidModelId로 자동 필터되므로 본
+ * 함수는 운영 가시성을 위한 도구다.
+ *
+ * @returns 유효성 결과와 오류 목록
+ * @example
+ * const { valid, errors } = validateEnvModels();
+ * if (!valid) console.warn('Invalid env models:', errors);
+ */
+export function validateEnvModels(): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+
+  for (const context of getAllUsageContexts()) {
+    const envKey = contextToEnvKey(context);
+    const envModel = process.env[envKey];
+
+    if (envModel && !MODEL_REGISTRY[envModel as keyof typeof MODEL_REGISTRY]) {
+      errors.push(`${envKey}=${envModel} is not a valid model ID`);
+    }
+  }
+
+  return { valid: errors.length === 0, errors };
 }
 
 /**
