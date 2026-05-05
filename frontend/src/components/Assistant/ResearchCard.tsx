@@ -8,7 +8,7 @@
 
 'use client'
 
-import type { SummarizedResult } from '@/lib/research/resultSummarizer'
+import type { SummarizedResult } from '@/lib/research/resultMetadata'
 
 // =============================================================================
 // Types

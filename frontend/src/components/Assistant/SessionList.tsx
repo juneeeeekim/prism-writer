@@ -123,7 +123,7 @@ export default function SessionList({
   // Load Sessions
   // [FIX] projectId로 필터링
   // ---------------------------------------------------------------------------
-  const fetchSessions = async () => {
+  const fetchSessions = useCallback(async () => {
     try {
       setIsLoading(true)
       // [FIX] projectId가 있으면 쿼리 파라미터로 전달
@@ -139,11 +139,11 @@ export default function SessionList({
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [endpoint, projectId, sessionType])
 
   useEffect(() => {
     fetchSessions()
-  }, [endpoint, projectId])  // [FIX] projectId 변경 시에도 재로드
+  }, [fetchSessions])  // [FIX] projectId 변경 시에도 재로드
 
   // ---------------------------------------------------------------------------
   // Create New Session
@@ -166,7 +166,7 @@ export default function SessionList({
       
       const data = await res.json()
       if (data.session) {
-        setSessions([data.session, ...sessions])
+        setSessions(prev => [data.session, ...prev])
         onSelectSession(data.session.id)
       }
     } catch (error) {

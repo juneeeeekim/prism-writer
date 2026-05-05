@@ -338,6 +338,7 @@ export default function SmartSearchTab() {
                   key={`${item.query}-${item.timestamp}`}
                   className="flex items-center justify-between px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer group"
                   role="option"
+                  aria-selected={false}
                 >
                   <button
                     type="button"

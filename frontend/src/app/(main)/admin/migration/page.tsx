@@ -72,7 +72,7 @@ export default function MigrationPage() {
   // ---------------------------------------------------------------------------
   // Data Fetching
   // ---------------------------------------------------------------------------
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/migrate?mode=stats')
       const data = await res.json()
@@ -83,9 +83,9 @@ export default function MigrationPage() {
     } catch (err) {
       addLog(`Stats fetch error: ${String(err)}`, 'error')
     }
-  }
+  }, [addLog])
 
-  const fetchDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/migrate?mode=list')
       const data = await res.json()
@@ -94,7 +94,7 @@ export default function MigrationPage() {
     } catch (err) {
       addLog(`Document list fetch error: ${String(err)}`, 'error')
     }
-  }
+  }, [addLog])
 
   useEffect(() => {
     const init = async () => {
@@ -103,7 +103,9 @@ export default function MigrationPage() {
       setLoading(false)
     }
     init()
-    
+  }, [fetchStats, fetchDocuments])
+
+  useEffect(() => {
     // [Safety] 탭 닫기 경고 (M-02 체크리스트)
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (processing) {
@@ -113,7 +115,7 @@ export default function MigrationPage() {
     }
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [])
+  }, [processing])
 
   // ---------------------------------------------------------------------------
   // Document-Level Migration (M-02 핵심 로직)

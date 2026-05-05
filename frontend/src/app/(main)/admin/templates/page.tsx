@@ -1,7 +1,7 @@
 
 'use client'
 
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { TemplateRegistry } from '@/lib/rag/templateRegistry'
 import { type Template, type TemplateStatus } from '@/lib/rag/templateTypes'
@@ -20,8 +20,8 @@ export default function AdminTemplatesPage() {
   const [statusFilter, setStatusFilter] = useState<TemplateStatus | 'all'>('pending')
   const [isAdmin, setIsAdmin] = useState(false)
   
-  const supabase = createClient()
-  const registry = new TemplateRegistry()
+  const supabase = useMemo(() => createClient(), [])
+  const registry = useMemo(() => new TemplateRegistry(), [])
   const router = useRouter()
 
   const checkAdmin = useCallback(async () => {
@@ -57,7 +57,7 @@ export default function AdminTemplatesPage() {
     } finally {
       setLoading(false)
     }
-  }, [statusFilter])
+  }, [registry, statusFilter])
 
   useEffect(() => {
     checkAdmin()

@@ -10,7 +10,7 @@
 // =============================================================================
 
 import { useState, useEffect, useCallback } from 'react'
-import type { SummarizedResult } from '@/lib/research/resultSummarizer'
+import type { SummarizedResult } from '@/lib/research/resultMetadata'
 
 // =============================================================================
 // Types

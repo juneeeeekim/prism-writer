@@ -118,7 +118,7 @@ function EditorContent() {
     }
     
     loadFromUrl()
-  }, [documentIdFromUrl])
+  }, [documentIdFromUrl, documentId, loadDocument, loadFromServer])
    
   // ---------------------------------------------------------------------------
   // Feature Flag 기반 UI 레이아웃 결정

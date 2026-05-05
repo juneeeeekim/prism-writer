@@ -12,8 +12,10 @@ import { searchBrave } from '@/lib/research/braveClient'
 import type { BraveWebResult } from '@/lib/research/braveClient'
 import { searchTavily } from '@/lib/research/tavilyClient'
 import type { TavilySearchResult } from '@/lib/research/tavilyClient'
-import { detectTrustBadge } from '@/lib/research/resultSummarizer'
-import type { TrustBadge } from '@/lib/research/resultSummarizer'
+import {
+  detectTrustBadge,
+  type TrustBadge,
+} from '@/lib/research/resultMetadata'
 
 // =============================================================================
 // Types
@@ -163,7 +165,14 @@ export async function performWebSearch(
         ? searchBrave({ query, count: maxResults })
         : Promise.resolve([]),
       useTavily
-        ? searchTavily({ query, maxResults }).then(r => r.results)
+        ? searchTavily({ query, maxResults })
+            .then(r => r.results)
+            .catch(error => {
+              logger.warn('[WebSearch]', 'Tavily search failed, continuing with available results', {
+                error: String(error),
+              })
+              return []
+            })
         : Promise.resolve([]),
     ])
 

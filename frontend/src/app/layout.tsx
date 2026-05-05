@@ -8,6 +8,7 @@
 import type { Metadata, Viewport } from 'next'
 import dynamic from 'next/dynamic'
 import './globals.css'
+import { getSiteUrl } from '@/lib/siteMetadata'
 // [P4-03] CSS 모듈화: globals.css에서 역할별로 분리 (2026-03-05 Health Audit)
 import './editor.css'
 import './components.css'
@@ -33,10 +34,31 @@ const AnalyticsProvider = dynamic(
 // -----------------------------------------------------------------------------
 // Metadata (SEO)
 // -----------------------------------------------------------------------------
+const siteUrl = getSiteUrl()
+const siteTitle = 'PRISM Writer - RAG 기반 글쓰기 도구'
+const siteDescription = '내 문서를 분석하여 글의 구조와 내용을 잡아주는 지능형 저작 도구'
+
 export const metadata: Metadata = {
-  title: 'PRISM Writer - RAG 기반 글쓰기 도구',
-  description: '내 문서를 분석하여 글의 구조와 내용을 잡아주는 지능형 저작 도구',
+  metadataBase: new URL(siteUrl),
+  title: siteTitle,
+  description: siteDescription,
   keywords: ['RAG', '글쓰기', 'AI', '마크다운', '에디터'],
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    title: siteTitle,
+    description: siteDescription,
+    url: '/',
+    siteName: 'PRISM Writer',
+    locale: 'ko_KR',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: siteTitle,
+    description: siteDescription,
+  },
 }
 
 // -----------------------------------------------------------------------------

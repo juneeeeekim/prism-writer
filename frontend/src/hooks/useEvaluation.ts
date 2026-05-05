@@ -492,7 +492,7 @@ export function useEvaluation(): UseEvaluationReturn {
       console.error('[useEvaluation] Delete error:', err)
       alert('평가 삭제 중 오류가 발생했습니다.')
     }
-  }, [savedEvaluations])
+  }, [])
 
   return {
     isLoading,

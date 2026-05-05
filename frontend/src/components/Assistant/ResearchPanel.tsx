@@ -11,8 +11,10 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useToast } from '@/hooks/useToast'
 import ResearchCard from './ResearchCard'
-import type { SummarizedResult } from '@/lib/research/resultSummarizer'
-import { detectTrustBadge } from '@/lib/research/resultSummarizer'
+import {
+  detectTrustBadge,
+  type SummarizedResult,
+} from '@/lib/research/resultMetadata'
 
 import { useProject } from '@/contexts/ProjectContext'
 import { useResearchPersistence } from '@/hooks/useResearchPersistence'

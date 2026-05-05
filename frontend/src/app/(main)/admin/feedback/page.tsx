@@ -13,7 +13,7 @@
 // - 사용자 코멘트 확인
 // =============================================================================
 
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import AuthHeader from '@/components/auth/AuthHeader'
 
@@ -63,11 +63,7 @@ export default function AdminFeedbackPage() {
   // ---------------------------------------------------------------------------
   // 데이터 로드
   // ---------------------------------------------------------------------------
-  useEffect(() => {
-    loadFeedback()
-  }, [filter])
-
-  const loadFeedback = async () => {
+  const loadFeedback = useCallback(async () => {
     setIsLoading(true)
     setError(null)
 
@@ -119,7 +115,11 @@ export default function AdminFeedbackPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [filter])
+
+  useEffect(() => {
+    loadFeedback()
+  }, [loadFeedback])
 
   // ---------------------------------------------------------------------------
   // 환각률 계산
