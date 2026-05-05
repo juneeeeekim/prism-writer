@@ -9,14 +9,29 @@
 'use client'
 
 import { useCallback, useEffect } from 'react'
-import ShadowWriter from './ShadowWriter'
-import RichShadowWriter from './RichShadowWriter'
+import dynamic from 'next/dynamic'
 import { ShadowWriterSettings, type TriggerMode } from './ShadowWriterSettings'
 import { useEditorState } from '@/hooks/useEditorState'
 import { useAutosave, type SaveStatus } from '@/hooks/useAutosave'
 import { useProject } from '@/contexts/ProjectContext'
 import { FEATURE_FLAGS } from '@/config/featureFlags'
 import { useState } from 'react'
+
+const EditorSkeleton = () => (
+  <div className="w-full h-full flex items-center justify-center text-sm text-gray-400">
+    에디터 로딩 중...
+  </div>
+)
+
+const ShadowWriter = dynamic(() => import('./ShadowWriter'), {
+  ssr: false,
+  loading: EditorSkeleton,
+})
+
+const RichShadowWriter = dynamic(() => import('./RichShadowWriter'), {
+  ssr: false,
+  loading: EditorSkeleton,
+})
 
 // =============================================================================
 // Helper: 저장 상태 아이콘 및 텍스트

@@ -10,15 +10,16 @@
 
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-// import OutlineTab from './OutlineTab' // [Deprecation] 비활성화
+import dynamic from 'next/dynamic'
 import ReferenceTab from './ReferenceTab'
-import ChatTab from './ChatTab'
-import EvaluationTab from './EvaluationTab'
-import SmartSearchTab from './SmartSearchTab'  // [P2-02] 스마트 검색 탭 추가
-import StructureTab from './StructureTab'  // [P4-01] AI Structurer 탭 추가
-import ResearchPanel from './ResearchPanel'  // [Deep Scholar P4-01] 외부 자료 검색 탭
 import ChatSessionList from './ChatSessionList'
 import ChatHistoryOnboarding from './ChatHistoryOnboarding'
+
+const ChatTab = dynamic(() => import('./ChatTab'), { ssr: false })
+const EvaluationTab = dynamic(() => import('./EvaluationTab'), { ssr: false })
+const SmartSearchTab = dynamic(() => import('./SmartSearchTab'), { ssr: false })
+const StructureTab = dynamic(() => import('./StructureTab'), { ssr: false })
+const ResearchPanel = dynamic(() => import('./ResearchPanel'), { ssr: false })
 import { FEATURES } from '@/lib/features'
 import { FEATURE_FLAGS } from '@/config/featureFlags'  // [P4-02] AI Structurer Feature Flag
 import { useEditorState } from '@/hooks/useEditorState'  // Phase 14.5: Category-Scoped
@@ -71,6 +72,17 @@ export default function AssistantPanel({ defaultTab = 'reference' }: AssistantPa
   // [P6-03-A] 외부에서 defaultTab prop으로 제어 가능
   const [activeTab, setActiveTab] = useState<TabId>(defaultTab)
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
+
+  // 첫 활성화 시점에 마운트하고, 이후 hidden으로 유지하여 탭 상태 보존
+  const [mountedTabs, setMountedTabs] = useState<Set<TabId>>(() => new Set([defaultTab]))
+  useEffect(() => {
+    setMountedTabs((prev) => {
+      if (prev.has(activeTab)) return prev
+      const next = new Set<TabId>(prev)
+      next.add(activeTab)
+      return next
+    })
+  }, [activeTab])
 
   // Feature Flag 확인 (클라이언트 사이드에서 안전하게 접근)
   const [showSessionList, setShowSessionList] = useState(false)
@@ -261,53 +273,56 @@ export default function AssistantPanel({ defaultTab = 'reference' }: AssistantPa
         </div>
 
         {/* AI 채팅 탭 */}
-        <div
-          id="panel-chat"
-          role="tabpanel"
-          aria-labelledby="tab-chat"
-          className={`h-full flex ${activeTab !== 'chat' ? 'hidden' : ''}`}
-        >
-          {/* Feature Flag: 세션 목록 표시 여부 (모바일에서는 숨김 — 공간 부족) */}
-          {showSessionList && (
-            <div className="hidden sm:block">
-              <ChatSessionList
-                selectedSessionId={selectedSessionId}
-                onSelectSession={setSelectedSessionId}
+        {mountedTabs.has('chat') && (
+          <div
+            id="panel-chat"
+            role="tabpanel"
+            aria-labelledby="tab-chat"
+            className={`h-full flex ${activeTab !== 'chat' ? 'hidden' : ''}`}
+          >
+            {showSessionList && (
+              <div className="hidden sm:block">
+                <ChatSessionList
+                  selectedSessionId={selectedSessionId}
+                  onSelectSession={setSelectedSessionId}
+                />
+              </div>
+            )}
+            <div className="flex-1 min-w-0 h-full">
+              <ChatTab
+                sessionId={showSessionList ? selectedSessionId : undefined}
+                onSessionChange={setSelectedSessionId}
               />
             </div>
-          )}
-          <div className="flex-1 min-w-0 h-full">
-            {/* Feature Flag OFF 시 세션 관리 비활성화 (기존 동작 유지) */}
-            {/* Phase 14.5: Pass category for scoped personalization */}
-            <ChatTab
-              sessionId={showSessionList ? selectedSessionId : undefined}
-              onSessionChange={setSelectedSessionId}
-            />
           </div>
-        </div>
+        )}
 
-        {/* 평가 탭 - Always mounted to preserve evaluation results */}
-        <div
-          id="panel-evaluation"
-          role="tabpanel"
-          aria-labelledby="tab-evaluation"
-          className={`h-full ${activeTab !== 'evaluation' ? 'hidden' : ''}`}
-        >
-          <EvaluationTab />
-        </div>
+        {/* 평가 탭 — 첫 활성화 후 마운트 유지 */}
+        {mountedTabs.has('evaluation') && (
+          <div
+            id="panel-evaluation"
+            role="tabpanel"
+            aria-labelledby="tab-evaluation"
+            className={`h-full ${activeTab !== 'evaluation' ? 'hidden' : ''}`}
+          >
+            <EvaluationTab />
+          </div>
+        )}
 
-        {/* [P2-02] 스마트 검색 탭 - Always mounted to preserve search results */}
-        <div
-          id="panel-search"
-          role="tabpanel"
-          aria-labelledby="tab-search"
-          className={`h-full ${activeTab !== 'search' ? 'hidden' : ''}`}
-        >
-          <SmartSearchTab />
-        </div>
+        {/* [P2-02] 스마트 검색 탭 — 첫 활성화 후 마운트 유지 */}
+        {mountedTabs.has('search') && (
+          <div
+            id="panel-search"
+            role="tabpanel"
+            aria-labelledby="tab-search"
+            className={`h-full ${activeTab !== 'search' ? 'hidden' : ''}`}
+          >
+            <SmartSearchTab />
+          </div>
+        )}
 
         {/* [P4-02] AI Structurer 탭 - Feature Flag로 제어 */}
-        {FEATURE_FLAGS.ENABLE_AI_STRUCTURER && (
+        {FEATURE_FLAGS.ENABLE_AI_STRUCTURER && mountedTabs.has('structure') && (
           <div
             id="panel-structure"
             role="tabpanel"
@@ -318,12 +333,7 @@ export default function AssistantPanel({ defaultTab = 'reference' }: AssistantPa
           </div>
         )}
 
-        {/* -----------------------------------------------------------------------
-            [Deep Scholar P4-01] Research 탭 - 외부 학술/정부 자료 검색
-            - Feature Flag: ENABLE_DEEP_SCHOLAR
-            - 인용 삽입 시 useEditorState.insertCitation 사용
-            ----------------------------------------------------------------------- */}
-        {FEATURE_FLAGS.ENABLE_DEEP_SCHOLAR && (
+        {FEATURE_FLAGS.ENABLE_DEEP_SCHOLAR && mountedTabs.has('research') && (
           <div
             id="panel-research"
             role="tabpanel"

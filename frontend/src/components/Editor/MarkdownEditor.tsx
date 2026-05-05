@@ -10,11 +10,13 @@ import { useProject } from '@/contexts/ProjectContext'
 import { useTheme } from '@/contexts/ThemeContext'
 // [P2-02] 테마 토글 버튼 컴포넌트
 import ThemeToggle from '@/components/layout/ThemeToggle'
-// [Phase A] 버전 히스토리 패널
-import VersionHistoryPanel from '@/components/Editor/VersionHistoryPanel'
-
 // 동적 import (SSR 비활성화 - 마크다운 에디터는 클라이언트 전용)
 const MDEditor = dynamic(() => import('@uiw/react-md-editor'), { ssr: false })
+
+// 버전 히스토리 패널 — 사용자가 토글한 뒤에만 필요하므로 lazy load
+const VersionHistoryPanel = dynamic(() => import('@/components/Editor/VersionHistoryPanel'), {
+  ssr: false,
+})
 
 // =============================================================================
 // Helper: 저장 상태 아이콘 및 텍스트

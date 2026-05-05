@@ -13,30 +13,36 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState } from 'react'
+import nextDynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
 import { useToast } from '@/hooks/useToast'
 import { downloadFile, sanitizeFilename } from '@/utils/exportUtils'
 import DualPaneContainer from '@/components/DualPane/DualPaneContainer'
-import MarkdownEditor from '@/components/Editor/MarkdownEditor'
 import AssistantPanel from '@/components/Assistant/AssistantPanel'
 import { AuthHeader } from '@/components/auth'
-import ThreePaneLayout from '@/components/Editor/ThreePaneLayout'
-import ReferencePanel from '@/components/Editor/ReferencePanel'
-import FeedbackPanel from '@/components/Editor/FeedbackPanel'
 import { useEditorState } from '@/hooks/useEditorState'
 import { useDocuments } from '@/hooks/useDocuments'
 import { useAuth } from '@/hooks/useAuth'
 import { createClient } from '@/lib/supabase/client'
-// ---------------------------------------------------------------------------
-// Pipeline v5: 중앙 집중 Feature Flag 사용
-// ---------------------------------------------------------------------------
 import { isFeatureEnabled, getUILayoutType, logFeatureFlags, FEATURE_FLAGS } from '@/config/featureFlags'
-// [P5-07-A] 프로젝트 Context (레이아웃에서 Provider 제공)
 import { useProject } from '@/contexts/ProjectContext'
-// [P6-04] Full-screen Onboarding
-import OnboardingGuide from '@/components/Assistant/Studio/OnboardingGuide'
-// [SHADOW-WRITER] Shadow Writer 에디터 (P3-01)
 import ShadowWriterEditor from '@/components/Editor/ShadowWriterEditor'
+
+const MarkdownEditor = nextDynamic(() => import('@/components/Editor/MarkdownEditor'), {
+  ssr: false,
+})
+const ThreePaneLayout = nextDynamic(() => import('@/components/Editor/ThreePaneLayout'), {
+  ssr: false,
+})
+const ReferencePanel = nextDynamic(() => import('@/components/Editor/ReferencePanel'), {
+  ssr: false,
+})
+const FeedbackPanel = nextDynamic(() => import('@/components/Editor/FeedbackPanel'), {
+  ssr: false,
+})
+const OnboardingGuide = nextDynamic(() => import('@/components/Assistant/Studio/OnboardingGuide'), {
+  ssr: false,
+})
 
 // -----------------------------------------------------------------------------
 // Editor Page Component (ProjectProvider는 레이아웃에서 제공)

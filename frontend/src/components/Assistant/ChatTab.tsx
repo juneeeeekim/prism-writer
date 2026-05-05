@@ -10,12 +10,16 @@
 'use client'
 
 import { useRef, useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { useChat } from '@/hooks/useChat'
 import { useCoach } from '@/hooks/useCoach'
 import { useProject } from '@/contexts/ProjectContext'
 import { MessageItem, ChatInput } from './chat'
 import ChatModelSelector from './ChatModelSelector'
-import CoachManager from '@/components/Coach/CoachManager'
+
+const CoachManager = dynamic(() => import('@/components/Coach/CoachManager'), {
+  ssr: false,
+})
 
 // =============================================================================
 // Types
