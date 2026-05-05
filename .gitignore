@@ -47,6 +47,11 @@ ENV/
 .env.test.local
 .env.production.local
 *.env
+# root .env 차단 + 백업 파일 차단 (AGENTS.md §21)
+/.env
+/.env.local
+/.env*.local
+/.env.local.backup-*
 
 # -----------------------------------------------------------------------------
 # IDE / Editor

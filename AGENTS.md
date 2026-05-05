@@ -534,7 +534,54 @@ pnpm build
 
 ---
 
-## 21. 최종 체크리스트
+## 21. 환경 변수 관리 규칙
+
+### 21.1 진실의 원천 (Single Source of Truth)
+
+- **로컬 개발 환경 변수의 유일한 파일은 `frontend/.env.local`** 이다.
+- `prismLM/` 프로젝트 루트에 `.env.local` 또는 `.env` 파일을 **절대 생성하지 않는다.**
+  - 이유: `next.config.js`가 `frontend/`에 있으므로 Next.js의 root는 `frontend/`이며, root `.env.local`은 어떤 프로세스도 읽지 않는다.
+  - 과거에 root와 frontend 양쪽에 31개 키가 중복된 사고가 있었음 (2026-05-05). 동일 사고 재발 금지.
+- **Vercel production 환경 변수**는 Vercel 대시보드 → Settings → Environment Variables 에서만 관리한다.
+- **Supabase 프로젝트 ref / 액세스 토큰**은 `supabase login` 의 OS 자격 증명 저장소를 사용하고 `.env.local`에 넣지 않는다.
+
+### 21.2 backend 디렉토리
+
+- `backend/` (FastAPI 프로토타입)는 현재 사용되지 않는다.
+- 미래에 활성화될 경우 **`backend/.env`** 를 별도로 생성한다. root `.env`는 만들지 않는다.
+
+### 21.3 신규 환경 변수 추가 절차
+
+1. `frontend/.env.example` 에 키와 한 줄 설명을 추가하고 **커밋**한다 (실제 값은 placeholder).
+2. `frontend/.env.local` 에 실제 값을 추가한다 (커밋 금지 — `.gitignore`로 제외됨).
+3. Vercel 대시보드 Production/Preview 환경에 동일 키를 추가한다.
+4. 코드에서 사용하는 위치에 한 줄 주석으로 출처를 표시한다 (예: `// .env: ANTHROPIC_API_KEY`).
+
+### 21.4 금지 사항
+
+- root `.env.local`, root `.env` 생성 금지.
+- 로그/콘솔에 환경 변수 값 출력 금지 (존재 여부만 boolean 으로 출력 허용).
+- `NEXT_PUBLIC_` prefix 가 붙은 변수에 secret 넣기 금지 (클라이언트 번들에 노출됨).
+- `.env.example` 에 실제 값 커밋 금지 (placeholder만 허용).
+
+### 21.5 .gitignore 가드
+
+`prismLM/.gitignore` 가 다음 패턴을 모두 커버해야 한다:
+
+```
+.env
+.env.local
+.env*.local
+/.env
+/.env.local
+/.env*.local
+```
+
+`/` prefix 패턴은 root에 신규 .env 가 들어오는 것을 추가로 차단한다.
+
+---
+
+## 22. 최종 체크리스트
 
 작업 완료 전 아래를 확인한다.
 
