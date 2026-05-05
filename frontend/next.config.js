@@ -16,8 +16,8 @@ const nextConfig = {
     optimizePackageImports: ['@heroicons/react'],
   },
   
-  // Note: 'standalone' output removed for Vercel compatibility with dynamic pages
-  // Vercel handles this automatically
+  // Keep standalone output because Dockerfile copies .next/standalone for production.
+  output: 'standalone',
   
   // Image optimization settings
   images: {

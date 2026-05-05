@@ -1,57 +1,52 @@
-// =============================================================================
-// PRISM Writer - Playwright Configuration
-// =============================================================================
-// 파일: frontend/playwright.config.ts
-// 역할: E2E 테스트 설정
-// =============================================================================
+// 디렉토리 경로: frontend/
+// 파일명: playwright.config.ts
+// 파일 코드의 역할/설명: Playwright E2E 실행 그룹을 backend-required, external-smoke, ui-smoke로 분리한다.
 
 import { defineConfig, devices } from '@playwright/test'
 
+const frontendURL = process.env.E2E_FRONTEND_URL || 'http://localhost:3000'
+const skipWebServer = process.env.PLAYWRIGHT_SKIP_WEB_SERVER === '1'
+
 export default defineConfig({
-  // ==========================================================================
-  // Test Directory
-  // ==========================================================================
   testDir: './e2e',
-  
-  // ==========================================================================
-  // Parallel Execution
-  // ==========================================================================
   fullyParallel: true,
-  forbidOnly: !!process.env.CI,
+  forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  
-  // ==========================================================================
-  // Reporter
-  // ==========================================================================
-  reporter: 'html',
-  
-  // ==========================================================================
-  // Global Settings
-  // ==========================================================================
+  reporter: [['html', { open: 'never' }]],
+
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL: frontendURL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
 
-  // ==========================================================================
-  // Projects (Browsers)
-  // ==========================================================================
   projects: [
     {
-      name: 'chromium',
+      name: 'backend-required',
+      testMatch: /.*\.backend\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'external-smoke',
+      testMatch: /.*\.external\.spec\.ts/,
+      retries: 0,
+      workers: 1,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'ui-smoke',
+      testMatch: /.*\.ui\.spec\.ts/,
       use: { ...devices['Desktop Chrome'] },
     },
   ],
 
-  // ==========================================================================
-  // Web Server (Auto-start)
-  // ==========================================================================
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
-  },
+  webServer: skipWebServer
+    ? undefined
+    : {
+        command: 'npm run dev',
+        url: frontendURL,
+        reuseExistingServer: !process.env.CI,
+        timeout: 120 * 1000,
+      },
 })

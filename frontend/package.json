@@ -8,7 +8,13 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
-    "test:e2e": "playwright test",
+    "preflight:e2e:backend": "node scripts/e2e-preflight-backend.mjs",
+    "preflight:e2e:external": "node scripts/e2e-preflight-external.mjs",
+    "test:e2e": "npm run test:e2e:backend-required",
+    "test:e2e:backend-required": "npm run preflight:e2e:backend && node scripts/run-e2e-project.mjs backend-required --skip-web-server",
+    "test:e2e:external-smoke": "npm run preflight:e2e:external && node scripts/run-e2e-project.mjs external-smoke --skip-web-server",
+    "test:e2e:ui-smoke": "node scripts/run-e2e-project.mjs ui-smoke",
+    "test:e2e:list": "playwright test --list",
     "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
