@@ -21,6 +21,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { isValidModelId } from '@/config/models'
 import { writeErrorLog } from '@/lib/error-log'
+import { createRequestId, errorResponse } from '@/lib/api/error'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -36,36 +37,11 @@ const ALLOWED_PREFERRED_MODELS = [
   'claude-sonnet-4-5-20250929',
 ] as const
 
-interface ErrorBody {
-  success: false
-  error: {
-    code: 'UNAUTHORIZED' | 'FORBIDDEN' | 'BAD_REQUEST' | 'INTERNAL_ERROR'
-    message: string
-    requestId: string
-  }
-}
-
-function createRequestId(): string {
-  return `mpref_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
-}
-
-function errorResponse(
-  status: number,
-  code: ErrorBody['error']['code'],
-  message: string,
-  requestId: string
-) {
-  return NextResponse.json<ErrorBody>(
-    { success: false, error: { code, message, requestId } },
-    { status }
-  )
-}
-
 // -----------------------------------------------------------------------------
 // GET: 현재 선호 모델 조회
 // -----------------------------------------------------------------------------
 export async function GET(_request: NextRequest) {
-  const requestId = createRequestId()
+  const requestId = createRequestId('mpref')
   try {
     const supabase = await createClient()
     const {
@@ -128,7 +104,7 @@ export async function GET(_request: NextRequest) {
 // PUT: 선호 모델 저장
 // -----------------------------------------------------------------------------
 export async function PUT(request: NextRequest) {
-  const requestId = createRequestId()
+  const requestId = createRequestId('mpref')
   try {
     const supabase = await createClient()
     const {

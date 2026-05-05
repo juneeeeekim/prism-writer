@@ -18,34 +18,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { AB_EXPERIMENTS } from '@/lib/llm/ab-test'
 import { writeErrorLog } from '@/lib/error-log'
+import { createRequestId, errorResponse } from '@/lib/api/error'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
-
-interface ErrorBody {
-  success: false
-  error: {
-    code: 'UNAUTHORIZED' | 'FORBIDDEN' | 'INTERNAL_ERROR'
-    message: string
-    requestId: string
-  }
-}
-
-function createRequestId(): string {
-  return `expr_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
-}
-
-function errorResponse(
-  status: number,
-  code: ErrorBody['error']['code'],
-  message: string,
-  requestId: string
-) {
-  return NextResponse.json<ErrorBody>(
-    { success: false, error: { code, message, requestId } },
-    { status }
-  )
-}
 
 interface PerfRow {
   model_id: string
@@ -54,7 +30,7 @@ interface PerfRow {
 }
 
 export async function GET(_request: NextRequest) {
-  const requestId = createRequestId()
+  const requestId = createRequestId('expr')
   try {
     const supabase = await createClient()
     const {

@@ -6,40 +6,13 @@ import {
   writeErrorLog,
   type ErrorLogEntry,
 } from '@/lib/error-log'
+import { createRequestId, errorResponse } from '@/lib/api/error'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-interface ErrorResponseBody {
-  success: false
-  error: {
-    code: 'UNAUTHORIZED' | 'FORBIDDEN' | 'BAD_REQUEST' | 'INTERNAL_ERROR'
-    message: string
-    requestId: string
-  }
-}
-
-function createRequestId(): string {
-  return `errlog_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
-}
-
-function errorResponse(
-  status: number,
-  code: ErrorResponseBody['error']['code'],
-  message: string,
-  requestId: string
-) {
-  return NextResponse.json<ErrorResponseBody>(
-    {
-      success: false,
-      error: { code, message, requestId },
-    },
-    { status }
-  )
-}
-
 export async function GET(request: NextRequest) {
-  const requestId = createRequestId()
+  const requestId = createRequestId('errlog')
 
   try {
     const supabase = await createClient()

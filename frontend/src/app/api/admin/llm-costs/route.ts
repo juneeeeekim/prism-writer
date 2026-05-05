@@ -21,34 +21,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { calculateCallCost } from '@/lib/llm/cost-calculator'
 import { writeErrorLog } from '@/lib/error-log'
+import { createRequestId, errorResponse } from '@/lib/api/error'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-interface ErrorBody {
-  success: false
-  error: {
-    code: 'UNAUTHORIZED' | 'FORBIDDEN' | 'BAD_REQUEST' | 'INTERNAL_ERROR'
-    message: string
-    requestId: string
-  }
-}
-
-function createRequestId(): string {
-  return `costs_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
-}
-
-function errorResponse(
-  status: number,
-  code: ErrorBody['error']['code'],
-  message: string,
-  requestId: string
-) {
-  return NextResponse.json<ErrorBody>(
-    { success: false, error: { code, message, requestId } },
-    { status }
-  )
-}
 
 function rangeToSinceIso(range: string): string {
   const now = Date.now()
@@ -69,7 +46,7 @@ interface PerfRow {
 }
 
 export async function GET(request: NextRequest) {
-  const requestId = createRequestId()
+  const requestId = createRequestId('costs')
 
   try {
     const supabase = await createClient()
